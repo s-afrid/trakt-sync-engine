@@ -125,7 +125,7 @@ export class LetterboxdClient {
    */
   static async fetchUserProfile(
     username: string
-  ): Promise<{ username: string; displayName?: string }> {
+  ): Promise<{ username: string; displayName?: string; avatar?: string }> {
     const cleanUsername = username.trim().toLowerCase();
     try {
       const url = `https://letterboxd.com/${cleanUsername}/rss/`;

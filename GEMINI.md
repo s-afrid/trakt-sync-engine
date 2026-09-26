@@ -5,3 +5,4 @@
 - The assistant is authorized to execute development terminal commands (e.g., package installation, build, lint, dev server, git operations, file manipulations) directly without seeking manual confirmation for routine actions.
 - Proactively perform required code changes and tests to fulfill user tasks efficiently.
 - Don't run the server
+- Don't run typecheck

@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   let traktUser: { username: string; name?: string; avatar?: string } | null = null;
   let malUser: { id: number; name: string; picture?: string } | null = null;
-  let letterboxdUser: { username: string; displayName?: string } | null = null;
+  let letterboxdUser: { username: string; displayName?: string; avatar?: string } | null = null;
 
   try {
     if (traktUserCookie) traktUser = JSON.parse(traktUserCookie);
@@ -67,6 +67,21 @@ export async function GET(request: NextRequest) {
           };
         }
       }
+
+      if (letterboxdUsername && (!letterboxdUser || !letterboxdUser.avatar)) {
+        const lbAcc = await db
+          .select()
+          .from(linkedAccounts)
+          .where(eq(linkedAccounts.provider, "letterboxd"))
+          .limit(1);
+        if (lbAcc.length > 0 && lbAcc[0].avatarUrl) {
+          letterboxdUser = {
+            username: letterboxdUsername,
+            displayName: letterboxdUser?.displayName,
+            avatar: lbAcc[0].avatarUrl,
+          };
+        }
+      }
     } catch (dbErr) {
       console.warn("DB profile lookup skipped:", dbErr);
     }
@@ -104,9 +119,13 @@ export async function GET(request: NextRequest) {
   // Hydrate Letterboxd display name if missing
   if (letterboxdUsername && (!letterboxdUser || !letterboxdUser.displayName)) {
     try {
+      const existingAvatar = letterboxdUser?.avatar;
       letterboxdUser = await LetterboxdClient.fetchUserProfile(letterboxdUsername);
+      if (existingAvatar) {
+        letterboxdUser.avatar = existingAvatar;
+      }
     } catch {
-      letterboxdUser = { username: letterboxdUsername };
+      letterboxdUser = { username: letterboxdUsername, avatar: letterboxdUser?.avatar };
     }
   }
 

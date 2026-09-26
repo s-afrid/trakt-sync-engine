@@ -63,6 +63,7 @@ export default function Dashboard() {
 
   // Letterboxd input
   const [lbUsername, setLbUsername] = useState<string>("");
+  const [lbAvatarUrl, setLbAvatarUrl] = useState<string>("");
   const [lbSaving, setLbSaving] = useState<boolean>(false);
   const [showLbInput, setShowLbInput] = useState<boolean>(false);
 
@@ -79,6 +80,9 @@ export default function Dashboard() {
         setStatus(data);
         if (data.profiles?.letterboxd?.username) {
           setLbUsername(data.profiles.letterboxd.username);
+        }
+        if (data.profiles?.letterboxd?.avatar) {
+          setLbAvatarUrl(data.profiles.letterboxd.avatar);
         }
         if (data.profiles?.trakt?.username) {
           setTraktUsernameInput(data.profiles.trakt.username);
@@ -110,7 +114,10 @@ export default function Dashboard() {
       const res = await fetch("/api/auth/letterboxd/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: lbUsername }),
+        body: JSON.stringify({
+          username: lbUsername,
+          avatarUrl: lbAvatarUrl,
+        }),
       });
       if (res.ok) {
         await fetchStatus();
@@ -279,9 +286,19 @@ export default function Dashboard() {
                   <div className="relative shrink-0">
                     {status.profiles.trakt.avatar ? (
                       <img
-                        src={status.profiles.trakt.avatar}
+                        src={`/api/proxy/image?url=${encodeURIComponent(status.profiles.trakt.avatar)}`}
                         alt={status.profiles.trakt.username}
+                        referrerPolicy="no-referrer"
                         className="h-12 w-12 rounded-full border-2 border-red-500/60 object-cover shadow-md"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (!target.dataset.fallback) {
+                            target.dataset.fallback = "true";
+                            target.src = status.profiles.trakt!.avatar!;
+                          } else {
+                            target.style.display = "none";
+                          }
+                        }}
                       />
                     ) : (
                       <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-red-600 to-red-800 text-white font-bold flex items-center justify-center border-2 border-red-500/50 shadow-md">
@@ -409,9 +426,19 @@ export default function Dashboard() {
                   <div className="relative shrink-0">
                     {status.profiles.mal.picture ? (
                       <img
-                        src={status.profiles.mal.picture}
+                        src={`/api/proxy/image?url=${encodeURIComponent(status.profiles.mal.picture)}`}
                         alt={status.profiles.mal.name}
+                        referrerPolicy="no-referrer"
                         className="h-12 w-12 rounded-full border-2 border-blue-500/60 object-cover shadow-md"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (!target.dataset.fallback) {
+                            target.dataset.fallback = "true";
+                            target.src = status.profiles.mal!.picture!;
+                          } else {
+                            target.style.display = "none";
+                          }
+                        }}
                       />
                     ) : (
                       <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-blue-700 to-indigo-800 text-white font-bold flex items-center justify-center border-2 border-blue-500/50 shadow-md">
@@ -496,9 +523,19 @@ export default function Dashboard() {
                   <div className="relative shrink-0">
                     {status.profiles.letterboxd.avatar ? (
                       <img
-                        src={status.profiles.letterboxd.avatar}
+                        src={`/api/proxy/image?url=${encodeURIComponent(status.profiles.letterboxd.avatar)}`}
                         alt={status.profiles.letterboxd.username}
+                        referrerPolicy="no-referrer"
                         className="h-12 w-12 rounded-full border-2 border-emerald-500/60 object-cover shadow-md"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (!target.dataset.fallback) {
+                            target.dataset.fallback = "true";
+                            target.src = status.profiles.letterboxd!.avatar!;
+                          } else {
+                            target.style.display = "none";
+                          }
+                        }}
                       />
                     ) : (
                       <div className="h-12 w-12 rounded-full p-[2px] bg-gradient-to-tr from-[#FF8000] via-[#00E054] to-[#40BCF4] shadow-md flex items-center justify-center">
@@ -550,6 +587,40 @@ export default function Dashboard() {
                       className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     />
                   </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-medium text-slate-400">
+                        Profile Photo URL (optional)
+                      </label>
+                      <div className="flex items-center gap-2 text-[10px]">
+                        {status?.profiles?.trakt?.avatar && (
+                          <button
+                            type="button"
+                            onClick={() => setLbAvatarUrl(status.profiles.trakt!.avatar!)}
+                            className="text-red-400 hover:text-red-300 underline"
+                          >
+                            Use Trakt Photo
+                          </button>
+                        )}
+                        {status?.profiles?.mal?.picture && (
+                          <button
+                            type="button"
+                            onClick={() => setLbAvatarUrl(status.profiles.mal!.picture!)}
+                            className="text-blue-400 hover:text-blue-300 underline"
+                          >
+                            Use MAL Photo
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="https://... (or right click avatar -> Copy Image Link)"
+                      value={lbAvatarUrl}
+                      onChange={(e) => setLbAvatarUrl(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                  </div>
                   <div className="flex gap-2">
                     <button
                       type="submit"
@@ -579,11 +650,12 @@ export default function Dashboard() {
                     type="button"
                     onClick={() => {
                       setLbUsername(status.profiles.letterboxd?.username || "");
+                      setLbAvatarUrl(status.profiles.letterboxd?.avatar || "");
                       setShowLbInput(!showLbInput);
                     }}
                     className="text-slate-400 hover:text-slate-200 transition-colors"
                   >
-                    {showLbInput ? "Close Edit" : "Change Username"}
+                    {showLbInput ? "Close Edit" : "Change Username / Photo"}
                   </button>
                   <span className="text-[11px] text-slate-500">1-Click CSV Ready</span>
                 </div>

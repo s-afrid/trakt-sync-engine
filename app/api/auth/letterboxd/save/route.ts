@@ -6,7 +6,7 @@ import { eq, and } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   try {
-    const { username } = await request.json();
+    const { username, avatarUrl } = await request.json();
 
     if (!username || typeof username !== "string" || !username.trim()) {
       return NextResponse.json(
@@ -16,6 +16,9 @@ export async function POST(request: NextRequest) {
     }
 
     const cleanUsername = username.trim().toLowerCase();
+    const cleanAvatar = avatarUrl && typeof avatarUrl === "string" && avatarUrl.trim().startsWith("http")
+      ? avatarUrl.trim()
+      : null;
 
     // Verify user profile / RSS feed works
     try {
@@ -51,6 +54,7 @@ export async function POST(request: NextRequest) {
             .update(linkedAccounts)
             .set({
               providerUsername: cleanUsername,
+              avatarUrl: cleanAvatar !== null ? cleanAvatar : existing[0].avatarUrl,
               updatedAt: new Date(),
             })
             .where(eq(linkedAccounts.id, existing[0].id));
@@ -60,6 +64,7 @@ export async function POST(request: NextRequest) {
             userId,
             provider: "letterboxd",
             providerUsername: cleanUsername,
+            avatarUrl: cleanAvatar,
           });
         }
       } catch (dbErr) {
@@ -67,12 +72,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const lbProfile = await LetterboxdClient.fetchUserProfile(cleanUsername);
+    const lbProfile: { username: string; displayName?: string; avatar?: string } =
+      await LetterboxdClient.fetchUserProfile(cleanUsername);
+
+    if (cleanAvatar) {
+      lbProfile.avatar = cleanAvatar;
+    }
 
     const response = NextResponse.json({
       success: true,
       username: cleanUsername,
       displayName: lbProfile.displayName,
+      avatar: lbProfile.avatar,
     });
 
     response.cookies.set("letterboxd_username", cleanUsername, {
