@@ -96,15 +96,12 @@ with sync_playwright() as p:
         pass_input = page.locator("input#field-password, input[name='password']").first
         if pass_input.is_visible():
             pass_input.fill(password)
-        submit_btn = page.locator("input[type='submit'], button[type='submit'], .button.-action").first
-        if submit_btn.is_visible():
-            submit_btn.click()
-            print("🚀 Auto-submitted Letterboxd login credentials...")
+        print("✅ Pre-filled username and password in the browser window.")
     except Exception as e:
         print(f"Notice: Form auto-fill skipped: {e}")
 
-    print("\n👉 Look at the open browser window: solve any captcha and complete login if needed...")
-    print("⏳ Waiting for successful login confirmation (up to 5 minutes)...")
+    print("\n👉 Please click the green 'Sign In' button (or solve any captcha) in the open browser window...")
+    print("⏳ Waiting for login confirmation (up to 5 minutes)...")
 
     start_wait = time.time()
     logged_in = False
