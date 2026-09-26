@@ -64,6 +64,11 @@ export default function Dashboard() {
   const [lbUsername, setLbUsername] = useState<string>("");
   const [lbSaving, setLbSaving] = useState<boolean>(false);
 
+  // Trakt direct username input
+  const [traktUsernameInput, setTraktUsernameInput] = useState<string>("");
+  const [traktSaving, setTraktSaving] = useState<boolean>(false);
+  const [showTraktInput, setShowTraktInput] = useState<boolean>(false);
+
   const fetchStatus = async () => {
     try {
       const res = await fetch("/api/sync/status");
@@ -112,6 +117,31 @@ export default function Dashboard() {
       setErrorMsg(err instanceof Error ? err.message : String(err));
     } finally {
       setLbSaving(false);
+    }
+  };
+
+  const handleSaveTraktUsername = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!traktUsernameInput.trim()) return;
+
+    setTraktSaving(true);
+    try {
+      const res = await fetch("/api/auth/trakt/username", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: traktUsernameInput }),
+      });
+      if (res.ok) {
+        await fetchStatus();
+        setShowTraktInput(false);
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || "Failed to save Trakt username");
+      }
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : String(err));
+    } finally {
+      setTraktSaving(false);
     }
   };
 
@@ -265,22 +295,70 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="pt-6">
+            <div className="pt-6 space-y-3">
               {!status?.connected?.trakt ? (
-                <a
-                  href="/api/auth/trakt/authorize"
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors"
-                >
-                  Connect Trakt
-                  <ArrowRight className="h-4 w-4" />
-                </a>
+                <>
+                  {!showTraktInput ? (
+                    <>
+                      <a
+                        href="/api/auth/trakt/authorize"
+                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors"
+                      >
+                        Connect with OAuth
+                        <ArrowRight className="h-4 w-4" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setShowTraktInput(true)}
+                        className="w-full text-center text-xs text-slate-400 hover:text-slate-200 transition-colors py-1"
+                      >
+                        Or connect via Username (Keeps cinejoy connected)
+                      </button>
+                    </>
+                  ) : (
+                    <form onSubmit={handleSaveTraktUsername} className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Enter Trakt username"
+                        value={traktUsernameInput}
+                        onChange={(e) => setTraktUsernameInput(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="submit"
+                          disabled={traktSaving || !traktUsernameInput.trim()}
+                          className="flex-1 py-1.5 px-3 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-500 text-white transition-colors"
+                        >
+                          {traktSaving ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowTraktInput(false)}
+                          className="py-1.5 px-3 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </>
               ) : (
-                <a
-                  href="/api/auth/trakt/authorize"
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-                >
-                  Reconnect
-                </a>
+                <div className="flex gap-2">
+                  <a
+                    href="/api/auth/trakt/authorize"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                  >
+                    OAuth
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setShowTraktInput(true)}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                  >
+                    Change User
+                  </button>
+                </div>
               )}
             </div>
           </div>

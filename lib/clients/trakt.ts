@@ -85,11 +85,13 @@ export class TraktClient {
   private clientId: string;
   private clientSecret: string;
   private accessToken?: string;
+  private username?: string;
 
-  constructor(accessToken?: string) {
+  constructor(accessToken?: string, username?: string) {
     this.clientId = process.env.TRAKT_CLIENT_ID || "";
     this.clientSecret = process.env.TRAKT_CLIENT_SECRET || "";
     this.accessToken = accessToken;
+    this.username = username;
   }
 
   private getHeaders(): Record<string, string> {
@@ -164,7 +166,11 @@ export class TraktClient {
   }
 
   async getCurrentUser(): Promise<TraktUser> {
-    const res = await fetch("https://api.trakt.tv/users/me?extended=full", {
+    const endpoint = this.accessToken
+      ? "https://api.trakt.tv/users/me?extended=full"
+      : `https://api.trakt.tv/users/${this.username}?extended=full`;
+
+    const res = await fetch(endpoint, {
       headers: this.getHeaders(),
     });
     if (!res.ok) {
@@ -174,7 +180,11 @@ export class TraktClient {
   }
 
   async getWatchedMovies(): Promise<TraktMovieWatched[]> {
-    const res = await fetch("https://api.trakt.tv/sync/watched/movies?extended=full", {
+    const endpoint = this.accessToken
+      ? "https://api.trakt.tv/sync/watched/movies?extended=full"
+      : `https://api.trakt.tv/users/${this.username}/watched/movies?extended=full`;
+
+    const res = await fetch(endpoint, {
       headers: this.getHeaders(),
     });
     if (!res.ok) {
@@ -184,24 +194,25 @@ export class TraktClient {
   }
 
   async getWatchedShows(): Promise<TraktShowWatched[]> {
-    const res = await fetch("https://api.trakt.tv/sync/watched/shows?extended=full,noseasons", {
+    const endpoint = this.accessToken
+      ? "https://api.trakt.tv/sync/watched/shows?extended=full"
+      : `https://api.trakt.tv/users/${this.username}/watched/shows?extended=full`;
+
+    const res = await fetch(endpoint, {
       headers: this.getHeaders(),
     });
     if (!res.ok) {
-      // noseasons may not return seasons breakdown, let's request with seasons
-      const fullRes = await fetch("https://api.trakt.tv/sync/watched/shows?extended=full", {
-        headers: this.getHeaders(),
-      });
-      if (!fullRes.ok) {
-        throw new Error(`Failed to fetch watched shows: ${fullRes.statusText}`);
-      }
-      return fullRes.json();
+      throw new Error(`Failed to fetch watched shows: ${res.statusText}`);
     }
     return res.json();
   }
 
   async getMovieRatings(): Promise<TraktRatingItem[]> {
-    const res = await fetch("https://api.trakt.tv/sync/ratings/movies", {
+    const endpoint = this.accessToken
+      ? "https://api.trakt.tv/sync/ratings/movies"
+      : `https://api.trakt.tv/users/${this.username}/ratings/movies`;
+
+    const res = await fetch(endpoint, {
       headers: this.getHeaders(),
     });
     if (!res.ok) return [];
@@ -209,12 +220,17 @@ export class TraktClient {
   }
 
   async getShowRatings(): Promise<TraktRatingItem[]> {
-    const res = await fetch("https://api.trakt.tv/sync/ratings/shows", {
+    const endpoint = this.accessToken
+      ? "https://api.trakt.tv/sync/ratings/shows"
+      : `https://api.trakt.tv/users/${this.username}/ratings/shows`;
+
+    const res = await fetch(endpoint, {
       headers: this.getHeaders(),
     });
     if (!res.ok) return [];
     return res.json();
   }
+
 
   async addToHistory(payload: {
     movies?: { ids: { trakt?: number; tmdb?: number; imdb?: string }; watched_at?: string }[];

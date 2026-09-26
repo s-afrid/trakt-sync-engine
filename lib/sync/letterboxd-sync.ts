@@ -12,8 +12,8 @@ export interface LetterboxdSyncResult {
 export class LetterboxdSyncService {
   private traktClient: TraktClient;
 
-  constructor(traktAccessToken: string) {
-    this.traktClient = new TraktClient(traktAccessToken);
+  constructor(traktAccessToken?: string, traktUsername?: string) {
+    this.traktClient = new TraktClient(traktAccessToken, traktUsername);
   }
 
   /**

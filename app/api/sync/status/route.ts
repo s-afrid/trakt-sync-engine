@@ -6,6 +6,7 @@ import { desc, eq } from "drizzle-orm";
 export async function GET(request: NextRequest) {
   // Check cookies
   const traktToken = request.cookies.get("trakt_token")?.value;
+  const traktUsername = request.cookies.get("trakt_username")?.value;
   const malToken = request.cookies.get("mal_token")?.value;
   const traktUserCookie = request.cookies.get("trakt_user")?.value;
   const malUserCookie = request.cookies.get("mal_user")?.value;
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     connected: {
-      trakt: !!traktToken,
+      trakt: !!traktToken || !!traktUsername,
       mal: !!malToken,
       letterboxd: !!letterboxdUsername,
     },

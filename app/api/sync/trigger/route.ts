@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 export async function POST(request: NextRequest) {
   try {
     let traktToken = request.cookies.get("trakt_token")?.value;
+    let traktUsername = request.cookies.get("trakt_username")?.value;
     let malToken = request.cookies.get("mal_token")?.value;
     let letterboxdUsername = request.cookies.get("letterboxd_username")?.value;
 
@@ -15,8 +16,9 @@ export async function POST(request: NextRequest) {
     if (db && (!traktToken || !malToken || !letterboxdUsername)) {
       const accounts = await db.select().from(linkedAccounts);
       for (const acc of accounts) {
-        if (acc.provider === "trakt" && !traktToken && acc.accessToken) {
-          traktToken = acc.accessToken;
+        if (acc.provider === "trakt") {
+          if (!traktToken && acc.accessToken) traktToken = acc.accessToken;
+          if (!traktUsername && acc.providerUsername) traktUsername = acc.providerUsername;
         }
         if (acc.provider === "myanimelist" && !malToken && acc.accessToken) {
           malToken = acc.accessToken;
@@ -27,7 +29,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!traktToken) {
+    if (!traktToken && !traktUsername) {
       return NextResponse.json(
         { error: "Trakt account is not connected. Please connect Trakt first." },
         { status: 400 }
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // 1. Sync Trakt to MyAnimeList
     if (malToken) {
-      const animeSync = new AnimeSyncService(traktToken, malToken);
+      const animeSync = new AnimeSyncService(traktToken, malToken, traktUsername);
       results.anime = await animeSync.syncTraktToMal({
         syncRatings: true,
         batchLimit: 50,

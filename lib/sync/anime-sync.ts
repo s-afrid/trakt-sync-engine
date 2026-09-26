@@ -15,8 +15,8 @@ export class AnimeSyncService {
   private traktClient: TraktClient;
   private malClient: MalClient;
 
-  constructor(traktAccessToken: string, malAccessToken: string) {
-    this.traktClient = new TraktClient(traktAccessToken);
+  constructor(traktAccessToken?: string, malAccessToken?: string, traktUsername?: string) {
+    this.traktClient = new TraktClient(traktAccessToken, traktUsername);
     this.malClient = new MalClient(malAccessToken);
   }
 

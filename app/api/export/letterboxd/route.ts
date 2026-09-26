@@ -9,22 +9,24 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const type = searchParams.get("type") || "watched"; // 'watched' | 'ratings'
 
-  // Retrieve Trakt token from cookie or DB
+  // Retrieve Trakt token or username from cookie or DB
   let traktToken = request.cookies.get("trakt_token")?.value;
+  let traktUsername = request.cookies.get("trakt_username")?.value;
 
-  if (!traktToken && db) {
+  if (!traktToken && !traktUsername && db) {
     const traktAccount = await db
       .select()
       .from(linkedAccounts)
       .where(eq(linkedAccounts.provider, "trakt"))
       .limit(1);
 
-    if (traktAccount.length > 0 && traktAccount[0].accessToken) {
-      traktToken = traktAccount[0].accessToken;
+    if (traktAccount.length > 0) {
+      traktToken = traktAccount[0].accessToken || undefined;
+      traktUsername = traktAccount[0].providerUsername;
     }
   }
 
-  if (!traktToken) {
+  if (!traktToken && !traktUsername) {
     return NextResponse.json(
       { error: "Trakt account is not connected. Please connect Trakt first." },
       { status: 401 }
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const traktClient = new TraktClient(traktToken);
+    const traktClient = new TraktClient(traktToken, traktUsername);
 
     if (type === "ratings") {
       const ratings = await traktClient.getMovieRatings();
