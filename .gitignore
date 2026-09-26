@@ -18,9 +18,13 @@ dist
 .DS_Store
 *.pem
 
-# Local env files
-.env*.local
+# Environment variables & secrets
 .env
+.env.local
+.env.development
+.env.test
+.env.production
+.env*.local
 
 # Vercel
 .vercel
