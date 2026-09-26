@@ -291,11 +291,17 @@ def automate_letterboxd_upload(
                 pass
 
         context = browser.new_context(**context_kwargs)
+        # Remove automation flag to bypass Cloudflare bot detection
+        context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         page = context.new_page()
 
         # Step 1. Check Authentication
         print("🔐 Checking Letterboxd authentication state...")
-        page.goto("https://letterboxd.com/import/", wait_until="domcontentloaded")
+        page.goto("https://letterboxd.com/import/", wait_until="commit", timeout=60000)
+        try:
+            page.wait_for_load_state("domcontentloaded", timeout=45000)
+        except Exception:
+            pass
         time.sleep(2)
 
         # Check for Cloudflare / Turnstile barrier
@@ -306,7 +312,7 @@ def automate_letterboxd_upload(
                 try:
                     page.wait_for_selector("input#field-username, input[name='username'], input[type='file'], .nav-account", timeout=15000)
                 except PlaywrightTimeoutError:
-                    raise Exception("Letterboxd presented a Cloudflare Turnstile challenge to this cloud IP. (Tip: Use 1-Click 'Watched CSV' on dashboard or provide LETTERBOXD_SESSION_JSON)")
+                    raise Exception("Letterboxd presented a Cloudflare Turnstile challenge to this cloud IP. (Tip: Run 'npm run import:letterboxd' once without --headless to save session)")
             else:
                 print("⚠️ Cloudflare challenge detected! Please solve the captcha in the open browser window...")
                 page.wait_for_selector("input#field-username, input[name='username'], input[type='file'], .nav-account", timeout=90000)
@@ -315,7 +321,11 @@ def automate_letterboxd_upload(
         if "sign-in" in page.url.lower() or page.locator(".nav-account, .profile-avatar, a.avatar").count() == 0:
             print(f"🔑 Logging into Letterboxd account: {username}...")
             if "sign-in" not in page.url.lower():
-                page.goto("https://letterboxd.com/sign-in/", wait_until="domcontentloaded")
+                page.goto("https://letterboxd.com/sign-in/", wait_until="commit", timeout=60000)
+                try:
+                    page.wait_for_load_state("domcontentloaded", timeout=45000)
+                except Exception:
+                    pass
                 time.sleep(1.5)
 
             # Dismiss cookie consent if visible
@@ -365,7 +375,11 @@ def automate_letterboxd_upload(
             except Exception:
                 pass
 
-            page.goto("https://letterboxd.com/import/", wait_until="domcontentloaded")
+            page.goto("https://letterboxd.com/import/", wait_until="commit", timeout=60000)
+            try:
+                page.wait_for_load_state("domcontentloaded", timeout=45000)
+            except Exception:
+                pass
             time.sleep(2)
         else:
             print("🎉 Already authenticated via saved session!")
