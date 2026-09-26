@@ -56,19 +56,12 @@ print(f"Account: {username}")
 print("Opening visible browser to generate authenticated cloud session...")
 
 with sync_playwright() as p:
-    browser = p.chromium.launch(
-        headless=False,
-        args=[
-            "--disable-blink-features=AutomationControlled",
-            "--no-sandbox",
-        ],
-    )
-    context = browser.new_context(
-        viewport={"width": 1280, "height": 850},
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
-    )
-    context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    try:
+        browser = p.chromium.launch(headless=False, channel="chrome")
+    except Exception:
+        browser = p.chromium.launch(headless=False)
 
+    context = browser.new_context(viewport={"width": 1280, "height": 850})
     page = context.new_page()
     page.goto("https://letterboxd.com/sign-in/", wait_until="commit", timeout=60000)
     time.sleep(2)
