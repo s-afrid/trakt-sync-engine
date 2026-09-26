@@ -16,6 +16,7 @@ import {
   Database,
   Calendar,
 } from "lucide-react";
+import { TraktLogo, MalLogo, LetterboxdLogo } from "@/components/icons";
 
 interface SyncStatus {
   connected: {
@@ -250,7 +251,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="h-8 w-8 rounded-lg bg-red-600/10 flex items-center justify-center border border-red-500/20">
-                    <Film className="h-4 w-4 text-red-500" />
+                    <TraktLogo size={18} className="text-[#ED1C24]" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-white">Trakt.tv</h3>
@@ -368,8 +369,8 @@ export default function Dashboard() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-indigo-600/10 flex items-center justify-center border border-indigo-500/20">
-                    <Tv className="h-4 w-4 text-indigo-400" />
+                  <div className="h-8 w-8 rounded-lg bg-blue-600/10 flex items-center justify-center border border-blue-500/20">
+                    <MalLogo size={18} className="text-[#2E51A2]" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-white">MyAnimeList</h3>
@@ -440,7 +441,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="h-8 w-8 rounded-lg bg-emerald-600/10 flex items-center justify-center border border-emerald-500/20">
-                    <Layers className="h-4 w-4 text-emerald-400" />
+                    <LetterboxdLogo size={20} />
                   </div>
                   <div>
                     <h3 className="font-semibold text-white">Letterboxd</h3>
@@ -494,7 +495,7 @@ export default function Dashboard() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-emerald-400" />
+                <LetterboxdLogo size={22} />
                 <h2 className="text-lg font-semibold text-white">
                   Letterboxd 1-Click Import Tool
                 </h2>
