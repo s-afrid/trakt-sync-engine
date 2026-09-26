@@ -82,6 +82,12 @@ with sync_playwright() as p:
     except Exception:
         pass
 
+    # Wait for either login form or already authenticated account
+    try:
+        page.wait_for_selector("input#field-username, input[name='username'], .nav-account, .profile-avatar", timeout=45000)
+    except Exception:
+        pass
+
     # Fill username and password if inputs visible
     try:
         user_input = page.locator("input#field-username, input[name='username']").first
@@ -93,22 +99,23 @@ with sync_playwright() as p:
         submit_btn = page.locator("input[type='submit'], button[type='submit'], .button.-action").first
         if submit_btn.is_visible():
             submit_btn.click()
+            print("🚀 Auto-submitted Letterboxd login credentials...")
     except Exception as e:
         print(f"Notice: Form auto-fill skipped: {e}")
 
-    print("\n👉 Please finish logging into Letterboxd in the browser window if prompted...")
-    print("⏳ Waiting for successful login confirmation...")
+    print("\n👉 Look at the open browser window: solve any captcha and complete login if needed...")
+    print("⏳ Waiting for successful login confirmation (up to 5 minutes)...")
 
     start_wait = time.time()
     logged_in = False
-    while time.time() - start_wait < 120:
+    while time.time() - start_wait < 300:
         if "sign-in" not in page.url.lower() and page.locator(".nav-account, .profile-avatar, a.avatar").count() > 0:
             logged_in = True
             break
         time.sleep(1)
 
     if not logged_in:
-        print("❌ Login wait timed out after 2 minutes.")
+        print("❌ Login wait timed out after 5 minutes.")
         browser.close()
         sys.exit(1)
 
