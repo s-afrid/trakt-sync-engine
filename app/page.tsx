@@ -803,6 +803,16 @@ export default function Dashboard() {
                 </button>
               </div>
 
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 text-xs text-slate-300 flex items-start gap-2.5">
+                <Terminal className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-slate-200">Local Daemon vs Cloud Web</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Browser automation (Playwright) runs on your local desktop to control your browser via <code className="text-emerald-400">npm run schedule:letterboxd</code>. If you are using this deployed website in the cloud, download your CSV using the <strong>Watched CSV</strong> button above!
+                  </p>
+                </div>
+              </div>
+
               {autoImportMessage && (
                 <div className="p-3 rounded-lg bg-emerald-950/60 border border-emerald-800/80 text-emerald-200 text-xs flex items-start gap-2">
                   <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />

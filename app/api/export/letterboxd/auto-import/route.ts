@@ -6,6 +6,7 @@ import { linkedAccounts } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import path from "path";
 import fs from "fs";
+import os from "os";
 import { spawn } from "child_process";
 
 export async function POST(request: NextRequest) {
@@ -84,10 +85,28 @@ export async function POST(request: NextRequest) {
       itemCount = watched.length;
     }
 
-    // Save CSV to project root
-    const cwd = process.cwd();
+    // In Vercel or cloud serverless environments, the container has a read-only filesystem
+    // and cannot launch desktop Chromium/Playwright browsers on the user's machine.
+    if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      return NextResponse.json(
+        {
+          error:
+            "Playwright browser automation runs locally on your computer to control your desktop browser. On this cloud deployment, click 'Watched CSV' above to download your import file with 1 click, or run 'npm run schedule:letterboxd' on your computer for hands-free background sync.",
+          isServerless: true,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Save CSV to safe writable directory
+    let targetDir = cwd;
+    try {
+      fs.accessSync(targetDir, fs.constants.W_OK);
+    } catch {
+      targetDir = os.tmpdir();
+    }
     const csvFileName = `letterboxd_${type}_import.csv`;
-    const csvFilePath = path.join(cwd, csvFileName);
+    const csvFilePath = path.join(targetDir, csvFileName);
     fs.writeFileSync(csvFilePath, csvData, "utf-8");
 
     // Locate Python executable
