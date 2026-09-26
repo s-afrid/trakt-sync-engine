@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: "Trakt Sync Engine | Sync Trakt, Letterboxd & MyAnimeList",
   description:
     "Unified sync engine bridging your watch history across Trakt.tv, Letterboxd, and MyAnimeList. Built for Vercel Serverless.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

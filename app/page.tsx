@@ -15,6 +15,11 @@ import {
   ArrowRight,
   Database,
   Calendar,
+  Bot,
+  Lock,
+  Play,
+  X,
+  Terminal,
 } from "lucide-react";
 import { TraktLogo, MalLogo, LetterboxdLogo } from "@/components/icons";
 
@@ -71,6 +76,15 @@ export default function Dashboard() {
   const [traktUsernameInput, setTraktUsernameInput] = useState<string>("");
   const [traktSaving, setTraktSaving] = useState<boolean>(false);
   const [showTraktInput, setShowTraktInput] = useState<boolean>(false);
+
+  // Playwright automated import state
+  const [showAutoImportModal, setShowAutoImportModal] = useState<boolean>(false);
+  const [autoImportType, setAutoImportType] = useState<"watched" | "ratings">("watched");
+  const [autoImportPassword, setAutoImportPassword] = useState<string>("");
+  const [autoImportAutoConfirm, setAutoImportAutoConfirm] = useState<boolean>(false);
+  const [autoImportLoading, setAutoImportLoading] = useState<boolean>(false);
+  const [autoImportMessage, setAutoImportMessage] = useState<string | null>(null);
+  const [autoImportError, setAutoImportError] = useState<string | null>(null);
 
   const fetchStatus = async () => {
     try {
@@ -176,6 +190,37 @@ export default function Dashboard() {
       setErrorMsg(err instanceof Error ? err.message : String(err));
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleTriggerAutoImport = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setAutoImportLoading(true);
+    setAutoImportError(null);
+    setAutoImportMessage(null);
+
+    try {
+      const res = await fetch("/api/export/letterboxd/auto-import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: autoImportType,
+          username: lbUsername || status?.profiles?.letterboxd?.username,
+          password: autoImportPassword,
+          autoConfirm: autoImportAutoConfirm,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setAutoImportError(data.error || "Failed to start automation");
+      } else {
+        setAutoImportMessage(data.message || "Browser automation started successfully!");
+      }
+    } catch (err: unknown) {
+      setAutoImportError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAutoImportLoading(false);
     }
   };
 
@@ -668,8 +713,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Letterboxd 1-Click CSV Export Deck */}
-        <div className="p-6 rounded-2xl bg-gradient-to-br from-[#0B0F19] to-[#0d1424] border border-slate-800/80">
+        {/* Letterboxd 1-Click CSV Export & Playwright Automation Deck */}
+        <div className="p-6 rounded-2xl bg-gradient-to-br from-[#0B0F19] to-[#0d1424] border border-slate-800/80 space-y-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
@@ -677,20 +722,36 @@ export default function Dashboard() {
                 <h2 className="text-lg font-semibold text-white">
                   Letterboxd 1-Click Import Tool
                 </h2>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
+                  <Bot className="h-3 w-3" />
+                  Playwright Enabled
+                </span>
               </div>
               <p className="text-sm text-slate-400 mt-1 max-w-2xl">
-                Because Letterboxd lacks a public open-write API, this engine formats your entire Trakt movie history into standard Letterboxd import CSV files (with verified TMDB & IMDb IDs).
+                Because Letterboxd lacks a public open-write API, this engine formats your entire Trakt movie history into standard Letterboxd import CSV files (with verified TMDB & IMDb IDs) and can automate the browser upload via Playwright.
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAutoImportModal(!showAutoImportModal);
+                  setAutoImportError(null);
+                  setAutoImportMessage(null);
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-teal-500 text-white transition-all shadow-lg shadow-emerald-950/50"
+              >
+                <Bot className="h-4 w-4" />
+                {showAutoImportModal ? "Close Automation" : "Auto-Upload (Playwright)"}
+              </button>
               <a
                 href="/api/export/letterboxd?type=watched"
                 download
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-lg shadow-emerald-950/50"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
               >
                 <Download className="h-4 w-4" />
-                Download Watched CSV
+                Watched CSV
               </a>
               <a
                 href="/api/export/letterboxd?type=ratings"
@@ -698,7 +759,7 @@ export default function Dashboard() {
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
               >
                 <Download className="h-4 w-4" />
-                Download Ratings CSV
+                Ratings CSV
               </a>
               <a
                 href="https://letterboxd.com/import/"
@@ -706,11 +767,152 @@ export default function Dashboard() {
                 rel="noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
               >
-                Open Letterboxd Importer
+                Open Importer
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </div>
           </div>
+
+          {/* Playwright Automation Interactive Drawer */}
+          {showAutoImportModal && (
+            <div className="p-5 rounded-xl bg-slate-900/90 border border-emerald-900/40 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-800/50">
+                    <Bot className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">
+                      Automated Browser Import (Playwright)
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Launches a visible Chromium browser to log in, transfer the CSV, and resolve matching titles.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAutoImportModal(false)}
+                  className="text-slate-400 hover:text-slate-200 p-1"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {autoImportMessage && (
+                <div className="p-3 rounded-lg bg-emerald-950/60 border border-emerald-800/80 text-emerald-200 text-xs flex items-start gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">Automation Initiated</p>
+                    <p className="text-emerald-300/90 mt-0.5">{autoImportMessage}</p>
+                  </div>
+                </div>
+              )}
+
+              {autoImportError && (
+                <div className="p-3 rounded-lg bg-red-950/60 border border-red-800/80 text-red-200 text-xs flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">Automation Error</p>
+                    <p className="text-red-300/90 mt-0.5">{autoImportError}</p>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleTriggerAutoImport} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* CSV Export Type */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Data to Import
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAutoImportType("watched")}
+                        className={`px-3 py-2 rounded-xl text-xs font-medium text-left border transition-all ${
+                          autoImportType === "watched"
+                            ? "bg-emerald-950/60 border-emerald-500 text-white shadow-sm shadow-emerald-900/40"
+                            : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700"
+                        }`}
+                      >
+                        <p className="font-semibold">Watched Movies</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">Watch dates + IDs</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAutoImportType("ratings")}
+                        className={`px-3 py-2 rounded-xl text-xs font-medium text-left border transition-all ${
+                          autoImportType === "ratings"
+                            ? "bg-emerald-950/60 border-emerald-500 text-white shadow-sm shadow-emerald-900/40"
+                            : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700"
+                        }`}
+                      >
+                        <p className="font-semibold">Movie Ratings</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">0.5 to 5.0 stars</p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Letterboxd Password */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center justify-between">
+                      <span>Letterboxd Password</span>
+                      <span className="text-[10px] text-slate-500">
+                        (or set LETTERBOXD_PASSWORD in .env)
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        placeholder="••••••••••••"
+                        value={autoImportPassword}
+                        onChange={(e) => setAutoImportPassword(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 pr-8"
+                      />
+                      <Lock className="h-3.5 w-3.5 text-slate-500 absolute right-3 top-2.5" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Auto Confirm Checkbox */}
+                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                  <input
+                    type="checkbox"
+                    id="autoConfirm"
+                    checked={autoImportAutoConfirm}
+                    onChange={(e) => setAutoImportAutoConfirm(e.target.checked)}
+                    className="mt-0.5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500"
+                  />
+                  <label htmlFor="autoConfirm" className="text-xs text-slate-300 cursor-pointer">
+                    <span className="font-medium text-white">Auto-click final "Import" button</span>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      When unchecked (recommended), the browser pauses on the match verification screen so you can manually review title matches before saving.
+                    </p>
+                  </label>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                  <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <Terminal className="h-3.5 w-3.5 text-slate-500" />
+                    <span>CLI: </span>
+                    <code className="text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                      npm run import:letterboxd -- --type {autoImportType}
+                    </code>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={autoImportLoading || !status?.connected?.trakt}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50 shadow-md shadow-emerald-950/50"
+                  >
+                    <Play className={`h-3.5 w-3.5 ${autoImportLoading ? "animate-spin" : ""}`} />
+                    {autoImportLoading ? "Launching Browser..." : "Launch Browser & Auto-Import"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
 
         {/* Live Sync Result Panel */}

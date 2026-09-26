@@ -81,6 +81,35 @@ export interface TraktRatingItem {
   };
 }
 
+export interface TraktEpisodeHistoryItem {
+  id: number;
+  watched_at: string;
+  action: string;
+  type: string;
+  episode: {
+    season: number;
+    number: number;
+    title: string;
+    ids: {
+      trakt: number;
+      tvdb?: number;
+      imdb?: string;
+      tmdb?: number;
+    };
+  };
+  show: {
+    title: string;
+    year?: number;
+    ids: {
+      trakt: number;
+      slug: string;
+      tvdb?: number;
+      imdb?: string;
+      tmdb?: number;
+    };
+  };
+}
+
 export class TraktClient {
   private get clientId(): string {
     return (process.env.TRAKT_CLIENT_ID || "").trim();
@@ -185,17 +214,57 @@ export class TraktClient {
   }
 
   async getWatchedMovies(): Promise<TraktMovieWatched[]> {
-    const endpoint = this.accessToken
+    const watchedEndpoint = this.accessToken
       ? "https://api.trakt.tv/sync/watched/movies?extended=full"
       : `https://api.trakt.tv/users/${this.username}/watched/movies?extended=full`;
 
-    const res = await fetch(endpoint, {
-      headers: this.getHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error(`Failed to fetch watched movies: ${res.statusText}`);
+    const historyEndpoint = this.accessToken
+      ? "https://api.trakt.tv/sync/history/movies?limit=100"
+      : `https://api.trakt.tv/users/${this.username}/history/movies?limit=100`;
+
+    const [watchedRes, historyRes] = await Promise.all([
+      fetch(watchedEndpoint, { headers: this.getHeaders() }),
+      fetch(historyEndpoint, { headers: this.getHeaders() }).catch(() => null),
+    ]);
+
+    if (!watchedRes.ok) {
+      throw new Error(`Failed to fetch watched movies: ${watchedRes.statusText}`);
     }
-    return res.json();
+
+    const watched: TraktMovieWatched[] = await watchedRes.json();
+    const history: { watched_at: string; movie: TraktMovieWatched["movie"] }[] =
+      historyRes && historyRes.ok ? await historyRes.json().catch(() => []) : [];
+
+    // Map by trakt ID to merge any recently watched movies not yet indexed in watched table
+    const movieMap = new Map<number, TraktMovieWatched>();
+    for (const w of watched) {
+      if (w.movie?.ids?.trakt) {
+        movieMap.set(w.movie.ids.trakt, w);
+      }
+    }
+
+    for (const h of history) {
+      const traktId = h.movie?.ids?.trakt;
+      if (!traktId) continue;
+
+      const existing = movieMap.get(traktId);
+      if (!existing) {
+        movieMap.set(traktId, {
+          plays: 1,
+          last_watched_at: h.watched_at,
+          last_updated_at: h.watched_at,
+          movie: h.movie,
+        });
+      } else {
+        // Update last_watched_at if history has a newer timestamp
+        if (new Date(h.watched_at) > new Date(existing.last_watched_at)) {
+          existing.last_watched_at = h.watched_at;
+          existing.last_updated_at = h.watched_at;
+        }
+      }
+    }
+
+    return Array.from(movieMap.values());
   }
 
   async getWatchedShows(): Promise<TraktShowWatched[]> {
@@ -228,6 +297,33 @@ export class TraktClient {
     const endpoint = this.accessToken
       ? "https://api.trakt.tv/sync/ratings/shows"
       : `https://api.trakt.tv/users/${this.username}/ratings/shows`;
+
+    const res = await fetch(endpoint, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) return [];
+    return res.json();
+  }
+
+  async getUserEpisodeHistory(limit: number = 500): Promise<TraktEpisodeHistoryItem[]> {
+    const endpoint = this.accessToken
+      ? `https://api.trakt.tv/sync/history/episodes?limit=${limit}`
+      : `https://api.trakt.tv/users/${this.username}/history/episodes?limit=${limit}`;
+
+    const res = await fetch(endpoint, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) return [];
+    return res.json();
+  }
+
+  async getShowEpisodeHistory(
+    showTraktId: number,
+    limit: number = 100
+  ): Promise<TraktEpisodeHistoryItem[]> {
+    const endpoint = this.accessToken
+      ? `https://api.trakt.tv/sync/history/shows/${showTraktId}?limit=${limit}`
+      : `https://api.trakt.tv/users/${this.username}/history/shows/${showTraktId}?limit=${limit}`;
 
     const res = await fetch(endpoint, {
       headers: this.getHeaders(),

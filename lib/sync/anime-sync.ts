@@ -36,13 +36,40 @@ export class AnimeSyncService {
       updatedTitles: [],
     };
 
-    // 1. Fetch Trakt watched shows and user's current MAL list in parallel
-    const [traktShows, malList] = await Promise.all([
+    // 1. Fetch Trakt watched shows, recent episode history, and user's current MAL list in parallel
+    const [traktShows, traktEpisodeHistory, malList] = await Promise.all([
       this.traktClient.getWatchedShows(),
+      this.traktClient.getUserEpisodeHistory(500),
       this.malClient.getUserAnimeList(),
     ]);
 
     result.totalTraktShows = traktShows.length;
+
+    // Create a map of showTraktId -> { maxEp: number, uniqueEps: Set<number>, maxSeason: number }
+    const showHistoryMap = new Map<
+      number,
+      { maxEp: number; uniqueEps: Set<number>; maxSeason: number }
+    >();
+
+    for (const h of traktEpisodeHistory) {
+      const showId = h.show?.ids?.trakt;
+      if (!showId || !h.episode) continue;
+
+      let entry = showHistoryMap.get(showId);
+      if (!entry) {
+        entry = { maxEp: 0, uniqueEps: new Set<number>(), maxSeason: 1 };
+        showHistoryMap.set(showId, entry);
+      }
+      if (h.episode.number) {
+        entry.uniqueEps.add(h.episode.number);
+        if (h.episode.number > entry.maxEp) {
+          entry.maxEp = h.episode.number;
+        }
+      }
+      if (h.episode.season && h.episode.season > entry.maxSeason) {
+        entry.maxSeason = h.episode.season;
+      }
+    }
 
     // Create a map of MAL anime for quick O(1) comparison: malId -> MalUserAnimeItem
     const malMap = new Map<number, MalUserAnimeItem>();
@@ -73,20 +100,59 @@ export class AnimeSyncService {
 
       result.animeIdentified++;
 
-      // Count total watched episodes from Trakt seasons
-      let traktEpisodesWatched = 0;
-      if (item.seasons) {
+      // 1. Gather all signals for episode progress
+      let maxEpisodeWatched = 0;
+      let uniqueEpisodesWatched = 0;
+
+      // Signal A: Seasons data (present if connected via OAuth)
+      if (item.seasons && item.seasons.length > 0) {
         for (const season of item.seasons) {
-          // Ignore specials (season 0) for standard MAL episode count
           if (season.number > 0 && season.episodes) {
-            traktEpisodesWatched += season.episodes.length;
+            uniqueEpisodesWatched += season.episodes.length;
+            for (const ep of season.episodes) {
+              if (ep.number > maxEpisodeWatched) {
+                maxEpisodeWatched = ep.number;
+              }
+            }
           }
         }
       }
 
-      if (traktEpisodesWatched === 0 && item.plays > 0) {
-        traktEpisodesWatched = item.plays;
+      // Signal B: Pre-fetched recent episode history (from Trakt history)
+      const historyInfo = showHistoryMap.get(item.show.ids.trakt);
+      if (historyInfo) {
+        if (historyInfo.maxEp > maxEpisodeWatched) {
+          maxEpisodeWatched = historyInfo.maxEp;
+        }
+        if (historyInfo.uniqueEps.size > uniqueEpisodesWatched) {
+          uniqueEpisodesWatched = historyInfo.uniqueEps.size;
+        }
       }
+
+      // Signal C: If still no episode detail (e.g. watched beyond 500 history items and no seasons)
+      if (maxEpisodeWatched === 0 && !item.seasons) {
+        try {
+          const specificHistory = await this.traktClient.getShowEpisodeHistory(
+            item.show.ids.trakt,
+            100
+          );
+          if (specificHistory.length > 0) {
+            for (const h of specificHistory) {
+              if (h.episode?.number && h.episode.number > maxEpisodeWatched) {
+                maxEpisodeWatched = h.episode.number;
+              }
+            }
+            uniqueEpisodesWatched = new Set(
+              specificHistory.map((h) => h.episode?.number).filter(Boolean)
+            ).size;
+          }
+        } catch {
+          // Graceful fallback
+        }
+      }
+
+      // Signal D: Trakt plays count
+      const traktPlays = item.plays || 0;
 
       // Resolve MAL ID
       const malId = await AnimeMapper.resolveMalId({
@@ -107,30 +173,48 @@ export class AnimeSyncService {
       const currentScore = currentMalEntry?.list_status.score || 0;
       const desiredScore = ratingsMap.get(item.show.ids.trakt);
 
+      const totalMalEpisodes =
+        currentMalEntry?.node.num_episodes || item.show.aired_episodes || 0;
+
+      // Determine completion status:
+      // A user is completed if:
+      // 1. Highest watched episode reached or exceeded total episodes (e.g. Ep 12 of 12)
+      // 2. Or unique episodes watched reached total episodes
+      // 3. Or Trakt plays count reached aired episodes
+      const isCompleted =
+        totalMalEpisodes > 0 &&
+        (maxEpisodeWatched >= totalMalEpisodes ||
+          uniqueEpisodesWatched >= totalMalEpisodes ||
+          traktPlays >= totalMalEpisodes);
+
+      let targetEpisodes = Math.max(maxEpisodeWatched, uniqueEpisodesWatched, traktPlays);
+      if (isCompleted && totalMalEpisodes > 0) {
+        targetEpisodes = totalMalEpisodes;
+      } else if (totalMalEpisodes > 0 && targetEpisodes > totalMalEpisodes) {
+        targetEpisodes = totalMalEpisodes;
+      }
+
+      const newStatus: "watching" | "completed" = isCompleted ? "completed" : "watching";
+
       // Check if MAL needs updating
-      const needsEpisodeUpdate = traktEpisodesWatched > currentEpisodes;
+      const needsEpisodeUpdate =
+        targetEpisodes > currentEpisodes ||
+        (isCompleted && currentMalEntry?.list_status.status !== "completed");
       const needsScoreUpdate =
         options?.syncRatings && desiredScore && desiredScore !== currentScore;
 
       if (needsEpisodeUpdate || needsScoreUpdate) {
         try {
-          const totalMalEpisodes = currentMalEntry?.node.num_episodes || 0;
-          let newStatus: "watching" | "completed" = "watching";
-
-          if (totalMalEpisodes > 0 && traktEpisodesWatched >= totalMalEpisodes) {
-            newStatus = "completed";
-          }
-
           await this.malClient.updateListStatus(malId, {
             status: newStatus,
-            num_watched_episodes: Math.max(traktEpisodesWatched, currentEpisodes),
+            num_watched_episodes: Math.max(targetEpisodes, currentEpisodes),
             score: desiredScore || (currentScore > 0 ? currentScore : undefined),
           });
 
           result.malUpdatedCount++;
           result.updatedTitles.push({
             title: item.show.title,
-            episodes: traktEpisodesWatched,
+            episodes: targetEpisodes,
             status: newStatus,
           });
 
