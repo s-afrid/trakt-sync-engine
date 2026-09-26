@@ -119,4 +119,46 @@ export class LetterboxdClient {
       };
     });
   }
+
+  /**
+   * Fetch Letterboxd user profile metadata (e.g. display name from RSS feed)
+   */
+  static async fetchUserProfile(
+    username: string
+  ): Promise<{ username: string; displayName?: string }> {
+    const cleanUsername = username.trim().toLowerCase();
+    try {
+      const url = `https://letterboxd.com/${cleanUsername}/rss/`;
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "TraktSyncEngine/1.0",
+        },
+        next: { revalidate: 3600 },
+      });
+
+      if (!res.ok) {
+        return { username: cleanUsername };
+      }
+
+      const xmlText = await res.text();
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+      });
+
+      const parsed = parser.parse(xmlText);
+      const rawTitle = parsed?.rss?.channel?.title;
+      let displayName: string | undefined = undefined;
+
+      if (typeof rawTitle === "string" && rawTitle.startsWith("Letterboxd - ")) {
+        displayName = rawTitle.replace(/^Letterboxd\s*-\s*/, "").trim();
+      }
+
+      return {
+        username: cleanUsername,
+        displayName: displayName || cleanUsername,
+      };
+    } catch {
+      return { username: cleanUsername };
+    }
+  }
 }

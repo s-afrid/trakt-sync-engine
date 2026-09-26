@@ -57,13 +57,13 @@ export class MalClient {
     codeVerifier: string,
     state?: string
   ): string {
-    const clientId = process.env.MAL_CLIENT_ID || "";
+    const clientId = (process.env.MAL_CLIENT_ID || "").trim();
     const params = new URLSearchParams({
       response_type: "code",
       client_id: clientId,
-      code_challenge: codeVerifier,
+      code_challenge: codeVerifier.trim(),
       code_challenge_method: "plain",
-      redirect_uri: redirectUri,
+      redirect_uri: redirectUri.trim(),
       state: state || "",
     });
     return `https://myanimelist.net/v1/oauth2/authorize?${params.toString()}`;
@@ -74,18 +74,27 @@ export class MalClient {
     codeVerifier: string,
     redirectUri: string
   ): Promise<MalTokenResponse> {
+    const clientId = (process.env.MAL_CLIENT_ID || "").trim();
+    const clientSecret = (process.env.MAL_CLIENT_SECRET || "").trim();
+
     const params = new URLSearchParams({
-      client_id: process.env.MAL_CLIENT_ID || "",
-      client_secret: process.env.MAL_CLIENT_SECRET || "",
+      client_id: clientId,
       grant_type: "authorization_code",
-      code,
-      code_verifier: codeVerifier,
-      redirect_uri: redirectUri,
+      code: code.trim(),
+      code_verifier: codeVerifier.trim(),
+      redirect_uri: redirectUri.trim(),
     });
+
+    if (clientSecret) {
+      params.set("client_secret", clientSecret);
+    }
 
     const res = await fetch("https://myanimelist.net/v1/oauth2/token", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "TraktSyncEngine/1.0",
+      },
       body: params.toString(),
     });
 
@@ -100,16 +109,25 @@ export class MalClient {
   static async refreshAccessToken(
     refreshToken: string
   ): Promise<MalTokenResponse> {
+    const clientId = (process.env.MAL_CLIENT_ID || "").trim();
+    const clientSecret = (process.env.MAL_CLIENT_SECRET || "").trim();
+
     const params = new URLSearchParams({
-      client_id: process.env.MAL_CLIENT_ID || "",
-      client_secret: process.env.MAL_CLIENT_SECRET || "",
+      client_id: clientId,
       grant_type: "refresh_token",
-      refresh_token: refreshToken,
+      refresh_token: refreshToken.trim(),
     });
+
+    if (clientSecret) {
+      params.set("client_secret", clientSecret);
+    }
 
     const res = await fetch("https://myanimelist.net/v1/oauth2/token", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "TraktSyncEngine/1.0",
+      },
       body: params.toString(),
     });
 
@@ -122,9 +140,11 @@ export class MalClient {
   }
 
   private getHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = {
+      "User-Agent": "TraktSyncEngine/1.0",
+    };
     if (this.accessToken) {
-      headers["Authorization"] = `Bearer ${this.accessToken}`;
+      headers["Authorization"] = `Bearer ${this.accessToken.trim()}`;
     }
     return headers;
   }

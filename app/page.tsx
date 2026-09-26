@@ -25,9 +25,9 @@ interface SyncStatus {
     letterboxd: boolean;
   };
   profiles: {
-    trakt: { username: string; avatar?: string } | null;
+    trakt: { username: string; name?: string; avatar?: string } | null;
     mal: { id: number; name: string; picture?: string } | null;
-    letterboxd: { username: string } | null;
+    letterboxd: { username: string; displayName?: string; avatar?: string } | null;
   };
   envConfigured: {
     trakt: boolean;
@@ -64,6 +64,7 @@ export default function Dashboard() {
   // Letterboxd input
   const [lbUsername, setLbUsername] = useState<string>("");
   const [lbSaving, setLbSaving] = useState<boolean>(false);
+  const [showLbInput, setShowLbInput] = useState<boolean>(false);
 
   // Trakt direct username input
   const [traktUsernameInput, setTraktUsernameInput] = useState<string>("");
@@ -78,6 +79,9 @@ export default function Dashboard() {
         setStatus(data);
         if (data.profiles?.letterboxd?.username) {
           setLbUsername(data.profiles.letterboxd.username);
+        }
+        if (data.profiles?.trakt?.username) {
+          setTraktUsernameInput(data.profiles.trakt.username);
         }
       }
     } catch (e) {
@@ -110,6 +114,7 @@ export default function Dashboard() {
       });
       if (res.ok) {
         await fetchStatus();
+        setShowLbInput(false);
       } else {
         const err = await res.json();
         setErrorMsg(err.error || "Failed to save Letterboxd username");
@@ -269,96 +274,107 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {status?.connected?.trakt && status.profiles.trakt ? (
-                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60 flex items-center gap-3">
-                  {status.profiles.trakt.avatar ? (
-                    <img
-                      src={status.profiles.trakt.avatar}
-                      alt={status.profiles.trakt.username}
-                      className="h-10 w-10 rounded-full border border-slate-700"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-red-900/40 text-red-300 font-bold flex items-center justify-center">
-                      {status.profiles.trakt.username[0]?.toUpperCase()}
+              {status?.connected?.trakt && status.profiles.trakt && !showTraktInput ? (
+                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/60 flex items-center gap-3.5">
+                  <div className="relative shrink-0">
+                    {status.profiles.trakt.avatar ? (
+                      <img
+                        src={status.profiles.trakt.avatar}
+                        alt={status.profiles.trakt.username}
+                        className="h-12 w-12 rounded-full border-2 border-red-500/60 object-cover shadow-md"
+                      />
+                    ) : (
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-red-600 to-red-800 text-white font-bold flex items-center justify-center border-2 border-red-500/50 shadow-md">
+                        {status.profiles.trakt.username[0]?.toUpperCase()}
+                      </div>
+                    )}
+                    <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-[#ED1C24] p-0.5 border-2 border-[#0B0F19] flex items-center justify-center shadow">
+                      <TraktLogo size={10} className="text-white" />
                     </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      {status.profiles.trakt.username}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">
+                      {status.profiles.trakt.name || status.profiles.trakt.username}
                     </p>
-                    <p className="text-xs text-slate-400">Movies & Anime Sync</p>
+                    <p className="text-xs text-slate-400 truncate">
+                      @{status.profiles.trakt.username}
+                    </p>
+                    <a
+                      href={`https://trakt.tv/users/${status.profiles.trakt.username}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300 font-medium mt-0.5 transition-colors"
+                    >
+                      View Profile
+                      <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Connect your Trakt account via OAuth to pull your watched movies, anime history, and ratings.
-                </p>
+                <form onSubmit={handleSaveTraktUsername} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">
+                      Trakt Username
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. your_username"
+                      value={traktUsernameInput}
+                      onChange={(e) => setTraktUsernameInput(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={traktSaving || !traktUsernameInput.trim()}
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-50"
+                    >
+                      {traktSaving ? "Connecting..." : status?.connected?.trakt ? "Save Changes" : "Connect Trakt"}
+                    </button>
+                    {showTraktInput && (
+                      <button
+                        type="button"
+                        onClick={() => setShowTraktInput(false)}
+                        className="px-3 py-2.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
               )}
             </div>
 
-            <div className="pt-6 space-y-3">
-              {!status?.connected?.trakt ? (
-                <>
-                  {!showTraktInput ? (
-                    <>
-                      <a
-                        href="/api/auth/trakt/authorize"
-                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors"
-                      >
-                        Connect with OAuth
-                        <ArrowRight className="h-4 w-4" />
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => setShowTraktInput(true)}
-                        className="w-full text-center text-xs text-slate-400 hover:text-slate-200 transition-colors py-1"
-                      >
-                        Or connect via Username (Keeps cinejoy connected)
-                      </button>
-                    </>
-                  ) : (
-                    <form onSubmit={handleSaveTraktUsername} className="space-y-2">
-                      <input
-                        type="text"
-                        placeholder="Enter Trakt username"
-                        value={traktUsernameInput}
-                        onChange={(e) => setTraktUsernameInput(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="submit"
-                          disabled={traktSaving || !traktUsernameInput.trim()}
-                          className="flex-1 py-1.5 px-3 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-500 text-white transition-colors"
-                        >
-                          {traktSaving ? "Saving..." : "Save"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowTraktInput(false)}
-                          className="py-1.5 px-3 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </>
-              ) : (
-                <div className="flex gap-2">
-                  <a
-                    href="/api/auth/trakt/authorize"
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-                  >
-                    OAuth
-                  </a>
+            <div className="pt-4 border-t border-slate-800/60">
+              {status?.connected?.trakt ? (
+                <div className="flex items-center justify-between text-xs">
                   <button
                     type="button"
-                    onClick={() => setShowTraktInput(true)}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                    onClick={() => {
+                      setTraktUsernameInput(status.profiles.trakt?.username || "");
+                      setShowTraktInput(!showTraktInput);
+                    }}
+                    className="text-slate-400 hover:text-slate-200 transition-colors"
                   >
-                    Change User
+                    {showTraktInput ? "Close Edit" : "Change Username"}
                   </button>
+                  <a
+                    href="/api/auth/trakt/authorize"
+                    className="text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    Use OAuth
+                  </a>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>Keeps cinejoy connected</span>
+                  <a
+                    href="/api/auth/trakt/authorize"
+                    className="text-red-400 hover:text-red-300 transition-colors"
+                  >
+                    Use OAuth
+                  </a>
                 </div>
               )}
             </div>
@@ -389,23 +405,39 @@ export default function Dashboard() {
               </div>
 
               {status?.connected?.mal && status.profiles.mal ? (
-                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60 flex items-center gap-3">
-                  {status.profiles.mal.picture ? (
-                    <img
-                      src={status.profiles.mal.picture}
-                      alt={status.profiles.mal.name}
-                      className="h-10 w-10 rounded-full border border-slate-700"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-indigo-900/40 text-indigo-300 font-bold flex items-center justify-center">
-                      {status.profiles.mal.name[0]?.toUpperCase()}
+                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/60 flex items-center gap-3.5">
+                  <div className="relative shrink-0">
+                    {status.profiles.mal.picture ? (
+                      <img
+                        src={status.profiles.mal.picture}
+                        alt={status.profiles.mal.name}
+                        className="h-12 w-12 rounded-full border-2 border-blue-500/60 object-cover shadow-md"
+                      />
+                    ) : (
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-blue-700 to-indigo-800 text-white font-bold flex items-center justify-center border-2 border-blue-500/50 shadow-md">
+                        {status.profiles.mal.name[0]?.toUpperCase()}
+                      </div>
+                    )}
+                    <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-[#2E51A2] p-0.5 border-2 border-[#0B0F19] flex items-center justify-center shadow">
+                      <MalLogo size={10} className="text-white" />
                     </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-semibold text-white">
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">
                       {status.profiles.mal.name}
                     </p>
-                    <p className="text-xs text-slate-400">Auto-update episodes & score</p>
+                    <p className="text-xs text-slate-400 truncate">
+                      MAL ID: #{status.profiles.mal.id}
+                    </p>
+                    <a
+                      href={`https://myanimelist.net/profile/${status.profiles.mal.name}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 font-medium mt-0.5 transition-colors"
+                    >
+                      View Profile
+                      <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
                   </div>
                 </div>
               ) : (
@@ -429,7 +461,7 @@ export default function Dashboard() {
                   href="/api/auth/mal/authorize"
                   className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
                 >
-                  Reconnect
+                  Reconnect MAL
                 </a>
               )}
             </div>
@@ -459,33 +491,107 @@ export default function Dashboard() {
                 )}
               </div>
 
-              <form onSubmit={handleSaveLetterboxd} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">
-                    Letterboxd Username
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. christopher_nolan"
-                    value={lbUsername}
-                    onChange={(e) => setLbUsername(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
+              {status?.connected?.letterboxd && status.profiles.letterboxd && !showLbInput ? (
+                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/60 flex items-center gap-3.5">
+                  <div className="relative shrink-0">
+                    {status.profiles.letterboxd.avatar ? (
+                      <img
+                        src={status.profiles.letterboxd.avatar}
+                        alt={status.profiles.letterboxd.username}
+                        className="h-12 w-12 rounded-full border-2 border-emerald-500/60 object-cover shadow-md"
+                      />
+                    ) : (
+                      <div className="h-12 w-12 rounded-full p-[2px] bg-gradient-to-tr from-[#FF8000] via-[#00E054] to-[#40BCF4] shadow-md flex items-center justify-center">
+                        <div className="h-full w-full rounded-full bg-[#14181C] flex flex-col items-center justify-center">
+                          <span className="text-white font-bold text-xs leading-none">
+                            {status.profiles.letterboxd.username[0]?.toUpperCase()}
+                          </span>
+                          <div className="flex gap-0.5 mt-0.5">
+                            <span className="h-1 w-1 rounded-full bg-[#FF8000]" />
+                            <span className="h-1 w-1 rounded-full bg-[#00E054]" />
+                            <span className="h-1 w-1 rounded-full bg-[#40BCF4]" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-[#14181C] p-0.5 border-2 border-[#0B0F19] flex items-center justify-center shadow">
+                      <LetterboxdLogo size={10} />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">
+                      {status.profiles.letterboxd.displayName || status.profiles.letterboxd.username}
+                    </p>
+                    <p className="text-xs text-slate-400 truncate">
+                      @{status.profiles.letterboxd.username}
+                    </p>
+                    <a
+                      href={`https://letterboxd.com/${status.profiles.letterboxd.username}/`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 font-medium mt-0.5 transition-colors"
+                    >
+                      View Profile
+                      <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  </div>
                 </div>
-                <button
-                  type="submit"
-                  disabled={lbSaving || !lbUsername.trim()}
-                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
-                >
-                  {lbSaving ? "Saving..." : "Save Username"}
-                </button>
-              </form>
+              ) : (
+                <form onSubmit={handleSaveLetterboxd} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">
+                      Letterboxd Username
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. christopher_nolan"
+                      value={lbUsername}
+                      onChange={(e) => setLbUsername(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={lbSaving || !lbUsername.trim()}
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50"
+                    >
+                      {lbSaving ? "Saving..." : status?.connected?.letterboxd ? "Save Changes" : "Save Username"}
+                    </button>
+                    {showLbInput && (
+                      <button
+                        type="button"
+                        onClick={() => setShowLbInput(false)}
+                        className="px-3 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
             </div>
 
             <div className="pt-4 border-t border-slate-800/60">
-              <p className="text-[11px] text-slate-400">
-                Allows reading your Letterboxd RSS diary entries into Trakt.
-              </p>
+              {status?.connected?.letterboxd ? (
+                <div className="flex items-center justify-between text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLbUsername(status.profiles.letterboxd?.username || "");
+                      setShowLbInput(!showLbInput);
+                    }}
+                    className="text-slate-400 hover:text-slate-200 transition-colors"
+                  >
+                    {showLbInput ? "Close Edit" : "Change Username"}
+                  </button>
+                  <span className="text-[11px] text-slate-500">1-Click CSV Ready</span>
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-400">
+                  Allows reading your Letterboxd RSS diary entries into Trakt.
+                </p>
+              )}
             </div>
           </div>
         </div>

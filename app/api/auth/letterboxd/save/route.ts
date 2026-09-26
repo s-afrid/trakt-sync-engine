@@ -67,12 +67,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const lbProfile = await LetterboxdClient.fetchUserProfile(cleanUsername);
+
     const response = NextResponse.json({
       success: true,
       username: cleanUsername,
+      displayName: lbProfile.displayName,
     });
 
     response.cookies.set("letterboxd_username", cleanUsername, {
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 3600 * 24 * 365,
+      path: "/",
+    });
+
+    response.cookies.set("letterboxd_user", JSON.stringify(lbProfile), {
       secure: process.env.NODE_ENV === "production",
       maxAge: 3600 * 24 * 365,
       path: "/",

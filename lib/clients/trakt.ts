@@ -82,16 +82,20 @@ export interface TraktRatingItem {
 }
 
 export class TraktClient {
-  private clientId: string;
-  private clientSecret: string;
+  private get clientId(): string {
+    return (process.env.TRAKT_CLIENT_ID || "").trim();
+  }
+
+  private get clientSecret(): string {
+    return (process.env.TRAKT_CLIENT_SECRET || "").trim();
+  }
+
   private accessToken?: string;
   private username?: string;
 
   constructor(accessToken?: string, username?: string) {
-    this.clientId = process.env.TRAKT_CLIENT_ID || "";
-    this.clientSecret = process.env.TRAKT_CLIENT_SECRET || "";
-    this.accessToken = accessToken;
-    this.username = username;
+    this.accessToken = accessToken?.trim();
+    this.username = username?.trim();
   }
 
   private getHeaders(): Record<string, string> {
@@ -99,6 +103,7 @@ export class TraktClient {
       "Content-Type": "application/json",
       "trakt-api-version": "2",
       "trakt-api-key": this.clientId,
+      "User-Agent": "TraktSyncEngine/1.0",
     };
     if (this.accessToken) {
       headers["Authorization"] = `Bearer ${this.accessToken}`;
