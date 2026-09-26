@@ -1,22 +1,32 @@
 #!/usr/bin/env python3
 """
-Automated Letterboxd CSV Importer via Playwright
-------------------------------------------------
-Fetches watched movies or ratings CSV directly from Trakt Sync Engine,
-logs into Letterboxd, and uploads the CSV for title matching and import.
+Automated Letterboxd CSV Importer & 15-Minute Background Sync Engine
+-------------------------------------------------------------------
+Fetches watched movies or ratings from Trakt (merging real-time history scrobbles),
+tracks synced state, logs into Letterboxd via Playwright, and imports entries automatically.
 
 Usage:
-  python scripts/automate_letterboxd_upload.py --type watched
-  python scripts/automate_letterboxd_upload.py --type ratings
-  python scripts/automate_letterboxd_upload.py --file path/to/custom.csv
+  # One-time sync (opens browser, imports, auto-confirms)
   python scripts/automate_letterboxd_upload.py --auto-confirm
+
+  # Recurring 15-minute automated sync (sleeps quietly unless a new movie is watched)
+  python scripts/automate_letterboxd_upload.py --interval 15 --auto-confirm
+
+  # Recurring headless background sync
+  python scripts/automate_letterboxd_upload.py --interval 15 --auto-confirm --headless
+
+  # Force full re-sync of all movies
+  python scripts/automate_letterboxd_upload.py --force --auto-confirm
 """
 
 import os
 import sys
 import time
+import json
 import argparse
+from datetime import datetime
 from pathlib import Path
+import csv
 import requests
 
 # Fix Windows console cp1252 encoding for emojis and enable instant unbuffered flushing
@@ -57,40 +67,178 @@ def load_env_file():
 # Load .env file at startup
 load_env_file()
 
+ROOT_DIR = Path(__file__).resolve().parent.parent
+STATE_FILE = ROOT_DIR / ".letterboxd_sync_state.json"
+SESSION_FILE = ROOT_DIR / ".letterboxd_session.json"
 
-def download_csv(url: str, target_path: Path) -> Path:
-    """Fetches the latest CSV data from the Trakt Sync Engine URL."""
-    print(f"📥 Fetching latest CSV data from: {url}")
-    target_path.parent.mkdir(parents=True, exist_ok=True)
 
+def load_sync_state() -> dict:
+    """Loads previous sync state to avoid unnecessary duplicate browser runs."""
+    if STATE_FILE.exists():
+        try:
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def save_sync_state(state: dict):
+    """Saves sync state to disk."""
     try:
-        response = requests.get(url, timeout=30)
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Connection error while contacting server: {e}")
-        print("💡 Make sure Trakt Sync Engine web server is running (http://localhost:3000) or specify a local CSV with --file")
-        sys.exit(1)
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2)
+    except Exception as e:
+        print(f"⚠️ Failed to save sync state: {e}")
+
+
+def fetch_from_trakt_direct(trakt_client_id: str, trakt_username: str, access_token: str = None) -> list:
+    """
+    Directly queries Trakt API, merging /watched and /history (captures real-time scrobbles like Mersal).
+    """
+    headers = {
+        "Content-Type": "application/json",
+        "trakt-api-version": "2",
+        "trakt-api-key": trakt_client_id,
+        "User-Agent": "TraktSyncEngine/1.0",
+    }
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
+
+    watched_url = (
+        "https://api.trakt.tv/sync/watched/movies?extended=full"
+        if access_token
+        else f"https://api.trakt.tv/users/{trakt_username}/watched/movies?extended=full"
+    )
+    history_url = (
+        "https://api.trakt.tv/sync/history/movies?limit=100"
+        if access_token
+        else f"https://api.trakt.tv/users/{trakt_username}/history/movies?limit=100"
+    )
+
+    watched = []
+    try:
+        w_res = requests.get(watched_url, headers=headers, timeout=25)
+        if w_res.status_code == 200:
+            watched = w_res.json()
+    except Exception as e:
+        print(f"⚠️ Error fetching watched movies: {e}")
+
+    history = []
+    try:
+        h_res = requests.get(history_url, headers=headers, timeout=25)
+        if h_res.status_code == 200:
+            history = h_res.json()
+    except Exception as e:
+        print(f"⚠️ Error fetching history movies: {e}")
+
+    movie_map = {}
+    for w in watched:
+        trakt_id = w.get("movie", {}).get("ids", {}).get("trakt")
+        if trakt_id:
+            movie_map[trakt_id] = w
+
+    for h in history:
+        m = h.get("movie", {})
+        trakt_id = m.get("ids", {}).get("trakt")
+        if not trakt_id:
+            continue
+        watched_at = h.get("watched_at")
+        if trakt_id not in movie_map:
+            movie_map[trakt_id] = {
+                "plays": 1,
+                "last_watched_at": watched_at,
+                "last_updated_at": watched_at,
+                "movie": m,
+            }
+        else:
+            existing = movie_map[trakt_id]
+            if watched_at and (not existing.get("last_watched_at") or watched_at > existing.get("last_watched_at")):
+                existing["last_watched_at"] = watched_at
+                existing["last_updated_at"] = watched_at
+
+    return list(movie_map.values())
+
+
+def generate_watched_csv(movies: list, target_path: Path) -> Path:
+    """Generates standard Letterboxd import CSV with exact matching headers."""
+    # Sort descending by watched date so the latest watches appear at top
+    sorted_movies = sorted(
+        movies,
+        key=lambda m: m.get("last_watched_at") or "",
+        reverse=True
+    )
+
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(target_path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Title", "Year", "tmdbID", "imdbID", "WatchedDate"])
+        for item in sorted_movies:
+            m = item.get("movie", {})
+            ids = m.get("ids", {})
+            raw_date = item.get("last_watched_at")
+            watched_date = raw_date[:10] if raw_date and len(raw_date) >= 10 else ""
+            writer.writerow([
+                m.get("title", ""),
+                m.get("year", "") or "",
+                ids.get("tmdb", "") or "",
+                ids.get("imdb", "") or "",
+                watched_date,
+            ])
+    return target_path
+
+
+def download_csv_from_server(url: str, target_path: Path) -> Path:
+    """Fetches CSV from the Trakt Sync Engine Next.js server."""
+    print(f"📥 Contacting local server export route: {url}")
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    response = requests.get(url, timeout=25)
 
     if response.status_code == 200:
-        # Check if response returned JSON error instead of CSV
         content_type = response.headers.get("content-type", "")
         if "application/json" in content_type:
-            try:
-                err_data = response.json()
-                print(f"❌ Export server returned error: {err_data.get('error', 'Unknown error')}")
-                sys.exit(1)
-            except Exception:
-                pass
+            err_data = response.json()
+            raise Exception(f"Export server returned error: {err_data.get('error', 'Unknown error')}")
 
         target_path.write_bytes(response.content)
-        file_size = len(response.content)
-        print(f"✅ Data saved locally to: {target_path} ({file_size:,} bytes)")
         return target_path
-    elif response.status_code == 401:
-        print("❌ 401 Unauthorized: Trakt account is not connected.")
-        print("💡 Please connect your Trakt account on the web dashboard (http://localhost:3000) first.")
-        sys.exit(1)
     else:
-        raise Exception(f"Failed to fetch CSV. HTTP Status: {response.status_code}\n{response.text[:200]}")
+        raise Exception(f"HTTP Status {response.status_code}: {response.text[:200]}")
+
+
+def get_latest_movies_data(app_url: str, export_type: str, target_csv: Path) -> tuple[Path, list]:
+    """
+    Attempts to fetch movies via the Next.js server; if offline, seamlessly falls back
+    to direct Trakt API calls. Returns (csv_path, movies_list).
+    """
+    trakt_client_id = os.getenv("TRAKT_CLIENT_ID", "").strip()
+    trakt_username = os.getenv("TRAKT_USERNAME", "afsindbad").strip()
+
+    # If watched movies type, direct Trakt API fetch guarantees real-time merging
+    if trakt_client_id and trakt_username and export_type == "watched":
+        try:
+            movies = fetch_from_trakt_direct(trakt_client_id, trakt_username)
+            if movies:
+                generate_watched_csv(movies, target_csv)
+                print(f"✅ Generated Letterboxd CSV directly from Trakt: {len(movies)} movies found.")
+                return target_csv, movies
+        except Exception as e:
+            print(f"⚠️ Direct Trakt fetch error ({e}), attempting local server route...")
+
+    # Fallback to local server route
+    url = f"{app_url}/api/export/letterboxd?type={export_type}"
+    try:
+        csv_path = download_csv_from_server(url, target_csv)
+        return csv_path, []
+    except Exception as e:
+        print(f"❌ Failed to fetch CSV from local server ({e}).")
+        if trakt_client_id and trakt_username:
+            print("🔄 Retrying direct Trakt API fetch...")
+            movies = fetch_from_trakt_direct(trakt_client_id, trakt_username)
+            if movies:
+                generate_watched_csv(movies, target_csv)
+                return target_csv, movies
+        raise
 
 
 def automate_letterboxd_upload(
@@ -99,17 +247,16 @@ def automate_letterboxd_upload(
     password: str,
     headless: bool = False,
     auto_confirm: bool = False,
-    inspection_seconds: int = 25,
-):
+    inspection_seconds: int = 15,
+) -> bool:
     """Launches Playwright to log in to Letterboxd and upload the CSV file."""
     if not csv_path.exists():
         raise FileNotFoundError(f"CSV file not found at: {csv_path}")
 
-    # Validate file is not empty
     if csv_path.stat().st_size == 0:
-        raise ValueError(f"CSV file at {csv_path} is empty. Ensure watch history exists.")
+        raise ValueError(f"CSV file at {csv_path} is empty.")
 
-    print(f"📄 Preparing to upload: {csv_path.name} ({csv_path.stat().st_size:,} bytes)")
+    print(f"📄 Preparing upload: {csv_path.name} ({csv_path.stat().st_size:,} bytes)")
 
     with sync_playwright() as p:
         print(f"🚀 Launching browser (headless={headless})...")
@@ -121,26 +268,40 @@ def automate_letterboxd_upload(
             ],
         )
 
-        context = browser.new_context(
-            viewport={"width": 1280, "height": 850},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
-        )
+        context_kwargs = {
+            "viewport": {"width": 1280, "height": 850},
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+        }
+
+        # Restore saved browser session if available
+        if SESSION_FILE.exists():
+            try:
+                context_kwargs["storage_state"] = str(SESSION_FILE)
+                print("💾 Restoring saved Letterboxd session...")
+            except Exception:
+                pass
+
+        context = browser.new_context(**context_kwargs)
         page = context.new_page()
 
-        # Step 1. Log in to Letterboxd
-        print("🔐 Navigating to Letterboxd sign-in...")
-        page.goto("https://letterboxd.com/sign-in/", wait_until="domcontentloaded")
-        time.sleep(1.5)
+        # Step 1. Check Authentication
+        print("🔐 Checking Letterboxd authentication state...")
+        page.goto("https://letterboxd.com/import/", wait_until="domcontentloaded")
+        time.sleep(2)
 
         # Check for Cloudflare / Turnstile barrier
         content = page.content()
         if "challenges.cloudflare.com" in content or "Just a moment..." in page.title():
             print("⚠️ Cloudflare challenge detected! Please solve the captcha in the open browser window...")
-            page.wait_for_selector("input#field-username, input[name='username']", timeout=90000)
+            page.wait_for_selector("input#field-username, input[name='username'], input[type='file']", timeout=90000)
 
-        # Check if already logged in (e.g. from session)
-        if page.locator(".nav-account, .profile-avatar, a.avatar").count() == 0:
-            print(f"🔑 Entering credentials for account: {username}...")
+        # If redirected to sign-in page, perform login
+        if "sign-in" in page.url.lower() or page.locator(".nav-account, .profile-avatar, a.avatar").count() == 0:
+            print(f"🔑 Logging into Letterboxd account: {username}...")
+            if "sign-in" not in page.url.lower():
+                page.goto("https://letterboxd.com/sign-in/", wait_until="domcontentloaded")
+                time.sleep(1.5)
+
             # Dismiss cookie consent if visible
             try:
                 cookie_accept = page.locator("#onetrust-accept-btn-handler, button:has-text('Accept All'), button:has-text('Agree')")
@@ -150,20 +311,16 @@ def automate_letterboxd_upload(
             except Exception:
                 pass
 
-            # Fill username
             user_input = page.locator("input#field-username, input[name='username']").first
             user_input.fill(username)
 
-            # Fill password
             pass_input = page.locator("input#field-password, input[name='password']").first
             pass_input.fill(password)
 
-            # Submit
             print("🚀 Submitting login form...")
             submit_btn = page.locator("input[type='submit'], button[type='submit'], .button.-action").first
             submit_btn.click()
 
-            # Wait for login navigation or detect inline errors immediately
             print("⏳ Awaiting login authentication...")
             login_success = False
             start_time = time.time()
@@ -172,7 +329,6 @@ def automate_letterboxd_upload(
                     login_success = True
                     break
 
-                # Check for immediate inline error message
                 error_el = page.locator(".message.-error, .form-row.-error, .message.error, .field-error")
                 if error_el.count() > 0 and error_el.first.is_visible():
                     err_text = error_el.first.inner_text().strip()
@@ -183,23 +339,22 @@ def automate_letterboxd_upload(
 
             if not login_success:
                 browser.close()
-                raise Exception("Letterboxd login timed out or was blocked by a challenge. Please run with visible browser (headless=False) to inspect.")
+                raise Exception("Letterboxd login timed out or challenge encountered. Run headed to resolve.")
 
-            print("🎉 Successfully logged into Letterboxd!")
+            print("🎉 Successfully logged in!")
+            # Save session for future runs
+            try:
+                context.storage_state(path=str(SESSION_FILE))
+                print("💾 Saved session to .letterboxd_session.json for recurring headless sync.")
+            except Exception:
+                pass
+
+            page.goto("https://letterboxd.com/import/", wait_until="domcontentloaded")
+            time.sleep(2)
         else:
-            print("🎉 Already authenticated into Letterboxd!")
+            print("🎉 Already authenticated via saved session!")
 
-        # Step 2. Navigate to Importer Page
-        print("📂 Navigating to the Import interface (https://letterboxd.com/import/)...")
-        page.goto("https://letterboxd.com/import/", wait_until="domcontentloaded")
-        time.sleep(2)
-
-        # Verify page is importer
-        if "import" not in page.url.lower():
-            page.goto("https://letterboxd.com/about/importing-data/", wait_until="domcontentloaded")
-            time.sleep(1.5)
-
-        # Step 3. Handle File Upload
+        # Step 2. Handle File Upload
         print(f"📤 Uploading CSV file: {csv_path.name}...")
         file_input = page.locator("input[type='file']")
 
@@ -212,50 +367,137 @@ def automate_letterboxd_upload(
                 fc_info.value.set_files(str(csv_path.resolve()))
             print("⚡ File transferred successfully!")
         except Exception as e:
-            # Fallback direct upload attempt
-            print(f"⚠️ Standard file chooser fallback triggered: {e}")
+            print(f"⚠️ Standard file chooser fallback: {e}")
             page.wait_for_selector("input[type='file']", state="attached", timeout=15000)
             page.set_input_files("input[type='file']", str(csv_path.resolve()))
             print("⚡ File transferred via direct file input!")
 
-        # Step 4. Wait for Letterboxd to parse and display matches
-        print("⏳ Waiting for Letterboxd processing engine to match movie titles...")
+        # Step 3. Wait for Letterboxd to match titles
+        print("⏳ Waiting for Letterboxd matching engine to resolve titles...")
         try:
             page.wait_for_selector(
                 ".import-matches-container, .button.-green, .table-container, form.import-step-2, .not-matched",
                 timeout=60000,
             )
-            print("✨ Match processing complete! Matching preview is now visible.")
+            print("✨ Match processing complete! Matching preview is visible.")
         except PlaywrightTimeoutError:
-            print("⚠️ Matched entries selector wait timed out (parsing might be taking longer for large catalogs).")
+            print("⚠️ Matched entries selector wait timed out (large catalog parsing).")
 
-        # Step 5. Final Confirmation
+        # Step 4. Final Confirmation
+        success = False
         if auto_confirm:
-            print("⚡ --auto-confirm flag detected. Automatically submitting import...")
+            print("⚡ Auto-submitting import confirmation...")
             try:
                 import_btn = page.locator(".button.-green, input[value='Import'], button:has-text('Import')").first
                 if import_btn.is_visible():
                     import_btn.click()
                     print("✅ Clicked final green 'Import' button!")
-                    time.sleep(5)
+                    time.sleep(4)
+                    success = True
             except Exception as e:
                 print(f"⚠️ Could not auto-click import button: {e}")
         else:
-            print("\n🏁 Automation complete! The data has been uploaded and parsed.")
-            print("👉 Please review the browser window to resolve any mismatched movie titles, then click 'Import' manually.")
+            print("\n🏁 Automation reached the confirmation screen.")
+            print("👉 Please review the browser window, then click 'Import' manually.")
+            success = True
 
-        print(f"👀 Keeping browser open for {inspection_seconds} seconds for inspection...")
-        try:
-            time.sleep(inspection_seconds)
-        except KeyboardInterrupt:
-            print("\n👋 Closing browser...")
+        if inspection_seconds > 0:
+            print(f"👀 Waiting {inspection_seconds}s for operations to settle...")
+            try:
+                time.sleep(inspection_seconds)
+            except KeyboardInterrupt:
+                pass
 
         browser.close()
-        print("🎉 All operations completed.")
+        print("🎉 Browser session closed.")
+        return success
+
+
+def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
+    """Executes a single check and import cycle."""
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    base_app_url = (args.app_url or os.getenv("NEXT_PUBLIC_APP_URL", "http://localhost:3000")).rstrip("/")
+    state = load_sync_state()
+    synced_ids = set(state.get("synced_movie_ids", []))
+    latest_watched_timestamp = state.get("latest_watched_at")
+
+    # Fetch latest movies data
+    print(f"\n[{now_str}] 🔍 Checking Trakt watch history...")
+    _, movies = get_latest_movies_data(base_app_url, args.type, csv_path)
+
+    if not movies:
+        print(f"[{now_str}] ⚠️ Could not fetch movie objects list. Proceeding with CSV file upload...")
+        uploaded = automate_letterboxd_upload(
+            csv_path=csv_path,
+            username=username,
+            password=password,
+            headless=args.headless,
+            auto_confirm=args.auto_confirm,
+            inspection_seconds=3 if (args.auto_confirm and args.interval) else args.keep_open,
+        )
+        return uploaded
+
+    # Check for new movies
+    current_movie_map = {m["movie"]["ids"]["trakt"]: m for m in movies if m.get("movie", {}).get("ids", {}).get("trakt")}
+    current_ids = set(current_movie_map.keys())
+
+    # Find movies not yet recorded in state
+    new_ids = current_ids - synced_ids
+    new_movies = [current_movie_map[mid] for mid in new_ids]
+
+    # Find latest watched timestamp from current movies
+    max_watched_at = max(
+        (m.get("last_watched_at") or "" for m in movies),
+        default=""
+    )
+
+    is_first_run = len(synced_ids) == 0
+    has_new_watches = len(new_movies) > 0 or (max_watched_at and max_watched_at > (latest_watched_timestamp or ""))
+
+    if not has_new_watches and not args.force:
+        latest_title = movies[0]["movie"]["title"] if movies else "None"
+        print(f"[{now_str}] ⏱️ Trakt is up to date (Latest: '{latest_title}'). No new watches since last sync.")
+        return False
+
+    if args.force:
+        print(f"[{now_str}] ⚡ Force flag active: Uploading full movie catalog ({len(movies)} movies)...")
+        upload_movies = movies
+    elif is_first_run:
+        print(f"[{now_str}] 🌟 Initial sync: Uploading complete watch history ({len(movies)} movies)...")
+        upload_movies = movies
+    else:
+        titles_preview = ", ".join(f"'{m['movie']['title']}'" for m in new_movies[:3])
+        print(f"[{now_str}] 🎬 Detected {len(new_movies)} new watched movie(s): {titles_preview}")
+        # When incremental, upload all movies to ensure Diary consistency, or the new subset
+        upload_movies = movies
+
+    # Generate fresh CSV
+    generate_watched_csv(upload_movies, csv_path)
+
+    # Perform upload
+    success = automate_letterboxd_upload(
+        csv_path=csv_path,
+        username=username,
+        password=password,
+        headless=args.headless,
+        auto_confirm=args.auto_confirm,
+        inspection_seconds=3 if (args.auto_confirm and args.interval) else args.keep_open,
+    )
+
+    if success:
+        # Update sync state
+        state["synced_movie_ids"] = list(current_ids)
+        state["latest_watched_at"] = max_watched_at
+        state["last_sync_time"] = datetime.now().isoformat()
+        state["total_synced"] = len(current_ids)
+        save_sync_state(state)
+        print(f"[{now_str}] ✅ State saved: {len(current_ids)} movies tracked.")
+
+    return success
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Automate Letterboxd CSV Import via Playwright")
+    parser = argparse.ArgumentParser(description="Automate Letterboxd CSV Import & 15-Minute Sync Engine")
     parser.add_argument(
         "--type",
         choices=["watched", "ratings"],
@@ -266,19 +508,19 @@ def main():
         "--file",
         type=str,
         default=None,
-        help="Path to an existing CSV file on disk (skips downloading from server)",
+        help="Path to an existing CSV file on disk",
     )
     parser.add_argument(
         "--url",
         type=str,
         default=None,
-        help="Custom URL to fetch the export CSV from (defaults to local server route)",
+        help="Custom URL to fetch export CSV from",
     )
     parser.add_argument(
         "--app-url",
         type=str,
         default=None,
-        help="Base URL of Trakt Sync Engine (defaults to NEXT_PUBLIC_APP_URL or http://localhost:3000)",
+        help="Base URL of Trakt Sync Engine (defaults to http://localhost:3000)",
     )
     parser.add_argument(
         "--username",
@@ -296,19 +538,31 @@ def main():
         "--headless",
         action="store_true",
         default=False,
-        help="Run browser in headless mode (default: False for visual inspection & captcha support)",
+        help="Run browser in headless mode",
     )
     parser.add_argument(
         "--auto-confirm",
         action="store_true",
         default=False,
-        help="Automatically click the final green 'Import' button instead of waiting for manual review",
+        help="Automatically click the final green 'Import' button",
+    )
+    parser.add_argument(
+        "--interval",
+        type=int,
+        default=None,
+        help="Run recurring automated sync every N minutes (e.g. --interval 15)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="Force upload even if no new movies detected since last sync",
     )
     parser.add_argument(
         "--keep-open",
         type=int,
-        default=25,
-        help="Seconds to keep browser open after upload for manual inspection (default: 25s)",
+        default=15,
+        help="Seconds to keep browser open after upload for inspection (default: 15s)",
     )
 
     args = parser.parse_args()
@@ -318,36 +572,45 @@ def main():
     password = args.password or os.getenv("LETTERBOXD_PASSWORD")
 
     if not username:
-        print("❌ Missing Letterboxd Username.")
-        print("Please configure LETTERBOXD_USERNAME in your .env or pass --username <user>")
+        print("❌ Missing Letterboxd Username. Configure LETTERBOXD_USERNAME in .env or pass --username <user>")
         sys.exit(1)
 
     if not password:
-        print("❌ Missing Letterboxd Password.")
-        print("Please configure LETTERBOXD_PASSWORD in your .env or pass --password <pass>")
+        print("❌ Missing Letterboxd Password. Configure LETTERBOXD_PASSWORD in .env or pass --password <pass>")
         sys.exit(1)
 
-    # Determine CSV file path
-    if args.file:
-        csv_path = Path(args.file).resolve()
-        if not csv_path.exists():
-            print(f"❌ Specified file not found: {csv_path}")
-            sys.exit(1)
-    else:
-        base_app_url = args.app_url or os.getenv("NEXT_PUBLIC_APP_URL", "http://localhost:3000").rstrip("/")
-        download_url = args.url or f"{base_app_url}/api/export/letterboxd?type={args.type}"
-        csv_path = Path(__file__).resolve().parent.parent / f"letterboxd_{args.type}_import.csv"
-        csv_path = download_csv(download_url, csv_path)
+    # When running on interval, auto-confirm is enabled by default
+    if args.interval and not args.auto_confirm:
+        args.auto_confirm = True
 
-    # Execute automation
-    automate_letterboxd_upload(
-        csv_path=csv_path,
-        username=username,
-        password=password,
-        headless=args.headless,
-        auto_confirm=args.auto_confirm,
-        inspection_seconds=args.keep_open,
-    )
+    csv_path = Path(args.file).resolve() if args.file else ROOT_DIR / f"letterboxd_{args.type}_import.csv"
+
+    # Single Execution Mode
+    if not args.interval:
+        run_sync_cycle(args, username, password, csv_path)
+        return
+
+    # Recurring Interval Mode (e.g. 15 minutes)
+    interval_seconds = max(args.interval * 60, 60)
+    print(f"⏰ Starting Letterboxd Background Sync Engine (interval: {args.interval} minutes)")
+    print("Press Ctrl+C to terminate the sync scheduler at any time.\n")
+
+    cycle_count = 0
+    try:
+        while True:
+            cycle_count += 1
+            print(f"--- [Cycle #{cycle_count}] ---")
+            try:
+                run_sync_cycle(args, username, password, csv_path)
+            except Exception as e:
+                print(f"⚠️ Error during sync cycle #{cycle_count}: {e}")
+
+            next_run = datetime.fromtimestamp(time.time() + interval_seconds).strftime("%H:%M:%S")
+            print(f"💤 Sleeping for {args.interval} minutes... Next check at {next_run}.\n")
+            time.sleep(interval_seconds)
+    except KeyboardInterrupt:
+        print("\n👋 Letterboxd Background Sync stopped by user.")
+        sys.exit(0)
 
 
 if __name__ == "__main__":

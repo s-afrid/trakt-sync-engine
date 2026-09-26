@@ -82,6 +82,8 @@ export default function Dashboard() {
   const [autoImportType, setAutoImportType] = useState<"watched" | "ratings">("watched");
   const [autoImportPassword, setAutoImportPassword] = useState<string>("");
   const [autoImportAutoConfirm, setAutoImportAutoConfirm] = useState<boolean>(false);
+  const [autoImportRecurring, setAutoImportRecurring] = useState<boolean>(false);
+  const [autoImportHeadless, setAutoImportHeadless] = useState<boolean>(false);
   const [autoImportLoading, setAutoImportLoading] = useState<boolean>(false);
   const [autoImportMessage, setAutoImportMessage] = useState<string | null>(null);
   const [autoImportError, setAutoImportError] = useState<string | null>(null);
@@ -207,7 +209,9 @@ export default function Dashboard() {
           type: autoImportType,
           username: lbUsername || status?.profiles?.letterboxd?.username,
           password: autoImportPassword,
-          autoConfirm: autoImportAutoConfirm,
+          autoConfirm: autoImportAutoConfirm || autoImportRecurring,
+          interval: autoImportRecurring ? 15 : undefined,
+          headless: autoImportHeadless,
         }),
       });
 
@@ -875,30 +879,52 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Auto Confirm Checkbox */}
-                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
-                  <input
-                    type="checkbox"
-                    id="autoConfirm"
-                    checked={autoImportAutoConfirm}
-                    onChange={(e) => setAutoImportAutoConfirm(e.target.checked)}
-                    className="mt-0.5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500"
-                  />
-                  <label htmlFor="autoConfirm" className="text-xs text-slate-300 cursor-pointer">
-                    <span className="font-medium text-white">Auto-click final "Import" button</span>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      When unchecked (recommended), the browser pauses on the match verification screen so you can manually review title matches before saving.
-                    </p>
-                  </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Auto Confirm Checkbox */}
+                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                    <input
+                      type="checkbox"
+                      id="autoConfirm"
+                      checked={autoImportAutoConfirm || autoImportRecurring}
+                      disabled={autoImportRecurring}
+                      onChange={(e) => setAutoImportAutoConfirm(e.target.checked)}
+                      className="mt-0.5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500"
+                    />
+                    <label htmlFor="autoConfirm" className="text-xs text-slate-300 cursor-pointer">
+                      <span className="font-medium text-white">Auto-click "Import" button</span>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Automatically confirms Letterboxd title matching without manual intervention.
+                      </p>
+                    </label>
+                  </div>
+
+                  {/* Recurring 15-Minute Sync Checkbox */}
+                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-emerald-950/20 border border-emerald-800/40">
+                    <input
+                      type="checkbox"
+                      id="recurringSync"
+                      checked={autoImportRecurring}
+                      onChange={(e) => setAutoImportRecurring(e.target.checked)}
+                      className="mt-0.5 rounded border-emerald-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500"
+                    />
+                    <label htmlFor="recurringSync" className="text-xs text-emerald-300 cursor-pointer">
+                      <span className="font-medium text-white">Auto-sync every 15 minutes</span>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Monitors Trakt every 15 mins. Remains quiet unless you watch a new movie.
+                      </p>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                  <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
-                    <Terminal className="h-3.5 w-3.5 text-slate-500" />
-                    <span>CLI: </span>
-                    <code className="text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
-                      npm run import:letterboxd -- --type {autoImportType}
-                    </code>
+                  <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <Terminal className="h-3.5 w-3.5 text-slate-500" />
+                      <span>Daemon: </span>
+                      <code className="text-emerald-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                        npm run schedule:letterboxd
+                      </code>
+                    </div>
                   </div>
 
                   <button
@@ -907,7 +933,11 @@ export default function Dashboard() {
                     className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50 shadow-md shadow-emerald-950/50"
                   >
                     <Play className={`h-3.5 w-3.5 ${autoImportLoading ? "animate-spin" : ""}`} />
-                    {autoImportLoading ? "Launching Browser..." : "Launch Browser & Auto-Import"}
+                    {autoImportLoading
+                      ? "Initiating Engine..."
+                      : autoImportRecurring
+                      ? "Start 15-Min Auto-Sync"
+                      : "Launch Browser & Auto-Import"}
                   </button>
                 </div>
               </form>

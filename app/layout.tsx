@@ -6,7 +6,10 @@ export const metadata: Metadata = {
   description:
     "Unified sync engine bridging your watch history across Trakt.tv, Letterboxd, and MyAnimeList. Built for Vercel Serverless.",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "32x32" },
+    ],
   },
 };
 

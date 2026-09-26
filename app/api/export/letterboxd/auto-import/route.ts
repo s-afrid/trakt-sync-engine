@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const type = body.type || "watched"; // 'watched' | 'ratings'
     const autoConfirm = Boolean(body.autoConfirm);
+    const interval = body.interval ? parseInt(body.interval, 10) : undefined;
+    const headless = Boolean(body.headless);
 
     // Retrieve Trakt token or username from cookie or DB
     let traktToken = request.cookies.get("trakt_token")?.value;
@@ -120,6 +122,14 @@ export async function POST(request: NextRequest) {
 
     if (autoConfirm) {
       scriptArgs.push("--auto-confirm");
+    }
+
+    if (interval) {
+      scriptArgs.push("--interval", String(interval));
+    }
+
+    if (headless) {
+      scriptArgs.push("--headless");
     }
 
     // Launch automation in detached child process so the browser window appears to the user
