@@ -421,8 +421,23 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
     synced_ids = set(state.get("synced_movie_ids", []))
     latest_watched_timestamp = state.get("latest_watched_at")
 
-    # Fetch latest movies data
-    print(f"\n[{now_str}] 🔍 Checking Trakt watch history...")
+    # 1. Trigger MAL Anime Sync automatically via sync engine
+    try:
+        sync_res = requests.post(f"{base_app_url}/api/sync/trigger", timeout=30)
+        if sync_res.status_code == 200:
+            data = sync_res.json()
+            anime_res = data.get("results", {}).get("anime", {})
+            updated = anime_res.get("malUpdatedCount", 0)
+            if updated > 0:
+                titles = [t["title"] for t in anime_res.get("updatedTitles", [])]
+                print(f"[{now_str}] 🌸 Anime Sync: Updated {updated} title(s) on MAL: {', '.join(titles)}")
+            else:
+                print(f"[{now_str}] 🌸 Anime Sync: MAL is already up to date.")
+    except Exception:
+        pass
+
+    # 2. Check Trakt movie history for Letterboxd
+    print(f"[{now_str}] 🔍 Checking Trakt movie watch history...")
     _, movies = get_latest_movies_data(base_app_url, args.type, csv_path)
 
     if not movies:

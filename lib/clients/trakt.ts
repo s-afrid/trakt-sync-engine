@@ -43,6 +43,7 @@ export interface TraktShowWatched {
   plays: number;
   last_watched_at: string;
   last_updated_at: string;
+  reset_at?: string | null;
   show: {
     title: string;
     year: number;
@@ -54,6 +55,8 @@ export interface TraktShowWatched {
       tvdb?: number;
     };
     genres?: string[];
+    aired_episodes?: number;
+    status?: string;
   };
   seasons: {
     number: number;
