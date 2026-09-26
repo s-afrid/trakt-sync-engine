@@ -31,7 +31,7 @@ async function getRemoteMappings(): Promise<MappingItem[]> {
   }
 
   try {
-    const res = await fetch(MAPPING_URL, { next: { revalidate: 43200 } });
+    const res = await fetch(MAPPING_URL, { cache: "no-store" });
     if (res.ok) {
       remoteMappingCache = await res.json();
       lastRemoteFetch = now;

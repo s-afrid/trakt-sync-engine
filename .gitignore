@@ -35,3 +35,11 @@ next-env.d.ts
 
 # Drizzle migrations cache
 drizzle/
+
+# Python & Virtualenv
+.venv/
+__pycache__/
+*.pyc
+
+# Local Export CSVs
+*.csv
