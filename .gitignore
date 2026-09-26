@@ -41,5 +41,7 @@ drizzle/
 __pycache__/
 *.pyc
 
-# Local Export CSVs
+# Local Export CSVs & Letterboxd State
 *.csv
+.letterboxd_session.json
+.letterboxd_sync_state.json

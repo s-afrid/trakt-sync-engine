@@ -273,6 +273,15 @@ def automate_letterboxd_upload(
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
         }
 
+        # Check for session from environment variable
+        session_env = os.getenv("LETTERBOXD_SESSION_JSON")
+        if session_env and not SESSION_FILE.exists():
+            try:
+                SESSION_FILE.write_text(session_env, encoding="utf-8")
+                print("💾 Loaded Letterboxd session from LETTERBOXD_SESSION_JSON secret.")
+            except Exception:
+                pass
+
         # Restore saved browser session if available
         if SESSION_FILE.exists():
             try:
@@ -292,8 +301,15 @@ def automate_letterboxd_upload(
         # Check for Cloudflare / Turnstile barrier
         content = page.content()
         if "challenges.cloudflare.com" in content or "Just a moment..." in page.title():
-            print("⚠️ Cloudflare challenge detected! Please solve the captcha in the open browser window...")
-            page.wait_for_selector("input#field-username, input[name='username'], input[type='file']", timeout=90000)
+            if headless:
+                print("⏳ Cloudflare verification detected in headless mode. Waiting up to 15s for automatic pass...")
+                try:
+                    page.wait_for_selector("input#field-username, input[name='username'], input[type='file'], .nav-account", timeout=15000)
+                except PlaywrightTimeoutError:
+                    raise Exception("Letterboxd presented a Cloudflare Turnstile challenge to this cloud IP. (Tip: Use 1-Click 'Watched CSV' on dashboard or provide LETTERBOXD_SESSION_JSON)")
+            else:
+                print("⚠️ Cloudflare challenge detected! Please solve the captcha in the open browser window...")
+                page.wait_for_selector("input#field-username, input[name='username'], input[type='file'], .nav-account", timeout=90000)
 
         # If redirected to sign-in page, perform login
         if "sign-in" in page.url.lower() or page.locator(".nav-account, .profile-avatar, a.avatar").count() == 0:
