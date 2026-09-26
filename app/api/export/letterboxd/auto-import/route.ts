@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save CSV to safe writable directory
+    const cwd = process.cwd();
     let targetDir = cwd;
     try {
       fs.accessSync(targetDir, fs.constants.W_OK);
