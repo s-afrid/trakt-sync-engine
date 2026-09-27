@@ -385,6 +385,16 @@ def automate_letterboxd_upload(
             print("🎉 Already authenticated via saved session!")
 
         # Step 2. Handle File Upload
+        # Check for intermittent "Continue" prompt from any previously abandoned import
+        try:
+            continue_btn = page.locator("button:has-text('Continue'), a:has-text('Continue')").first
+            if continue_btn.is_visible():
+                print("🔄 Found previous unfinished import prompt, clicking 'Continue'...")
+                continue_btn.click()
+                time.sleep(1.5)
+        except Exception:
+            pass
+
         print(f"📤 Uploading CSV file: {csv_path.name}...")
         file_input = page.locator("input[type='file']")
 
@@ -406,7 +416,7 @@ def automate_letterboxd_upload(
         print("⏳ Waiting for Letterboxd matching engine to resolve titles...")
         try:
             page.wait_for_selector(
-                ".import-matches-container, .button.-green, .table-container, form.import-step-2, .not-matched",
+                ".import-matches-container, .button.-green, .table-container, form.import-step-2, .not-matched, //strong[contains(text(), 'Matching complete')]",
                 timeout=60000,
             )
             print("✨ Match processing complete! Matching preview is visible.")
@@ -418,10 +428,15 @@ def automate_letterboxd_upload(
         if auto_confirm:
             print("⚡ Auto-submitting import confirmation...")
             try:
-                import_btn = page.locator(".button.-green, input[value='Import'], button:has-text('Import')").first
+                import_btn = page.locator("a:has-text('Import Films'), .button.-green, input[value='Import'], button:has-text('Import')").first
                 if import_btn.is_visible():
                     import_btn.click()
-                    print("✅ Clicked final green 'Import' button!")
+                    print("✅ Clicked final 'Import' button!")
+                    try:
+                        page.wait_for_selector("//strong[contains(text(), 'Saved')] | text='Saved'", timeout=20000)
+                        print("🎉 Import verified: Letterboxd saved the films!")
+                    except Exception:
+                        pass
                     time.sleep(4)
                     success = True
             except Exception as e:
