@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "import:letterboxd": "node scripts/run_letterboxd_import.mjs",
     "schedule:letterboxd": "node scripts/run_letterboxd_import.mjs --interval 15 --auto-confirm",
-    "auth:letterboxd": "node scripts/run_save_session.mjs"
+    "auth:letterboxd": "node scripts/run_save_session.mjs",
+    "session:import": "python scripts/import_cookies.py"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",

@@ -24,9 +24,11 @@ import {
   Check,
   Clock,
   Trash2,
+  Key,
 } from "lucide-react";
 import { TraktLogo, MalLogo, LetterboxdLogo } from "@/components/icons";
 import Activity24hTab from "@/components/Activity24hTab";
+import LetterboxdSessionModal from "@/components/LetterboxdSessionModal";
 
 interface SyncStatus {
   connected: {
@@ -96,6 +98,7 @@ export default function Dashboard() {
   const [copiedDaemon, setCopiedDaemon] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"dashboard" | "activity24h">("dashboard");
   const [isActivityTabDeleted, setIsActivityTabDeleted] = useState<boolean>(false);
+  const [showSessionModal, setShowSessionModal] = useState<boolean>(false);
 
   const fetchStatus = async () => {
     try {
@@ -790,8 +793,8 @@ export default function Dashboard() {
             </div>
 
             <div className="pt-4 border-t border-slate-800/60">
-              {status?.connected?.letterboxd ? (
-                <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center justify-between text-xs">
+                {status?.connected?.letterboxd ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -801,15 +804,22 @@ export default function Dashboard() {
                     }}
                     className="text-slate-400 hover:text-slate-200 transition-colors"
                   >
-                    {showLbInput ? "Close Edit" : "Change Username / Photo"}
+                    {showLbInput ? "Close Edit" : "Edit Profile"}
                   </button>
-                  <span className="text-[11px] text-slate-500">1-Click CSV Ready</span>
-                </div>
-              ) : (
-                <p className="text-[11px] text-slate-400">
-                  Allows reading your Letterboxd RSS diary entries into Trakt.
-                </p>
-              )}
+                ) : (
+                  <span className="text-[11px] text-slate-500">Unlinked Profile</span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowSessionModal(true)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/40 hover:bg-emerald-950/70 border border-emerald-800/50 text-[11px] font-medium text-emerald-300 hover:text-emerald-200 transition-colors"
+                  title="Update Letterboxd session via browser cookie extension"
+                >
+                  <Key className="h-3 w-3 text-emerald-400" />
+                  <span>Session Cookies</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -845,6 +855,15 @@ export default function Dashboard() {
               >
                 <Bot className="h-4 w-4" />
                 {showAutoImportModal ? "Close Automation" : "Auto-Upload (Playwright)"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSessionModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                title="Update Letterboxd session via browser cookie extension"
+              >
+                <Key className="h-4 w-4 text-emerald-400" />
+                <span>Update Session</span>
               </button>
               <a
                 href="/api/export/letterboxd?type=watched"
@@ -1242,6 +1261,13 @@ export default function Dashboard() {
         </div>
           </>
         )}
+
+        {/* Letterboxd Cookie Session Modal */}
+        <LetterboxdSessionModal
+          isOpen={showSessionModal}
+          onClose={() => setShowSessionModal(false)}
+          onSessionUpdated={fetchStatus}
+        />
       </div>
     </div>
   );

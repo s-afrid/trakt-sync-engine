@@ -330,6 +330,23 @@ def automate_letterboxd_upload(
             except Exception:
                 pass
 
+        # Fallback: check if server / Vercel database has a session
+        if not SESSION_FILE.exists() and not session_env:
+            try:
+                import urllib.request
+                app_url = os.getenv("NEXT_PUBLIC_APP_URL", "https://trakt-sync-engine.vercel.app")
+                req = urllib.request.Request(
+                    f"{app_url}/api/auth/letterboxd/session?includePayload=true",
+                    headers={"User-Agent": "TraktSyncEngine/1.0"}
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    s_json = json.loads(resp.read().decode("utf-8"))
+                    if s_json.get("sessionJson"):
+                        SESSION_FILE.write_text(s_json["sessionJson"], encoding="utf-8")
+                        print("💾 Loaded latest Letterboxd session from sync server database.")
+            except Exception:
+                pass
+
         # Restore saved browser session if available
         if SESSION_FILE.exists():
             try:
