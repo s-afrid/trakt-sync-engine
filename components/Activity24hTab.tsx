@@ -19,8 +19,11 @@ import {
   Info,
   ChevronDown,
   X,
+  Key,
+  ShieldCheck,
 } from "lucide-react";
 import { TraktLogo, MalLogo, LetterboxdLogo } from "@/components/icons";
+import LetterboxdSessionModal from "@/components/LetterboxdSessionModal";
 
 export interface ActivityItem {
   id: string;
@@ -159,9 +162,46 @@ export default function Activity24hTab({
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const [sessionInfo, setSessionInfo] = useState<{
+    hasSession: boolean;
+    cookieCount: number;
+    hasUserCookie: boolean;
+    isExpired?: boolean;
+    expiresAt: string | null;
+  } | null>(null);
+  const [ghRun, setGhRun] = useState<{
+    status: string;
+    conclusion: string | null;
+    runNumber: number;
+    updatedAt: string;
+    htmlUrl: string;
+  } | null>(null);
+  const [showSessionModal, setShowSessionModal] = useState<boolean>(false);
 
   const toggleExpand = (id: string) => {
     setExpandedItems((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const fetchSessionInfo = async () => {
+    try {
+      const res = await fetch("/api/auth/letterboxd/session");
+      if (res.ok) {
+        const json = await res.json();
+        setSessionInfo(json);
+      }
+    } catch {}
+  };
+
+  const fetchGhRuns = async () => {
+    try {
+      const res = await fetch("/api/github/actions");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.latestRun) {
+          setGhRun(json.latestRun);
+        }
+      }
+    } catch {}
   };
 
   const fetchActivity = async (selectedHours: number = hours) => {
@@ -179,11 +219,15 @@ export default function Activity24hTab({
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
+      fetchSessionInfo();
+      fetchGhRuns();
     }
   };
 
   useEffect(() => {
     fetchActivity(hours);
+    fetchSessionInfo();
+    fetchGhRuns();
   }, [hours]);
 
   // Client-side filtering
@@ -355,16 +399,48 @@ export default function Activity24hTab({
           </div>
         </div>
 
-        {/* Background Daemon Cycle */}
+        {/* Background Daemon Cycle & GitHub Actions Cloud Run */}
         <div className="p-4 rounded-2xl bg-[#0B0F19] border border-slate-800/80 flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-xs font-medium text-slate-400">Background Sync</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-slate-400">Background Sync</p>
+              {ghRun?.htmlUrl && (
+                <a
+                  href={ghRun.htmlUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 ml-2"
+                  title="View GitHub Actions Run Logs"
+                >
+                  <span>Logs</span>
+                  <ExternalLink className="h-2.5 w-2.5" />
+                </a>
+              )}
+            </div>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <p className="text-base font-bold text-emerald-400">15-Min Engine</p>
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  ghRun?.conclusion === "success"
+                    ? "bg-emerald-500 animate-pulse"
+                    : ghRun?.status === "in_progress"
+                    ? "bg-amber-400 animate-spin"
+                    : ghRun?.conclusion === "failure"
+                    ? "bg-red-500"
+                    : "bg-emerald-500 animate-pulse"
+                }`}
+              />
+              <p className="text-base font-bold text-emerald-400">
+                {ghRun?.conclusion === "success"
+                  ? "Cloud 15-Min: OK"
+                  : ghRun?.status === "in_progress"
+                  ? "Syncing Now..."
+                  : "15-Min Engine"}
+              </p>
             </div>
             <p className="text-[11px] text-slate-400">
-              Refreshed {formatRelativeTime(lastRefreshed.toISOString())}
+              {ghRun?.updatedAt
+                ? `Last run: ${formatRelativeTime(ghRun.updatedAt)} (#${ghRun.runNumber})`
+                : `Refreshed ${formatRelativeTime(lastRefreshed.toISOString())}`}
             </p>
           </div>
           <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
@@ -372,6 +448,51 @@ export default function Activity24hTab({
           </div>
         </div>
       </div>
+
+      {/* Letterboxd Session Status Banner */}
+      {sessionInfo && (
+        <div
+          className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+            sessionInfo.hasSession && !sessionInfo.isExpired
+              ? "bg-emerald-950/20 border-emerald-800/40 text-emerald-200"
+              : "bg-amber-950/30 border-amber-800/50 text-amber-200"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            {sessionInfo.hasSession && !sessionInfo.isExpired ? (
+              <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+            )}
+            <div>
+              <span className="font-semibold text-white">
+                Letterboxd Cookie Session:{" "}
+                {sessionInfo.hasSession && !sessionInfo.isExpired
+                  ? "Active & Verified"
+                  : sessionInfo.isExpired
+                  ? "Expired"
+                  : "Not Configured"}
+              </span>
+              <span className="text-slate-400 ml-2">
+                {sessionInfo.hasSession && !sessionInfo.isExpired
+                  ? `${sessionInfo.cookieCount} cookies stored${
+                      sessionInfo.expiresAt
+                        ? ` • Valid until ${new Date(sessionInfo.expiresAt).toLocaleDateString()}`
+                        : ""
+                    }`
+                  : "Automated background sync requires an active Letterboxd cookie session. In case of import failures, update your session cookie here."}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowSessionModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium shrink-0 self-start sm:self-auto transition-colors"
+          >
+            <Key className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Update Session</span>
+          </button>
+        </div>
+      )}
 
       {/* Filter and Control Bar */}
       <div className="p-4 rounded-2xl bg-[#0B0F19] border border-slate-800/80 space-y-4">
@@ -718,6 +839,18 @@ export default function Activity24hTab({
           </p>
         </div>
       </div>
+
+      <LetterboxdSessionModal
+        isOpen={showSessionModal}
+        onClose={() => {
+          setShowSessionModal(false);
+          fetchSessionInfo();
+        }}
+        onSessionUpdated={() => {
+          fetchSessionInfo();
+          fetchActivity(hours);
+        }}
+      />
     </div>
   );
 }

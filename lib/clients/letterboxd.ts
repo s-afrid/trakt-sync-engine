@@ -23,6 +23,7 @@ export interface LetterboxdRssItem {
   title: string;
   filmTitle: string;
   filmYear?: number;
+  tmdbId?: number;
   watchedDate?: string;
   rating?: number; // 1-10 scale
   reviewLink?: string;
@@ -82,7 +83,7 @@ export class LetterboxdClient {
   }
 
   /**
-   * Fetch and parse Letterboxd user RSS feed
+   * Fetch and parse Letterboxd user RSS feed (live / real-time)
    */
   static async fetchUserRss(username: string): Promise<LetterboxdRssItem[]> {
     const cleanUsername = username.trim().toLowerCase();
@@ -90,9 +91,9 @@ export class LetterboxdClient {
 
     const res = await fetch(url, {
       headers: {
-        "User-Agent": "TraktSyncEngine/1.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) TraktSyncEngine/1.0",
       },
-      next: { revalidate: 3600 },
+      cache: "no-store",
     });
 
     if (!res.ok) {
@@ -121,6 +122,8 @@ export class LetterboxdClient {
       const filmYear = filmYearStr ? parseInt(filmYearStr, 10) : undefined;
       const watchedDate = it["letterboxd:watchedDate"] as string;
       const memberRatingStr = it["letterboxd:memberRating"] as string;
+      const tmdbIdStr = (it["tmdb:movieId"] as string) || (it["{https://themoviedb.org}movieId"] as string);
+      const tmdbId = tmdbIdStr ? parseInt(String(tmdbIdStr), 10) : undefined;
       // Convert Letterboxd rating (0.5 to 5.0) to Trakt rating (1 to 10)
       const rating = memberRatingStr ? Math.round(parseFloat(memberRatingStr) * 2) : undefined;
 
@@ -128,6 +131,7 @@ export class LetterboxdClient {
         title,
         filmTitle,
         filmYear,
+        tmdbId,
         watchedDate,
         rating,
         reviewLink: (it["link"] as string) || "",

@@ -116,6 +116,28 @@ Because Letterboxd's official API is strictly closed to partner businesses, this
 
 ---
 
+## ⏰ 15-Minute Background Cloud Sync & Letterboxd Session Management
+
+The synchronization engine operates autonomously via a 4-pillar contract:
+1. **15-Minute Cycle**: The cloud runner (`.github/workflows/letterboxd-sync.yml`) runs every 15 minutes.
+2. **Quiet Sleep (Smart Diffing)**: If no new movies or episodes were watched on Trakt since the last run, it sleeps quietly with 0% CPU and never launches browser windows.
+3. **Automated Anime Sync**: Triggers instant synchronization of watched episodes and series status from Trakt to MyAnimeList.
+4. **Automated Movie Sync**: Compiles verified Trakt movie history into standard Letterboxd CSVs and auto-imports them into Letterboxd via Playwright with session persistence.
+
+### 🛡️ Fail-Safe Session Renewal (Cookie Expiration)
+Because Letterboxd uses Cloudflare Turnstile bot protection, automated logins in headless environments may fail if the saved cookie session expires. When this happens:
+
+1. **Export Fresh Cookies**:
+   - Open [letterboxd.com](https://letterboxd.com) in your regular browser while logged in.
+   - Click the [Cookie-Editor extension](https://cookie-editor.com/) icon.
+   - Click **Export** ➔ **Export as JSON**.
+2. **Update in 1 Click**:
+   - **In the Web App**: Navigate to the Dashboard or **Live Activity (24h)** tab, locate the **Letterboxd Cookie Session** banner, click **Update Session**, and paste your exported JSON.
+   - **In GitHub Secrets**: Go to your GitHub repository ➔ **Settings** ➔ **Secrets and variables** ➔ **Actions**, and update the secret `LETTERBOXD_SESSION_JSON` with the exported JSON string.
+3. **Verify**:
+   - The web app displays a live session badge (`🟢 Active & Verified` or `🔴 Expired`) and shows the exact expiration date.
+   - GitHub Actions will automatically use the updated session on its next 15-minute scheduled run.
+
 ## 📂 Project Architecture
 
 ```text

@@ -872,6 +872,33 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
         save_sync_state(state)
         print(f"[{now_str}] ✅ State saved: {len(current_ids)} movies tracked.")
 
+        # Notify Vercel app database of the successful cloud execution
+        report_urls = []
+        if base_app_url:
+            report_urls.append(f"{base_app_url}/api/sync/report")
+        if "https://trakt-sync-engine.vercel.app/api/sync/report" not in report_urls:
+            report_urls.append("https://trakt-sync-engine.vercel.app/api/sync/report")
+
+        report_payload = {
+            "status": "success",
+            "type": "letterboxd_import",
+            "title": f"Auto-imported {len(upload_movies)} movies to Letterboxd",
+            "itemsCount": len(upload_movies),
+            "details": {
+                "uploadedMovies": len(upload_movies),
+                "syncedTitles": [m.get("movie", {}).get("title") for m in upload_movies[:10]],
+                "runtime": "github_actions" if os.getenv("GITHUB_ACTIONS") else "local_daemon",
+                "runId": os.getenv("GITHUB_RUN_ID", "local"),
+                "timestamp": now_str,
+            },
+        }
+        for r_url in report_urls:
+            try:
+                requests.post(r_url, json=report_payload, timeout=10)
+                break
+            except Exception:
+                pass
+
     return success
 
 

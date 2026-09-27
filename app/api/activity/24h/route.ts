@@ -4,6 +4,7 @@ import { syncLogs, linkedAccounts } from "@/lib/db/schema";
 import { desc, eq, gte } from "drizzle-orm";
 import { TraktClient } from "@/lib/clients/trakt";
 import { MalClient, MalUserAnimeItem } from "@/lib/clients/mal";
+import { LetterboxdClient } from "@/lib/clients/letterboxd";
 
 export interface ActivityItem {
   id: string;
@@ -188,9 +189,32 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Retrieve confirmed Letterboxd diary titles from latest RSS sync log
+  // Retrieve confirmed Letterboxd diary titles directly from live Letterboxd RSS
   const verifiedLbTitles = new Set<string>();
-  if (db) {
+  const verifiedLbTmdbIds = new Set<number>();
+
+  if (letterboxdUsername) {
+    try {
+      const rssItems = await LetterboxdClient.fetchUserRss(letterboxdUsername);
+      for (const item of rssItems) {
+        if (item.filmTitle) {
+          verifiedLbTitles.add(item.filmTitle.trim().toLowerCase());
+        }
+        if (item.title) {
+          const base = item.title.split(",")[0].trim().toLowerCase();
+          verifiedLbTitles.add(base);
+        }
+        if (item.tmdbId) {
+          verifiedLbTmdbIds.add(item.tmdbId);
+        }
+      }
+    } catch (e) {
+      console.warn("Live Letterboxd RSS fetch in 24h activity failed, falling back to DB logs:", e);
+    }
+  }
+
+  // Fallback to DB logs if live RSS returned empty
+  if (verifiedLbTitles.size === 0 && db) {
     try {
       const lbLog = await db
         .select()
@@ -238,7 +262,9 @@ export async function GET(request: NextRequest) {
         const watchDate = new Date(watchedAt);
         if (watchDate >= cutoffTime) {
           const cleanTitle = m.movie.title.trim().toLowerCase();
-          const isConfirmedInLb = verifiedLbTitles.has(cleanTitle);
+          const isConfirmedInLb =
+            verifiedLbTitles.has(cleanTitle) ||
+            (m.movie.ids.tmdb ? verifiedLbTmdbIds.has(m.movie.ids.tmdb) : false);
 
           const status: "imported" | "pending" = isConfirmedInLb ? "imported" : "pending";
           const subtitle = isConfirmedInLb
