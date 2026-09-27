@@ -245,6 +245,42 @@ def get_latest_movies_data(app_url: str, export_type: str, target_csv: Path) -> 
     raise Exception("Could not fetch movies from Trakt or sync server, and no local CSV exists.")
 
 
+def parse_proxy(raw_proxy: str) -> dict:
+    """Parses any proxy format (URL, host:port:user:pass, or simple host:port) for Playwright."""
+    raw_proxy = raw_proxy.strip()
+    if not raw_proxy:
+        return {}
+
+    # Format 1: host:port:username:password (standard Webshare download list)
+    parts = raw_proxy.split(":")
+    if len(parts) == 4 and not raw_proxy.startswith("http"):
+        host, port, user, pwd = parts
+        return {
+            "server": f"http://{host}:{port}",
+            "username": user,
+            "password": pwd,
+        }
+
+    # Format 2: http://user:pass@host:port or user:pass@host:port
+    if "@" in raw_proxy:
+        from urllib.parse import urlparse
+        norm_url = raw_proxy if "://" in raw_proxy else f"http://{raw_proxy}"
+        parsed = urlparse(norm_url)
+        scheme = parsed.scheme or "http"
+        port_str = f":{parsed.port}" if parsed.port else ""
+        res = {"server": f"{scheme}://{parsed.hostname}{port_str}"}
+        if parsed.username:
+            res["username"] = parsed.username
+        if parsed.password:
+            res["password"] = parsed.password
+        return res
+
+    # Format 3: simple host:port or http://host:port
+    if "://" not in raw_proxy:
+        raw_proxy = f"http://{raw_proxy}"
+    return {"server": raw_proxy}
+
+
 def automate_letterboxd_upload(
     csv_path: Path,
     username: str,
@@ -271,10 +307,12 @@ def automate_letterboxd_upload(
                 "--no-sandbox",
             ],
         }
-        proxy_server = os.getenv("LETTERBOXD_PROXY")
-        if proxy_server:
-            launch_kwargs["proxy"] = {"server": proxy_server}
-            print("🌐 Routing browser via residential/cloud proxy...")
+        proxy_raw = os.getenv("LETTERBOXD_PROXY")
+        if proxy_raw:
+            parsed_proxy = parse_proxy(proxy_raw)
+            if parsed_proxy:
+                launch_kwargs["proxy"] = parsed_proxy
+                print(f"🌐 Routing browser via residential/cloud proxy ({parsed_proxy.get('server', 'configured')})...")
 
         browser = p.chromium.launch(**launch_kwargs)
 
