@@ -3,7 +3,7 @@ import { AnimeSyncService } from "@/lib/sync/anime-sync";
 import { LetterboxdSyncService } from "@/lib/sync/letterboxd-sync";
 import { db } from "@/lib/db";
 import { linkedAccounts, syncSettings, syncLogs } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   try {
