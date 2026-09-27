@@ -14,7 +14,10 @@ export async function POST(request: NextRequest) {
 
     // Check DB for tokens if cookies missing
     if (db && (!traktToken || !malToken || !letterboxdUsername)) {
-      const accounts = await db.select().from(linkedAccounts);
+      const accounts = await db
+        .select()
+        .from(linkedAccounts)
+        .orderBy(desc(linkedAccounts.updatedAt));
       for (const acc of accounts) {
         if (acc.provider === "trakt") {
           if (!traktToken && acc.accessToken) traktToken = acc.accessToken;

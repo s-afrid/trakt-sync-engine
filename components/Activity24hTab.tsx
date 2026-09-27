@@ -28,7 +28,7 @@ export interface ActivityItem {
   title: string;
   subtitle: string;
   type: "episode" | "movie" | "completed" | "sync_run";
-  status: "synced" | "imported" | "completed" | "info";
+  status: "synced" | "imported" | "completed" | "info" | "pending";
   timestamp: string;
   metadata?: {
     year?: number;
@@ -668,18 +668,28 @@ export default function Activity24hTab({
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/60">
                     <span
                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase ${
-                        isLB
+                        item.status === "pending"
+                          ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                          : isLB
                           ? "bg-[#00E054]/15 text-[#00E054] border border-[#00E054]/30"
                           : isMAL
                           ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
                           : "bg-slate-800 text-slate-300 border border-slate-700"
                       }`}
                     >
-                      <CheckCircle2 className="h-3 w-3" />
+                      {item.status === "pending" ? (
+                        <Clock className="h-3 w-3 text-amber-400" />
+                      ) : (
+                        <CheckCircle2 className="h-3 w-3" />
+                      )}
                       {item.status === "imported"
                         ? "Auto-Imported"
                         : item.status === "synced"
                         ? "Synced"
+                        : item.status === "pending"
+                        ? isLB
+                          ? "Pending Import"
+                          : "Pending Sync"
                         : item.status}
                     </span>
 

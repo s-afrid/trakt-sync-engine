@@ -584,9 +584,16 @@ def automate_letterboxd_upload(
         # Run automated Turnstile solver on the import/csv endpoint
         handle_turnstile_if_present(page, timeout_sec=30)
 
+        import_selectors = (
+            "a.save-users-imported-imdb-history, a.submit-matched-films, "
+            "a:has-text('IMPORT TITLES'), a:has-text('Import Titles'), a:has-text('Import Films'), "
+            "input[value='Start Import'], input[value*='Import'], input[type='submit'][value*='Import'], "
+            ".button.-green, input[value='Import'], button:has-text('Import')"
+        )
+
         try:
             page.wait_for_selector(
-                ".import-matches-container, .button.-green, .table-container, form.import-step-2, .not-matched, strong:has-text('Matching complete'), input[value='Start Import']",
+                f"{import_selectors}, .import-matches-container, .table-container, form.import-step-2, .not-matched, strong:has-text('Matching complete')",
                 timeout=60000,
             )
             print("✨ Match processing complete! Matching preview is visible.")
@@ -596,23 +603,40 @@ def automate_letterboxd_upload(
         # Step 4. Final Confirmation
         success = False
         if auto_confirm:
-            print("⚡ Auto-submitting import confirmation...")
+            print(f"⚡ Auto-submitting import confirmation... (URL: {page.url} | Title: {page.title()})")
             try:
-                import_btn = page.locator(
-                    "input[value='Start Import'], input[value*='Import'], input[type='submit'][value*='Import'], a:has-text('Start Import'), a:has-text('Import Films'), .button.-green, input[value='Import'], button:has-text('Import')"
-                ).first
-                if import_btn.is_visible():
+                # Solve turnstile once more if matching dialog presented a challenge
+                handle_turnstile_if_present(page, timeout_sec=20)
+                time.sleep(2)
+
+                try:
+                    page.screenshot(path=str(ROOT_DIR / "debug_matching.png"))
+                except Exception:
+                    pass
+
+                import_btn = page.locator(import_selectors).first
+                if import_btn.count() > 0:
                     import_btn.scroll_into_view_if_needed()
-                    import_btn.click()
-                    print("✅ Clicked final 'Start Import' button!")
                     try:
-                        saved_indicator = page.locator("strong:has-text('Saved'), h1:has-text('Saved'), text='Saved', text='saved'").first
+                        import_btn.click(force=True, timeout=10000)
+                        print("✅ Clicked final import button (force=True)!")
+                    except Exception:
+                        page.evaluate("""() => {
+                            const btn = document.querySelector("a.save-users-imported-imdb-history, a.submit-matched-films, a:has-text('Import Titles'), input[value*='Import']");
+                            if (btn) btn.click();
+                        }""")
+                        print("✅ Clicked final import button via direct DOM dispatch!")
+
+                    try:
+                        saved_indicator = page.locator("strong:has-text('Saved'), h1:has-text('Saved'), text='Saved', text='saved', .message.-success").first
                         saved_indicator.wait_for(state="visible", timeout=20000)
                         print("🎉 Import verified: Letterboxd saved the films!")
                     except Exception:
                         pass
                     time.sleep(4)
                     success = True
+                else:
+                    print("⚠️ Import button not found on matching screen.")
             except Exception as e:
                 print(f"⚠️ Could not auto-click import button: {e}")
         else:

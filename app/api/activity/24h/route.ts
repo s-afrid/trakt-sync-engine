@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { syncLogs, linkedAccounts } from "@/lib/db/schema";
 import { desc, eq, gte } from "drizzle-orm";
 import { TraktClient } from "@/lib/clients/trakt";
+import { MalClient, MalUserAnimeItem } from "@/lib/clients/mal";
 
 export interface ActivityItem {
   id: string;
@@ -10,7 +11,7 @@ export interface ActivityItem {
   title: string;
   subtitle: string;
   type: "episode" | "movie" | "completed" | "sync_run";
-  status: "synced" | "imported" | "completed" | "info";
+  status: "synced" | "imported" | "completed" | "info" | "pending";
   timestamp: string;
   metadata?: {
     year?: number;
@@ -159,35 +160,66 @@ export async function GET(request: NextRequest) {
   // Extract auth credentials
   let traktToken = request.cookies.get("trakt_token")?.value;
   let traktUsername = request.cookies.get("trakt_username")?.value || process.env.TRAKT_USERNAME || "afsindbad";
+  let malToken = request.cookies.get("mal_token")?.value;
   let letterboxdUsername = request.cookies.get("letterboxd_username")?.value || process.env.LETTERBOXD_USERNAME || "Af_Sindbad";
 
   // Hydrate from DB if available
   if (db) {
     try {
-      if (!traktToken) {
-        const traktAcc = await db
-          .select()
-          .from(linkedAccounts)
-          .where(eq(linkedAccounts.provider, "trakt"))
-          .limit(1);
-        if (traktAcc.length > 0 && traktAcc[0].accessToken) {
-          traktToken = traktAcc[0].accessToken;
-          traktUsername = traktAcc[0].providerUsername || traktUsername;
-        }
-      }
+      const accounts = await db
+        .select()
+        .from(linkedAccounts)
+        .orderBy(desc(linkedAccounts.updatedAt));
 
-      if (!letterboxdUsername) {
-        const lbAcc = await db
-          .select()
-          .from(linkedAccounts)
-          .where(eq(linkedAccounts.provider, "letterboxd"))
-          .limit(1);
-        if (lbAcc.length > 0) {
-          letterboxdUsername = lbAcc[0].providerUsername || letterboxdUsername;
+      for (const acc of accounts) {
+        if (acc.provider === "trakt") {
+          if (!traktToken && acc.accessToken) traktToken = acc.accessToken;
+          if (!traktUsername && acc.providerUsername) traktUsername = acc.providerUsername;
+        }
+        if (acc.provider === "myanimelist" && !malToken && acc.accessToken) {
+          malToken = acc.accessToken;
+        }
+        if (acc.provider === "letterboxd" && !letterboxdUsername && acc.providerUsername) {
+          letterboxdUsername = acc.providerUsername;
         }
       }
     } catch (e) {
       console.warn("DB account lookup in 24h activity failed:", e);
+    }
+  }
+
+  // Retrieve confirmed Letterboxd diary titles from latest RSS sync log
+  const verifiedLbTitles = new Set<string>();
+  if (db) {
+    try {
+      const lbLog = await db
+        .select()
+        .from(syncLogs)
+        .where(eq(syncLogs.type, "letterboxd_rss"))
+        .orderBy(desc(syncLogs.createdAt))
+        .limit(1);
+
+      if (lbLog.length > 0 && lbLog[0].details) {
+        try {
+          const parsed = JSON.parse(lbLog[0].details);
+          if (Array.isArray(parsed.syncedTitles)) {
+            for (const t of parsed.syncedTitles) {
+              verifiedLbTitles.add(String(t).trim().toLowerCase());
+            }
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+
+  // Retrieve live MAL user anime list to confirm actual watched status
+  let malList: MalUserAnimeItem[] = [];
+  if (malToken) {
+    try {
+      const malClient = new MalClient(malToken);
+      malList = await malClient.getUserAnimeList();
+    } catch (malErr) {
+      console.warn("Could not fetch MAL list for 24h activity confirmation:", malErr);
     }
   }
 
@@ -204,15 +236,22 @@ export async function GET(request: NextRequest) {
         if (!watchedAt) continue;
 
         const watchDate = new Date(watchedAt);
-        // Include if within cutoff window (or include recent if user specifically requested)
         if (watchDate >= cutoffTime) {
+          const cleanTitle = m.movie.title.trim().toLowerCase();
+          const isConfirmedInLb = verifiedLbTitles.has(cleanTitle);
+
+          const status: "imported" | "pending" = isConfirmedInLb ? "imported" : "pending";
+          const subtitle = isConfirmedInLb
+            ? `${m.movie.year || "Unknown"} • Confirmed in Letterboxd Diary`
+            : `${m.movie.year || "Unknown"} • Watched on Trakt (Pending Letterboxd auto-import)`;
+
           items.push({
             id: `lb-movie-${m.movie.ids.trakt}`,
             platform: "letterboxd",
             title: m.movie.title,
-            subtitle: `${m.movie.year || "Unknown"} • Watched on Trakt ➔ Auto-imported to Letterboxd`,
+            subtitle,
             type: "movie",
-            status: "imported",
+            status,
             timestamp: watchedAt,
             metadata: {
               year: m.movie.year,
@@ -239,24 +278,35 @@ export async function GET(request: NextRequest) {
         if (!h.watched_at) continue;
         const watchDate = new Date(h.watched_at);
         if (watchDate >= cutoffTime) {
-          const isAnimeShow =
-            h.show.title.toLowerCase().includes("erased") ||
-            h.show.title.toLowerCase().includes("demon slayer") ||
-            h.show.title.toLowerCase().includes("titan") ||
-            h.show.title.toLowerCase().includes("naruto") ||
-            h.show.title.toLowerCase().includes("piece") ||
-            h.show.title.toLowerCase().includes("jujutsu") ||
-            h.show.title.toLowerCase().includes("bleach") ||
-            h.show.title.toLowerCase().includes("anime") ||
-            true; // All tracked episodes sync to MAL pipeline
+          const showTitleLower = h.show.title.toLowerCase();
+
+          // Check if confirmed on MAL
+          const malMatch = malList.find((item) => {
+            const itemTitle = item.node.title.toLowerCase();
+            return (
+              itemTitle.includes(showTitleLower) ||
+              showTitleLower.includes(itemTitle) ||
+              (showTitleLower.includes("erased") && itemTitle.includes("boku dake"))
+            );
+          });
+
+          const isConfirmedOnMal =
+            malMatch &&
+            malMatch.list_status &&
+            malMatch.list_status.num_episodes_watched >= h.episode.number;
+
+          const status: "synced" | "pending" = isConfirmedOnMal ? "synced" : "pending";
+          const subtitle = isConfirmedOnMal
+            ? `Season ${h.episode.season}, Episode ${h.episode.number}${h.episode.title ? `: "${h.episode.title}"` : ""} • Confirmed on MyAnimeList (Ep. ${malMatch.list_status.num_episodes_watched}/${malMatch.node.num_episodes || "?"})`
+            : `Season ${h.episode.season}, Episode ${h.episode.number}${h.episode.title ? `: "${h.episode.title}"` : ""} • Watched on Trakt (Pending MAL sync)`;
 
           items.push({
             id: `mal-ep-${h.id}`,
             platform: "myanimelist",
             title: h.show.title,
-            subtitle: `Season ${h.episode.season}, Episode ${h.episode.number}${h.episode.title ? `: "${h.episode.title}"` : ""} ➔ Synced to MyAnimeList`,
+            subtitle,
             type: "episode",
-            status: "synced",
+            status,
             timestamp: h.watched_at,
             metadata: {
               season: h.episode.season,
