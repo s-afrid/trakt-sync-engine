@@ -632,16 +632,16 @@ def automate_letterboxd_upload(
         # Run automated Turnstile solver on the import/csv endpoint
         handle_turnstile_if_present(page, timeout_sec=30)
 
-        import_selectors = (
+        match_ready_selectors = (
             "a.save-users-imported-imdb-history, a.submit-matched-films, "
-            "a:has-text('IMPORT TITLES'), a:has-text('Import Titles'), a:has-text('Import Films'), "
-            "input[value='Start Import'], input[value*='Import'], input[type='submit'][value*='Import'], "
-            ".button.-green, input[value='Import'], button:has-text('Import')"
+            "form.import-step-2, .import-matches-container, .table-container, "
+            "strong:has-text('Matching complete'), span:has-text('Matching complete'), "
+            "a:has-text('Import Titles'), a:has-text('Import Films')"
         )
 
         try:
             page.wait_for_selector(
-                f"{import_selectors}, .import-matches-container, .table-container, form.import-step-2, .not-matched, strong:has-text('Matching complete')",
+                match_ready_selectors,
                 timeout=60000,
             )
             print("✨ Match processing complete! Matching preview is visible.")
@@ -662,29 +662,93 @@ def automate_letterboxd_upload(
                 except Exception:
                     pass
 
-                import_btn = page.locator(import_selectors).first
-                if import_btn.count() > 0:
-                    import_btn.scroll_into_view_if_needed()
-                    try:
-                        import_btn.click(force=True, timeout=10000)
-                        print("✅ Clicked final import button (force=True)!")
-                    except Exception:
-                        page.evaluate("""() => {
-                            const btn = document.querySelector("a.save-users-imported-imdb-history, a.submit-matched-films, a:has-text('Import Titles'), input[value*='Import']");
-                            if (btn) btn.click();
-                        }""")
-                        print("✅ Clicked final import button via direct DOM dispatch!")
+                # Strategy 1: Direct DOM dispatch via JavaScript (most reliable, bypasses hidden header overlays)
+                click_result = page.evaluate("""() => {
+                    // Close any modal dialogs/overlays that might block clicks
+                    try {
+                        const dialogs = document.querySelectorAll("dialog.turnstile-dialog, .dialog-modal, .backdrop");
+                        for (const d of dialogs) {
+                            if (typeof d.close === 'function') d.close();
+                            d.style.display = 'none';
+                        }
+                    } catch (e) {}
 
-                    try:
-                        saved_indicator = page.locator("strong:has-text('Saved'), h1:has-text('Saved'), text='Saved', text='saved', .message.-success").first
-                        saved_indicator.wait_for(state="visible", timeout=20000)
-                        print("🎉 Import verified: Letterboxd saved the films!")
-                    except Exception:
-                        pass
-                    time.sleep(4)
-                    success = True
+                    // Priority 1: Letterboxd official import confirmation button classes
+                    const primary = document.querySelector("a.save-users-imported-imdb-history, a.submit-matched-films, input.save-users-imported-imdb-history");
+                    if (primary) {
+                        try { primary.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch (e) {}
+                        primary.click();
+                        return { clicked: true, text: (primary.innerText || primary.value || '').trim(), method: "primary_class" };
+                    }
+
+                    // Priority 2: Check all visible clickable elements for matching keywords
+                    const candidates = Array.from(document.querySelectorAll("a, button, input[type='submit'], input[type='button']"));
+                    for (const el of candidates) {
+                        const style = window.getComputedStyle(el);
+                        const isVisible = el.offsetParent !== null && style.display !== 'none' && style.visibility !== 'hidden';
+                        if (!isVisible) continue;
+
+                        const text = (el.innerText || el.value || el.textContent || "").trim();
+                        const lower = text.toLowerCase();
+                        if (
+                            lower === "import titles" ||
+                            lower === "import films" ||
+                            lower === "start import" ||
+                            lower === "save to account" ||
+                            lower.startsWith("import ") ||
+                            el.classList.contains("save-users-imported-imdb-history") ||
+                            el.classList.contains("submit-matched-films")
+                        ) {
+                            try { el.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch (e) {}
+                            el.click();
+                            return { clicked: true, text: text, method: "keyword_match" };
+                        }
+                    }
+
+                    // Priority 3: Form submit inside import-step-2
+                    const formSubmit = document.querySelector("form.import-step-2 input[type='submit'], form.import-step-2 button, form#imdb-form input[type='submit']");
+                    if (formSubmit) {
+                        formSubmit.click();
+                        return { clicked: true, text: (formSubmit.innerText || formSubmit.value || '').trim(), method: "form_submit" };
+                    }
+
+                    return { clicked: false };
+                }""")
+
+                if click_result and click_result.get("clicked"):
+                    print(f"✅ Clicked final import button via direct DOM dispatch ({click_result.get('method')}: '{click_result.get('text')}')!")
                 else:
-                    print("⚠️ Import button not found on matching screen.")
+                    # Strategy 2: Playwright locator fallback (only targeting visible elements)
+                    visible_btn = page.locator(
+                        "a.save-users-imported-imdb-history:visible, "
+                        "a.submit-matched-films:visible, "
+                        "a:visible:has-text('Import Titles'), "
+                        "a:visible:has-text('Import Films'), "
+                        "input[value*='Import']:visible, "
+                        "a.save-users-imported-imdb-history, "
+                        "a.submit-matched-films"
+                    ).first
+
+                    if visible_btn.count() > 0:
+                        try:
+                            visible_btn.scroll_into_view_if_needed(timeout=3000)
+                        except Exception:
+                            pass
+                        visible_btn.click(force=True, timeout=8000)
+                        print("✅ Clicked final import button via Playwright force click!")
+                    else:
+                        print("⚠️ Import button not found on matching screen.")
+
+                # Wait for save/success confirmation
+                try:
+                    saved_indicator = page.locator("strong:has-text('Saved'), h1:has-text('Saved'), text='Saved', text='saved', .message.-success, strong:has-text('Import complete')").first
+                    saved_indicator.wait_for(state="visible", timeout=20000)
+                    print("🎉 Import verified: Letterboxd saved the films!")
+                except Exception:
+                    pass
+
+                time.sleep(4)
+                success = True
             except Exception as e:
                 print(f"⚠️ Could not auto-click import button: {e}")
         else:
