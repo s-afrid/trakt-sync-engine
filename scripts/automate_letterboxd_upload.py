@@ -260,13 +260,19 @@ def automate_letterboxd_upload(
 
     with sync_playwright() as p:
         print(f"🚀 Launching browser (headless={headless})...")
-        browser = p.chromium.launch(
-            headless=headless,
-            args=[
+        launch_kwargs = {
+            "headless": headless,
+            "args": [
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
             ],
-        )
+        }
+        proxy_server = os.getenv("LETTERBOXD_PROXY")
+        if proxy_server:
+            launch_kwargs["proxy"] = {"server": proxy_server}
+            print("🌐 Routing browser via residential/cloud proxy...")
+
+        browser = p.chromium.launch(**launch_kwargs)
 
         context_kwargs = {
             "viewport": {"width": 1280, "height": 850},
@@ -295,6 +301,14 @@ def automate_letterboxd_upload(
         context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         page = context.new_page()
 
+        # Apply stealth evasion hooks if available
+        try:
+            from playwright_stealth.stealth import Stealth
+            Stealth().apply_stealth_sync(page)
+            print("🛡️ Anti-detection stealth shield applied to browser context.")
+        except Exception:
+            pass
+
         # Step 1. Check Authentication
         print("🔐 Checking Letterboxd authentication state...")
         page.goto("https://letterboxd.com/import/", wait_until="commit", timeout=60000)
@@ -304,18 +318,30 @@ def automate_letterboxd_upload(
             pass
         time.sleep(2)
 
-        # Check for Cloudflare / Turnstile barrier
-        content = page.content()
-        if "challenges.cloudflare.com" in content or "Just a moment..." in page.title():
-            if headless:
-                print("⏳ Cloudflare verification detected in headless mode. Waiting up to 15s for automatic pass...")
-                try:
-                    page.wait_for_selector("input#field-username, input[name='username'], input[type='file'], .nav-account", timeout=15000)
-                except PlaywrightTimeoutError:
-                    raise Exception("Letterboxd presented a Cloudflare Turnstile challenge to this cloud IP. (Tip: Run 'npm run import:letterboxd' once without --headless to save session)")
-            else:
-                print("⚠️ Cloudflare challenge detected! Please solve the captcha in the open browser window...")
-                page.wait_for_selector("input#field-username, input[name='username'], input[type='file'], .nav-account", timeout=90000)
+        # Automated Cloudflare Turnstile handler
+        def handle_turnstile_if_present(p_page, timeout_sec=20):
+            if "challenges.cloudflare.com" in p_page.content() or "Just a moment..." in p_page.title():
+                print("⏳ Cloudflare Turnstile detected. Engaging automated bypass...")
+                start_w = time.time()
+                while time.time() - start_w < timeout_sec:
+                    for f in p_page.frames:
+                        if "challenges.cloudflare.com" in f.url:
+                            try:
+                                chk = f.locator("input[type='checkbox'], #challenge-stage, .ctp-checkbox-label, .mark, label.cb-lb")
+                                if chk.count() > 0 and chk.first.is_visible():
+                                    chk.first.click(force=True)
+                                    time.sleep(2)
+                                    break
+                            except Exception:
+                                pass
+                    if "Just a moment..." not in p_page.title():
+                        print("✨ Cloudflare verification cleared!")
+                        return True
+                    time.sleep(1.5)
+                return False
+            return True
+
+        handle_turnstile_if_present(page)
 
         # If redirected to sign-in page, perform login
         if "sign-in" in page.url.lower() or page.locator(".nav-account, .profile-avatar, a.avatar").count() == 0:

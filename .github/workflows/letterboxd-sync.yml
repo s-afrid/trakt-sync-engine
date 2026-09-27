@@ -67,6 +67,7 @@ jobs:
           LETTERBOXD_USERNAME: ${{ secrets.LETTERBOXD_USERNAME || 'Af_Sindbad' }}
           LETTERBOXD_PASSWORD: ${{ secrets.LETTERBOXD_PASSWORD || 'Af02052002' }}
           LETTERBOXD_SESSION_JSON: ${{ secrets.LETTERBOXD_SESSION_JSON }}
+          LETTERBOXD_PROXY: ${{ secrets.LETTERBOXD_PROXY }}
           NEXT_PUBLIC_APP_URL: "https://trakt-sync-engine.vercel.app"
           PYTHONUNBUFFERED: "1"
         run: |
