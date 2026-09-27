@@ -416,7 +416,7 @@ def automate_letterboxd_upload(
         print("⏳ Waiting for Letterboxd matching engine to resolve titles...")
         try:
             page.wait_for_selector(
-                ".import-matches-container, .button.-green, .table-container, form.import-step-2, .not-matched, //strong[contains(text(), 'Matching complete')]",
+                ".import-matches-container, .button.-green, .table-container, form.import-step-2, .not-matched, strong:has-text('Matching complete')",
                 timeout=60000,
             )
             print("✨ Match processing complete! Matching preview is visible.")
@@ -433,7 +433,8 @@ def automate_letterboxd_upload(
                     import_btn.click()
                     print("✅ Clicked final 'Import' button!")
                     try:
-                        page.wait_for_selector("//strong[contains(text(), 'Saved')] | text='Saved'", timeout=20000)
+                        saved_indicator = page.locator("strong:has-text('Saved'), h1:has-text('Saved'), text='Saved'").first
+                        saved_indicator.wait_for(state="visible", timeout=20000)
                         print("🎉 Import verified: Letterboxd saved the films!")
                     except Exception:
                         pass
