@@ -321,17 +321,29 @@ def automate_letterboxd_upload(
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
         }
 
-        # Check for session from environment variable
+        # Check for session from environment variable (highest priority)
         session_env = os.getenv("LETTERBOXD_SESSION_JSON")
-        if session_env and not SESSION_FILE.exists():
+        if session_env and session_env.strip():
             try:
-                SESSION_FILE.write_text(session_env, encoding="utf-8")
+                SESSION_FILE.write_text(session_env.strip(), encoding="utf-8")
                 print("💾 Loaded Letterboxd session from LETTERBOXD_SESSION_JSON secret.")
             except Exception:
                 pass
 
+        # Check if saved file is valid and contains user cookie
+        has_valid_session_file = False
+        if SESSION_FILE.exists():
+            try:
+                s_data = json.loads(SESSION_FILE.read_text(encoding="utf-8"))
+                cookies = s_data.get("cookies", [])
+                has_user_cookie = any(c.get("name") in ("letterboxd.user", "com.letterboxd.signed") for c in cookies)
+                if has_user_cookie:
+                    has_valid_session_file = True
+            except Exception:
+                has_valid_session_file = False
+
         # Fallback: check if server / Vercel database has a session
-        if not SESSION_FILE.exists() and not session_env:
+        if not has_valid_session_file:
             try:
                 import urllib.request
                 app_url = os.getenv("NEXT_PUBLIC_APP_URL", "https://trakt-sync-engine.vercel.app")
@@ -343,6 +355,7 @@ def automate_letterboxd_upload(
                     s_json = json.loads(resp.read().decode("utf-8"))
                     if s_json.get("sessionJson"):
                         SESSION_FILE.write_text(s_json["sessionJson"], encoding="utf-8")
+                        has_valid_session_file = True
                         print("💾 Loaded latest Letterboxd session from sync server database.")
             except Exception:
                 pass
@@ -375,16 +388,24 @@ def automate_letterboxd_upload(
             page.wait_for_load_state("domcontentloaded", timeout=45000)
         except Exception:
             pass
-        time.sleep(2)
+        time.sleep(1)
 
         # Automated Cloudflare Turnstile handler
         def handle_turnstile_if_present(p_page, timeout_sec=45):
             """Engages automated Cloudflare Turnstile bypass by locating iframes,
             clicking checkboxes, or simulating mouse events on widget coordinates."""
+            time.sleep(1)
+            title = p_page.title()
+            if "Just a moment..." not in title and (
+                "Letterboxd" in title
+                or p_page.locator("input[type='file'], .nav-account, a.avatar, form#imdb-form, a.save-users-imported-imdb-history").count() > 0
+            ):
+                return True
+
             turnstile_detected = (
                 "challenges.cloudflare.com" in p_page.content()
-                or "Just a moment..." in p_page.title()
-                or p_page.locator("iframe[src*='challenges.cloudflare.com'], div#cf-turnstile").count() > 0
+                or "Just a moment..." in title
+                or p_page.locator("iframe[src*='challenges.cloudflare.com'], div#cf-turnstile, dialog.turnstile-dialog").count() > 0
             )
             if not turnstile_detected:
                 return True
@@ -393,9 +414,13 @@ def automate_letterboxd_upload(
             start_w = time.time()
             while time.time() - start_w < timeout_sec:
                 # Check if challenge cleared
-                if "Just a moment..." not in p_page.title() and p_page.locator("iframe[src*='challenges.cloudflare.com']").count() == 0:
+                cur_title = p_page.title()
+                if "Just a moment..." not in cur_title and (
+                    "Letterboxd" in cur_title
+                    or p_page.locator("input[type='file'], .nav-account, a.avatar, form#imdb-form, a.save-users-imported-imdb-history").count() > 0
+                ):
                     print("✨ Cloudflare verification cleared!")
-                    time.sleep(2)
+                    time.sleep(1)
                     return True
 
                 # 1. Attempt frame click
@@ -412,7 +437,7 @@ def automate_letterboxd_upload(
 
                 # 2. Coordinate click on iframe widget from parent page
                 try:
-                    iframe_el = p_page.locator("iframe[src*='challenges.cloudflare.com'], div#cf-turnstile iframe, div[id*='cf-'] iframe")
+                    iframe_el = p_page.locator("iframe[src*='challenges.cloudflare.com'], div#cf-turnstile iframe, div[id*='cf-'] iframe, dialog.turnstile-dialog iframe")
                     if iframe_el.count() > 0 and iframe_el.first.is_visible():
                         box = iframe_el.first.bounding_box()
                         if box:
@@ -421,9 +446,10 @@ def automate_letterboxd_upload(
                 except Exception:
                     pass
 
-                time.sleep(2)
+                time.sleep(1.5)
 
-            if "Just a moment..." not in p_page.title():
+            cur_title = p_page.title()
+            if "Just a moment..." not in cur_title:
                 print("✨ Cloudflare verification cleared!")
                 return True
 
@@ -432,17 +458,39 @@ def automate_letterboxd_upload(
 
         handle_turnstile_if_present(page, timeout_sec=45)
 
+        # Wait up to 15 seconds for page elements to settle
+        try:
+            page.wait_for_selector(
+                "input[type='file'], input[name='file'], .nav-account, a[href*='/Af_Sindbad/'], input#username, a.nav-link:has-text('Sign In')",
+                timeout=15000
+            )
+        except Exception:
+            pass
+
         # Check if already authenticated on import page
-        # If input[type='file'] is present, or profile avatar is present, we are already authenticated!
         is_authenticated = False
         try:
-            if page.locator("input[type='file'], input[name='file'], .nav-account, .profile-avatar, a.avatar").count() > 0:
+            is_signed_in = page.locator(".nav-account, .profile-avatar, a.avatar, a[href*='/Af_Sindbad/'], a[href*='/afsindbad/']").count() > 0
+            has_file_input = page.locator("input[type='file'], input[name='file'], #upload-imdb-import").count() > 0
+
+            if is_signed_in or (has_file_input and has_valid_session_file):
                 is_authenticated = True
                 print("🎉 Already authenticated via saved session!")
         except Exception:
             pass
 
         # If not authenticated, perform login
+        if not is_authenticated:
+            # If we had a valid session file, reload /import/ once after Turnstile before giving up to sign-in
+            if has_valid_session_file:
+                print("🔄 Session file present: refreshing /import/ to apply session cookies...")
+                page.goto("https://letterboxd.com/import/", wait_until="commit", timeout=60000)
+                time.sleep(2)
+                handle_turnstile_if_present(page, timeout_sec=20)
+                if page.locator("input[type='file'], .nav-account").count() > 0:
+                    is_authenticated = True
+                    print("🎉 Successfully authenticated after session refresh!")
+
         if not is_authenticated:
             print(f"🔑 Logging into Letterboxd account: {username}...")
             if "sign-in" not in page.url.lower():
