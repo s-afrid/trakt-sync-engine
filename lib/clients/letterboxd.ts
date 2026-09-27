@@ -24,6 +24,7 @@ export interface LetterboxdRssItem {
   filmTitle: string;
   filmYear?: number;
   tmdbId?: number;
+  posterUrl?: string;
   watchedDate?: string;
   rating?: number; // 1-10 scale
   reviewLink?: string;
@@ -127,11 +128,17 @@ export class LetterboxdClient {
       // Convert Letterboxd rating (0.5 to 5.0) to Trakt rating (1 to 10)
       const rating = memberRatingStr ? Math.round(parseFloat(memberRatingStr) * 2) : undefined;
 
+      // Extract high-resolution movie poster from description HTML tag
+      const rawDesc = (it["description"] as string) || "";
+      const imgMatch = rawDesc.match(/<img\s+[^>]*src="([^"]+)"/i);
+      const posterUrl = imgMatch ? imgMatch[1] : undefined;
+
       return {
         title,
         filmTitle,
         filmYear,
         tmdbId,
+        posterUrl,
         watchedDate,
         rating,
         reviewLink: (it["link"] as string) || "",

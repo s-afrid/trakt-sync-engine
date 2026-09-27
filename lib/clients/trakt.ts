@@ -36,6 +36,14 @@ export interface TraktMovieWatched {
       tmdb?: number;
     };
     genres?: string[];
+    overview?: string;
+    rating?: number;
+    images?: {
+      poster?: string[];
+      fanart?: string[];
+      banner?: string[];
+      thumb?: string[];
+    };
   };
 }
 
@@ -93,6 +101,10 @@ export interface TraktEpisodeHistoryItem {
     season: number;
     number: number;
     title: string;
+    overview?: string;
+    images?: {
+      screenshot?: string[];
+    };
     ids: {
       trakt: number;
       tvdb?: number;
@@ -103,6 +115,14 @@ export interface TraktEpisodeHistoryItem {
   show: {
     title: string;
     year?: number;
+    overview?: string;
+    genres?: string[];
+    images?: {
+      poster?: string[];
+      fanart?: string[];
+      banner?: string[];
+      thumb?: string[];
+    };
     ids: {
       trakt: number;
       slug: string;
@@ -310,8 +330,8 @@ export class TraktClient {
 
   async getUserEpisodeHistory(limit: number = 500): Promise<TraktEpisodeHistoryItem[]> {
     const endpoint = this.accessToken
-      ? `https://api.trakt.tv/sync/history/episodes?limit=${limit}`
-      : `https://api.trakt.tv/users/${this.username}/history/episodes?limit=${limit}`;
+      ? `https://api.trakt.tv/sync/history/episodes?extended=full&limit=${limit}`
+      : `https://api.trakt.tv/users/${this.username}/history/episodes?extended=full&limit=${limit}`;
 
     const res = await fetch(endpoint, {
       headers: this.getHeaders(),

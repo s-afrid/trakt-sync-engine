@@ -23,6 +23,13 @@ export interface ActivityItem {
     malId?: number;
     plays?: number;
     url?: string;
+    posterUrl?: string;
+    fanartUrl?: string;
+    screenshotUrl?: string;
+    genres?: string[];
+    rating?: number;
+    overview?: string;
+    showTitle?: string;
     details?: string;
     syncedTitles?: string[];
     itemsFetched?: number;
@@ -192,20 +199,26 @@ export async function GET(request: NextRequest) {
   // Retrieve confirmed Letterboxd diary titles directly from live Letterboxd RSS
   const verifiedLbTitles = new Set<string>();
   const verifiedLbTmdbIds = new Set<number>();
+  const lbPosterByTitle = new Map<string, string>();
+  const lbPosterByTmdb = new Map<number, string>();
 
   if (letterboxdUsername) {
     try {
       const rssItems = await LetterboxdClient.fetchUserRss(letterboxdUsername);
       for (const item of rssItems) {
         if (item.filmTitle) {
-          verifiedLbTitles.add(item.filmTitle.trim().toLowerCase());
+          const clean = item.filmTitle.trim().toLowerCase();
+          verifiedLbTitles.add(clean);
+          if (item.posterUrl) lbPosterByTitle.set(clean, item.posterUrl);
         }
         if (item.title) {
           const base = item.title.split(",")[0].trim().toLowerCase();
           verifiedLbTitles.add(base);
+          if (item.posterUrl) lbPosterByTitle.set(base, item.posterUrl);
         }
         if (item.tmdbId) {
           verifiedLbTmdbIds.add(item.tmdbId);
+          if (item.posterUrl) lbPosterByTmdb.set(item.tmdbId, item.posterUrl);
         }
       }
     } catch (e) {
@@ -271,6 +284,21 @@ export async function GET(request: NextRequest) {
             ? `${m.movie.year || "Unknown"} • Confirmed in Letterboxd Diary`
             : `${m.movie.year || "Unknown"} • Watched on Trakt (Pending Letterboxd auto-import)`;
 
+          // Poster URL resolution
+          let posterUrl: string | undefined = undefined;
+          if (m.movie.ids.tmdb && lbPosterByTmdb.has(m.movie.ids.tmdb)) {
+            posterUrl = lbPosterByTmdb.get(m.movie.ids.tmdb);
+          } else if (lbPosterByTitle.has(cleanTitle)) {
+            posterUrl = lbPosterByTitle.get(cleanTitle);
+          } else if (m.movie.images?.poster && m.movie.images.poster.length > 0) {
+            const raw = m.movie.images.poster[0];
+            posterUrl = raw.startsWith("http") ? raw : `https://${raw}`;
+          }
+
+          const fanartUrl = m.movie.images?.fanart?.[0]
+            ? (m.movie.images.fanart[0].startsWith("http") ? m.movie.images.fanart[0] : `https://${m.movie.images.fanart[0]}`)
+            : undefined;
+
           items.push({
             id: `lb-movie-${m.movie.ids.trakt}`,
             platform: "letterboxd",
@@ -285,6 +313,11 @@ export async function GET(request: NextRequest) {
               imdbId: m.movie.ids.imdb,
               plays: m.plays,
               url: m.movie.ids.imdb ? `https://www.imdb.com/title/${m.movie.ids.imdb}/` : undefined,
+              posterUrl,
+              fanartUrl,
+              genres: m.movie.genres,
+              rating: m.movie.rating,
+              overview: m.movie.overview,
             },
           });
         }
@@ -326,6 +359,20 @@ export async function GET(request: NextRequest) {
             ? `Season ${h.episode.season}, Episode ${h.episode.number}${h.episode.title ? `: "${h.episode.title}"` : ""} • Confirmed on MyAnimeList (Ep. ${malMatch.list_status.num_episodes_watched}/${malMatch.node.num_episodes || "?"})`
             : `Season ${h.episode.season}, Episode ${h.episode.number}${h.episode.title ? `: "${h.episode.title}"` : ""} • Watched on Trakt (Pending MAL sync)`;
 
+          let animePosterUrl: string | undefined = undefined;
+          if (malMatch?.node.main_picture?.large) {
+            animePosterUrl = malMatch.node.main_picture.large;
+          } else if (malMatch?.node.main_picture?.medium) {
+            animePosterUrl = malMatch.node.main_picture.medium;
+          } else if (h.show.images?.poster && h.show.images.poster.length > 0) {
+            const raw = h.show.images.poster[0];
+            animePosterUrl = raw.startsWith("http") ? raw : `https://${raw}`;
+          }
+
+          const episodeScreenshot = h.episode.images?.screenshot?.[0]
+            ? (h.episode.images.screenshot[0].startsWith("http") ? h.episode.images.screenshot[0] : `https://${h.episode.images.screenshot[0]}`)
+            : undefined;
+
           items.push({
             id: `mal-ep-${h.id}`,
             platform: "myanimelist",
@@ -335,8 +382,18 @@ export async function GET(request: NextRequest) {
             status,
             timestamp: h.watched_at,
             metadata: {
+              year: h.show.year,
               season: h.episode.season,
               episode: h.episode.number,
+              imdbId: h.episode.ids.imdb || h.show.ids.imdb,
+              tmdbId: h.episode.ids.tmdb || h.show.ids.tmdb,
+              malId: malMatch?.node.id,
+              url: malMatch?.node.id ? `https://myanimelist.net/anime/${malMatch.node.id}` : undefined,
+              posterUrl: animePosterUrl,
+              screenshotUrl: episodeScreenshot,
+              showTitle: h.show.title,
+              genres: h.show.genres,
+              overview: h.episode.overview || h.show.overview,
               details: `Trakt Episode #${h.episode.number}`,
             },
           });

@@ -255,53 +255,61 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090E] text-slate-100 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#08090D] text-slate-100 py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-slate-800/80 gap-4">
+        {/* Header - Haulix Telemetry Console */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-white/[0.08] gap-4">
           <div>
             <div className="flex items-center gap-3">
               <img
                 src="/icon.png"
                 alt="Trakt Sync Engine Logo"
-                className="h-10 w-10 rounded-xl object-contain shadow-md shadow-sky-500/25"
+                className="h-10 w-10 rounded-xl object-contain shadow-lg shadow-red-500/20 border border-white/[0.08]"
               />
-              <h1 className="text-2xl font-bold tracking-tight text-white">
-                Trakt Sync Engine
-              </h1>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl font-black tracking-tight text-white">
+                    Trakt Sync Engine
+                  </h1>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-sm">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Live 15-Min Daemon
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Autonomous 3-way synchronization across Trakt.tv, MyAnimeList, and Letterboxd.
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-slate-400 mt-1">
-              Synchronize your watch history across Trakt.tv, MyAnimeList, and Letterboxd.
-            </p>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               onClick={handleTriggerSync}
               disabled={syncing || !status?.connected?.trakt}
-              className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all shadow-lg ${
+              className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs tracking-wider uppercase transition-all shadow-lg ${
                 syncing
-                  ? "bg-slate-700 text-slate-400 cursor-not-allowed"
+                  ? "bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700"
                   : !status?.connected?.trakt
-                  ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                  : "bg-gradient-to-r from-red-600 to-indigo-600 hover:from-red-500 hover:to-indigo-500 text-white shadow-indigo-950/50"
+                  ? "bg-slate-900 text-slate-500 cursor-not-allowed border border-slate-800"
+                  : "bg-gradient-to-r from-red-600 to-indigo-600 hover:from-red-500 hover:to-indigo-500 text-white shadow-indigo-950/60 border border-white/10"
               }`}
             >
               <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-              {syncing ? "Running Sync..." : "Run Sync Engine"}
+              {syncing ? "Running Engine..." : "Trigger Sync Engine"}
             </button>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+        {/* Navigation Tabs - Haulix Obsidian Bar */}
+        <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab("dashboard")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === "dashboard"
-                  ? "bg-slate-800 text-white shadow-sm border border-slate-700/80"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60"
+                  ? "bg-[#0D111A] text-white shadow-sm border border-white/[0.12]"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
               }`}
             >
               <Layers className="h-4 w-4 text-indigo-400" />
@@ -311,15 +319,15 @@ export default function Dashboard() {
             {!isActivityTabDeleted ? (
               <button
                 onClick={() => setActiveTab("activity24h")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                   activeTab === "activity24h"
-                    ? "bg-gradient-to-r from-red-600/20 via-indigo-600/20 to-purple-600/20 text-white border border-indigo-500/40 shadow-sm"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60"
+                    ? "bg-[#0D111A] text-white border border-indigo-500/40 shadow-sm"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
                 }`}
               >
                 <Clock className="h-4 w-4 text-red-400" />
-                <span>24h Updates</span>
-                <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
+                <span>24h Updates & Posters</span>
+                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
                   Live Log
                 </span>
               </button>
@@ -329,7 +337,7 @@ export default function Dashboard() {
                   setIsActivityTabDeleted(false);
                   setActiveTab("activity24h");
                 }}
-                className="text-xs text-slate-500 hover:text-indigo-400 px-3 py-1.5 flex items-center gap-1.5 transition-colors"
+                className="text-xs text-slate-500 hover:text-indigo-400 px-3 py-1.5 flex items-center gap-1.5 transition-colors font-medium"
                 title="Restore the 24h activity tab"
               >
                 <span>+ Restore 24h Updates Tab</span>
@@ -344,16 +352,16 @@ export default function Dashboard() {
                   setIsActivityTabDeleted(true);
                   setActiveTab("dashboard");
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-800 hover:border-red-900/60 bg-red-950/20 text-xs text-slate-400 hover:text-red-300 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.08] hover:border-red-900/60 bg-red-950/20 text-xs text-slate-400 hover:text-red-300 transition-colors font-medium"
                 title="Dismiss or delete this inspection tab"
               >
                 <Trash2 className="h-3.5 w-3.5 text-red-400" />
                 <span>Delete Tab</span>
               </button>
             )}
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-950/40 text-emerald-400 border border-emerald-800/40">
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-950/40 text-emerald-400 border border-emerald-800/40 font-mono">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              15-Min Sync Engine Active
+              15-Min Engine Active
             </span>
           </div>
         </div>
@@ -407,7 +415,7 @@ export default function Dashboard() {
         {/* 3 Main Connection Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* 1. Trakt Card */}
-          <div className="p-6 rounded-2xl bg-[#0B0F19] border border-slate-800/80 hover:border-slate-700/80 transition-all flex flex-col justify-between">
+          <div className="p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#ED1C24] hover:border-slate-700/80 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -547,7 +555,7 @@ export default function Dashboard() {
           </div>
 
           {/* 2. MyAnimeList Card */}
-          <div className="p-6 rounded-2xl bg-[#0B0F19] border border-slate-800/80 hover:border-slate-700/80 transition-all flex flex-col justify-between">
+          <div className="p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#3B82F6] hover:border-slate-700/80 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -644,7 +652,7 @@ export default function Dashboard() {
           </div>
 
           {/* 3. Letterboxd Card */}
-          <div className="p-6 rounded-2xl bg-[#0B0F19] border border-slate-800/80 hover:border-slate-700/80 transition-all flex flex-col justify-between">
+          <div className="p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#00E054] hover:border-slate-700/80 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -825,7 +833,7 @@ export default function Dashboard() {
         </div>
 
         {/* Letterboxd 1-Click CSV Export & Playwright Automation Deck */}
-        <div className="p-6 rounded-2xl bg-gradient-to-br from-[#0B0F19] to-[#0d1424] border border-slate-800/80 space-y-5">
+        <div className="p-6 rounded-2xl bg-[#0D111A]/95 border border-white/[0.08] space-y-5 shadow-sm">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
@@ -1227,7 +1235,7 @@ export default function Dashboard() {
         )}
 
         {/* Vercel Deployment Checklist */}
-        <div className="p-6 rounded-2xl bg-[#0B0F19] border border-slate-800/80 space-y-4">
+        <div className="p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] space-y-4 shadow-sm">
           <div className="flex items-center gap-2">
             <Database className="h-5 w-5 text-indigo-400" />
             <h3 className="font-semibold text-white">Vercel Deployment Architecture</h3>
