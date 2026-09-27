@@ -71,4 +71,4 @@ jobs:
           NEXT_PUBLIC_APP_URL: "https://trakt-sync-engine.vercel.app"
           PYTHONUNBUFFERED: "1"
         run: |
-          python scripts/automate_letterboxd_upload.py --auto-confirm --headless --keep-open 5
+          xvfb-run -a --server-args="-screen 0 1280x1024x24" python scripts/automate_letterboxd_upload.py --auto-confirm --keep-open 5

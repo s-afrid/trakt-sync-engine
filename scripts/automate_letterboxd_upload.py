@@ -361,32 +361,72 @@ def automate_letterboxd_upload(
         time.sleep(2)
 
         # Automated Cloudflare Turnstile handler
-        def handle_turnstile_if_present(p_page, timeout_sec=20):
-            if "challenges.cloudflare.com" in p_page.content() or "Just a moment..." in p_page.title():
-                print("⏳ Cloudflare Turnstile detected. Engaging automated bypass...")
-                start_w = time.time()
-                while time.time() - start_w < timeout_sec:
-                    for f in p_page.frames:
-                        if "challenges.cloudflare.com" in f.url:
-                            try:
-                                chk = f.locator("input[type='checkbox'], #challenge-stage, .ctp-checkbox-label, .mark, label.cb-lb")
-                                if chk.count() > 0 and chk.first.is_visible():
-                                    chk.first.click(force=True)
-                                    time.sleep(2)
-                                    break
-                            except Exception:
-                                pass
-                    if "Just a moment..." not in p_page.title():
-                        print("✨ Cloudflare verification cleared!")
-                        return True
-                    time.sleep(1.5)
-                return False
-            return True
+        def handle_turnstile_if_present(p_page, timeout_sec=45):
+            """Engages automated Cloudflare Turnstile bypass by locating iframes,
+            clicking checkboxes, or simulating mouse events on widget coordinates."""
+            turnstile_detected = (
+                "challenges.cloudflare.com" in p_page.content()
+                or "Just a moment..." in p_page.title()
+                or p_page.locator("iframe[src*='challenges.cloudflare.com'], div#cf-turnstile").count() > 0
+            )
+            if not turnstile_detected:
+                return True
 
-        handle_turnstile_if_present(page)
+            print("⏳ Cloudflare Turnstile detected. Engaging automated stealth solver...")
+            start_w = time.time()
+            while time.time() - start_w < timeout_sec:
+                # Check if challenge cleared
+                if "Just a moment..." not in p_page.title() and p_page.locator("iframe[src*='challenges.cloudflare.com']").count() == 0:
+                    print("✨ Cloudflare verification cleared!")
+                    time.sleep(2)
+                    return True
 
-        # If redirected to sign-in page, perform login
-        if "sign-in" in page.url.lower() or page.locator(".nav-account, .profile-avatar, a.avatar").count() == 0:
+                # 1. Attempt frame click
+                for f in p_page.frames:
+                    if "challenges.cloudflare.com" in f.url:
+                        try:
+                            chk = f.locator("input[type='checkbox'], #challenge-stage, .ctp-checkbox-label, .mark, label.cb-lb, body")
+                            if chk.count() > 0 and chk.first.is_visible():
+                                chk.first.click(force=True)
+                                time.sleep(2)
+                                break
+                        except Exception:
+                            pass
+
+                # 2. Coordinate click on iframe widget from parent page
+                try:
+                    iframe_el = p_page.locator("iframe[src*='challenges.cloudflare.com'], div#cf-turnstile iframe, div[id*='cf-'] iframe")
+                    if iframe_el.count() > 0 and iframe_el.first.is_visible():
+                        box = iframe_el.first.bounding_box()
+                        if box:
+                            p_page.mouse.click(box["x"] + 25, box["y"] + (box["height"] / 2))
+                            time.sleep(2)
+                except Exception:
+                    pass
+
+                time.sleep(2)
+
+            if "Just a moment..." not in p_page.title():
+                print("✨ Cloudflare verification cleared!")
+                return True
+
+            print("⚠️ Cloudflare verification pending. Attempting to proceed...")
+            return False
+
+        handle_turnstile_if_present(page, timeout_sec=45)
+
+        # Check if already authenticated on import page
+        # If input[type='file'] is present, or profile avatar is present, we are already authenticated!
+        is_authenticated = False
+        try:
+            if page.locator("input[type='file'], input[name='file'], .nav-account, .profile-avatar, a.avatar").count() > 0:
+                is_authenticated = True
+                print("🎉 Already authenticated via saved session!")
+        except Exception:
+            pass
+
+        # If not authenticated, perform login
+        if not is_authenticated:
             print(f"🔑 Logging into Letterboxd account: {username}...")
             if "sign-in" not in page.url.lower():
                 page.goto("https://letterboxd.com/sign-in/", wait_until="commit", timeout=60000)
@@ -394,7 +434,9 @@ def automate_letterboxd_upload(
                     page.wait_for_load_state("domcontentloaded", timeout=45000)
                 except Exception:
                     pass
-                time.sleep(1.5)
+                time.sleep(2)
+
+            handle_turnstile_if_present(page, timeout_sec=30)
 
             # Dismiss cookie consent if visible
             try:
@@ -406,6 +448,13 @@ def automate_letterboxd_upload(
                 pass
 
             user_input = page.locator("input#field-username, input[name='username']").first
+            try:
+                user_input.wait_for(state="visible", timeout=20000)
+            except Exception:
+                # If still not visible, re-check Turnstile
+                handle_turnstile_if_present(page, timeout_sec=25)
+                user_input.wait_for(state="visible", timeout=20000)
+
             user_input.fill(username)
 
             pass_input = page.locator("input#field-password, input[name='password']").first
