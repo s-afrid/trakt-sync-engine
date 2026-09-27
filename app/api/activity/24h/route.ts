@@ -42,6 +42,12 @@ function decodeEntities(str: string): string {
     .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
 }
 
+interface UpdatedAnimeTitle {
+  title: string;
+  episodes: number;
+  status?: string;
+}
+
 function parseLogDetails(
   rawDetails: string | null,
   title: string,
@@ -65,7 +71,7 @@ function parseLogDetails(
         const fetched = parsed.rssItemsFetched ?? parsed.itemsFetched ?? 0;
         const synced = parsed.moviesSyncedToTrakt ?? 0;
         const rawTitles: string[] = Array.isArray(parsed.syncedTitles) ? parsed.syncedTitles : [];
-        const cleanTitles = rawTitles.map((t) => decodeEntities(String(t)));
+        const cleanTitles: string[] = rawTitles.map((t: string) => decodeEntities(String(t)));
 
         let subtitle = "";
         if (synced > 0) {
@@ -89,14 +95,17 @@ function parseLogDetails(
         const shows = parsed.totalTraktShows ?? 0;
         const updated = parsed.malUpdatedCount ?? 0;
         const rawUpdated = Array.isArray(parsed.updatedTitles) ? parsed.updatedTitles : [];
-        const updatedTitles = rawUpdated.map((u: any) => ({
-          ...u,
-          title: decodeEntities(String(u.title)),
+        const updatedTitles: UpdatedAnimeTitle[] = rawUpdated.map((u: any) => ({
+          title: decodeEntities(String(u?.title || "")),
+          episodes: Number(u?.episodes) || 0,
+          status: String(u?.status || ""),
         }));
 
         let subtitle = "";
         if (updated > 0) {
-          const list = updatedTitles.map((t) => `${t.title} (Ep. ${t.episodes})`).join(", ");
+          const list = updatedTitles
+            .map((t: UpdatedAnimeTitle) => `${t.title} (Ep. ${t.episodes})`)
+            .join(", ");
           subtitle = `Updated ${updated} anime on MyAnimeList: ${list}`;
         } else {
           subtitle = `Scanned ${shows} shows • MyAnimeList is already up to date`;

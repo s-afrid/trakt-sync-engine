@@ -611,7 +611,7 @@ export default function Activity24hTab({
 
                           {isExpanded && (
                             <div className="mt-2 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 max-h-48 overflow-y-auto flex flex-wrap gap-1.5 shadow-inner">
-                              {diaryTitles.map((t, idx) => (
+                              {diaryTitles.map((t: string, idx: number) => (
                                 <span
                                   key={idx}
                                   className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[11px] text-slate-300 font-medium"
@@ -627,7 +627,7 @@ export default function Activity24hTab({
                       {/* Updated Anime Titles pills (for MAL sync runs) */}
                       {item.metadata?.updatedTitles && item.metadata.updatedTitles.length > 0 && (
                         <div className="pt-1.5 flex flex-wrap gap-1.5">
-                          {item.metadata.updatedTitles.map((u, idx) => (
+                          {item.metadata.updatedTitles.map((u: { title: string; episodes: number; status?: string }, idx: number) => (
                             <span
                               key={idx}
                               className="px-2 py-0.5 rounded-md bg-indigo-950/50 border border-indigo-800/50 text-[11px] text-indigo-300 font-medium"
