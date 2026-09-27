@@ -447,22 +447,49 @@ def automate_letterboxd_upload(
             except Exception:
                 pass
 
-            user_input = page.locator("input#field-username, input[name='username']").first
+            # If sign-in toggle or dropdown exists, click it to reveal form
             try:
-                user_input.wait_for(state="visible", timeout=20000)
+                sign_in_toggle = page.locator("a.nav-link:has-text('Sign In'), a[href*='sign-in'], a:has-text('Sign in')")
+                if sign_in_toggle.count() > 0 and sign_in_toggle.first.is_visible():
+                    sign_in_toggle.first.click()
+                    time.sleep(1)
             except Exception:
-                # If still not visible, re-check Turnstile
-                handle_turnstile_if_present(page, timeout_sec=25)
-                user_input.wait_for(state="visible", timeout=20000)
+                pass
 
-            user_input.fill(username)
-
-            pass_input = page.locator("input#field-password, input[name='password']").first
-            pass_input.fill(password)
-
-            print("🚀 Submitting login form...")
-            submit_btn = page.locator("input[type='submit'], button[type='submit'], .button.-action").first
-            submit_btn.click()
+            user_input = page.locator("input[name='username']:visible, input#field-username:visible, input#username:visible")
+            if user_input.count() > 0 and user_input.first.is_visible():
+                user_input.first.fill(username)
+                pass_input = page.locator("input[name='password']:visible, input#field-password:visible, input#password:visible").first
+                pass_input.fill(password)
+                print("🚀 Submitting login form...")
+                submit_btn = page.locator("input[type='submit']:visible, button[type='submit']:visible, .button.-action:visible").first
+                submit_btn.click()
+            else:
+                # If element is in DOM but hidden inside header dropdown/modal, force fill via evaluate
+                print("⚡ Filling login form via direct DOM dispatch...")
+                page.evaluate(
+                    """([u, p]) => {
+                        const uInput = document.querySelector("input#username, input[name='username'], input#field-username");
+                        const pInput = document.querySelector("input#password, input[name='password'], input#field-password");
+                        if (uInput) {
+                            uInput.value = u;
+                            uInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            uInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if (pInput) {
+                            pInput.value = p;
+                            pInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            pInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        const btn = document.querySelector("input[type='submit'], button[type='submit'], .button.-action, form.form-signin button");
+                        if (btn) btn.click();
+                        else {
+                            const form = document.querySelector("form#signin, form.form-signin, form[action*='login']");
+                            if (form) form.submit();
+                        }
+                    }""",
+                    [username, password],
+                )
 
             print("⏳ Awaiting login authentication...")
             login_success = False
