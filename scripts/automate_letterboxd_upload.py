@@ -414,9 +414,16 @@ def automate_letterboxd_upload(
 
         # Step 3. Wait for Letterboxd to match titles
         print("⏳ Waiting for Letterboxd matching engine to resolve titles...")
+        if "Just a moment" in page.title():
+            print("⏳ Cloudflare verification detected after upload. Waiting for automatic pass...")
+            try:
+                page.wait_for_function("!document.title.includes('Just a moment')", timeout=20000)
+            except Exception:
+                pass
+
         try:
             page.wait_for_selector(
-                ".import-matches-container, .button.-green, .table-container, form.import-step-2, .not-matched, strong:has-text('Matching complete')",
+                ".import-matches-container, .button.-green, .table-container, form.import-step-2, .not-matched, strong:has-text('Matching complete'), input[value='Start Import']",
                 timeout=60000,
             )
             print("✨ Match processing complete! Matching preview is visible.")
@@ -428,12 +435,15 @@ def automate_letterboxd_upload(
         if auto_confirm:
             print("⚡ Auto-submitting import confirmation...")
             try:
-                import_btn = page.locator("a:has-text('Import Films'), .button.-green, input[value='Import'], button:has-text('Import')").first
+                import_btn = page.locator(
+                    "input[value='Start Import'], input[value*='Import'], input[type='submit'][value*='Import'], a:has-text('Start Import'), a:has-text('Import Films'), .button.-green, input[value='Import'], button:has-text('Import')"
+                ).first
                 if import_btn.is_visible():
+                    import_btn.scroll_into_view_if_needed()
                     import_btn.click()
-                    print("✅ Clicked final 'Import' button!")
+                    print("✅ Clicked final 'Start Import' button!")
                     try:
-                        saved_indicator = page.locator("strong:has-text('Saved'), h1:has-text('Saved'), text='Saved'").first
+                        saved_indicator = page.locator("strong:has-text('Saved'), h1:has-text('Saved'), text='Saved', text='saved'").first
                         saved_indicator.wait_for(state="visible", timeout=20000)
                         print("🎉 Import verified: Letterboxd saved the films!")
                     except Exception:
