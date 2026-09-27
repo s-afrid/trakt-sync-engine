@@ -22,6 +22,123 @@ export interface ActivityItem {
     plays?: number;
     url?: string;
     details?: string;
+    syncedTitles?: string[];
+    itemsFetched?: number;
+    moviesSyncedToTrakt?: number;
+    updatedTitles?: { title: string; episodes: number; status: string }[];
+  };
+}
+
+function decodeEntities(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&#0*39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}
+
+function parseLogDetails(
+  rawDetails: string | null,
+  title: string,
+  itemsCount: number
+): {
+  subtitle: string;
+  metadata: Record<string, unknown>;
+} {
+  if (!rawDetails) {
+    return {
+      subtitle: `Logged ${itemsCount} synchronized item(s)`,
+      metadata: {},
+    };
+  }
+
+  try {
+    const parsed = typeof rawDetails === "object" ? rawDetails : JSON.parse(rawDetails);
+    if (typeof parsed === "object" && parsed !== null) {
+      // 1. Letterboxd RSS Sync results
+      if ("rssItemsFetched" in parsed || "moviesSyncedToTrakt" in parsed || "syncedTitles" in parsed) {
+        const fetched = parsed.rssItemsFetched ?? parsed.itemsFetched ?? 0;
+        const synced = parsed.moviesSyncedToTrakt ?? 0;
+        const rawTitles: string[] = Array.isArray(parsed.syncedTitles) ? parsed.syncedTitles : [];
+        const cleanTitles = rawTitles.map((t) => decodeEntities(String(t)));
+
+        let subtitle = "";
+        if (synced > 0) {
+          subtitle = `Synced ${synced} movie(s) to Trakt (${cleanTitles.slice(0, 3).join(", ")}${cleanTitles.length > 3 ? ` +${cleanTitles.length - 3} more` : ""})`;
+        } else {
+          subtitle = `Scanned ${fetched} Letterboxd diary entries • No new movies (Trakt is already up to date)`;
+        }
+
+        return {
+          subtitle,
+          metadata: {
+            itemsFetched: fetched,
+            moviesSyncedToTrakt: synced,
+            syncedTitles: cleanTitles,
+          },
+        };
+      }
+
+      // 2. Anime / MyAnimeList Sync results
+      if ("totalTraktShows" in parsed || "malUpdatedCount" in parsed || "updatedTitles" in parsed) {
+        const shows = parsed.totalTraktShows ?? 0;
+        const updated = parsed.malUpdatedCount ?? 0;
+        const rawUpdated = Array.isArray(parsed.updatedTitles) ? parsed.updatedTitles : [];
+        const updatedTitles = rawUpdated.map((u: any) => ({
+          ...u,
+          title: decodeEntities(String(u.title)),
+        }));
+
+        let subtitle = "";
+        if (updated > 0) {
+          const list = updatedTitles.map((t) => `${t.title} (Ep. ${t.episodes})`).join(", ");
+          subtitle = `Updated ${updated} anime on MyAnimeList: ${list}`;
+        } else {
+          subtitle = `Scanned ${shows} shows • MyAnimeList is already up to date`;
+        }
+
+        return {
+          subtitle,
+          metadata: {
+            totalTraktShows: shows,
+            malUpdatedCount: updated,
+            updatedTitles,
+          },
+        };
+      }
+
+      // 3. Automated upload results
+      if ("uploadedMovies" in parsed) {
+        return {
+          subtitle: `Auto-imported ${parsed.uploadedMovies} movies to Letterboxd via Playwright`,
+          metadata: parsed,
+        };
+      }
+
+      // 4. Object with message
+      if (parsed.message) {
+        return {
+          subtitle: decodeEntities(String(parsed.message)),
+          metadata: parsed,
+        };
+      }
+    }
+  } catch {
+    // If not valid JSON, treat as plain text and clean entities
+    return {
+      subtitle: decodeEntities(rawDetails),
+      metadata: { details: rawDetails },
+    };
+  }
+
+  return {
+    subtitle: decodeEntities(rawDetails.slice(0, 150)),
+    metadata: { details: rawDetails },
   };
 }
 
@@ -163,15 +280,18 @@ export async function GET(request: NextRequest) {
         if (isMal) platform = "myanimelist";
         else if (isLb) platform = "letterboxd";
 
+        const { subtitle, metadata } = parseLogDetails(log.details, log.title, log.itemsCount || 0);
+
         items.push({
           id: `log-${log.id}`,
           platform,
           title: log.title,
-          subtitle: log.details || `Logged ${log.itemsCount} synchronized item(s)`,
+          subtitle,
           type: log.status === "success" && isMal ? "completed" : "sync_run",
           status: log.status === "success" ? "synced" : "info",
           timestamp: log.createdAt.toISOString(),
           metadata: {
+            ...metadata,
             details: log.details || undefined,
           },
         });

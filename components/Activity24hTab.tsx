@@ -40,6 +40,10 @@ export interface ActivityItem {
     plays?: number;
     url?: string;
     details?: string;
+    syncedTitles?: string[];
+    itemsFetched?: number;
+    moviesSyncedToTrakt?: number;
+    updatedTitles?: { title: string; episodes: number; status: string }[];
   };
 }
 
@@ -63,6 +67,63 @@ export interface Activity24hResponse {
 interface Activity24hTabProps {
   onDeleteTab?: () => void;
   defaultHours?: number;
+}
+
+function decodeClientEntities(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&#0*39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function cleanSubtitle(rawSubtitle: string): {
+  text: string;
+  titles?: string[];
+} {
+  if (!rawSubtitle) return { text: "" };
+
+  const trimmed = rawSubtitle.trim();
+  // Defensively parse raw JSON dump if passed from database
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object") {
+        if ("rssItemsFetched" in parsed || "itemsFetched" in parsed || "syncedTitles" in parsed) {
+          const count = parsed.rssItemsFetched ?? parsed.itemsFetched ?? 0;
+          const synced = parsed.moviesSyncedToTrakt ?? 0;
+          const titles = Array.isArray(parsed.syncedTitles)
+            ? parsed.syncedTitles.map((t: string) => decodeClientEntities(String(t)))
+            : [];
+          if (synced > 0) {
+            return {
+              text: `Synced ${synced} movie(s) to Trakt • ${count} diary entries scanned`,
+              titles,
+            };
+          }
+          return {
+            text: `Scanned ${count} Letterboxd diary entries • No new movies (Trakt is already up to date)`,
+            titles,
+          };
+        }
+        if ("totalTraktShows" in parsed || "malUpdatedCount" in parsed) {
+          const updated = parsed.malUpdatedCount ?? 0;
+          const shows = parsed.totalTraktShows ?? 0;
+          return {
+            text:
+              updated > 0
+                ? `Updated ${updated} anime on MyAnimeList`
+                : `Scanned ${shows} shows • MyAnimeList is already up to date`,
+          };
+        }
+      }
+    } catch {}
+  }
+
+  return { text: decodeClientEntities(rawSubtitle) };
 }
 
 function formatRelativeTime(dateString: string): string {
@@ -97,6 +158,11 @@ export default function Activity24hTab({
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (id: string) => {
+    setExpandedItems((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const fetchActivity = async (selectedHours: number = hours) => {
     setLoading(true);
@@ -466,13 +532,24 @@ export default function Activity24hTab({
             {filteredItems.map((item) => {
               const isLB = item.platform === "letterboxd";
               const isMAL = item.platform === "myanimelist";
+              const isExpanded = !!expandedItems[item.id];
+
+              // Clean subtitle & extract titles defensively if raw JSON
+              const cleaned = cleanSubtitle(item.subtitle);
+              const displaySubtitle = cleaned.text;
+              const diaryTitles =
+                item.metadata?.syncedTitles && item.metadata.syncedTitles.length > 0
+                  ? item.metadata.syncedTitles
+                  : cleaned.titles && cleaned.titles.length > 0
+                  ? cleaned.titles
+                  : null;
 
               return (
                 <div
                   key={item.id}
                   className="p-4 rounded-2xl bg-[#0B0F19] border border-slate-800/80 hover:border-slate-700/80 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
                 >
-                  <div className="flex items-start gap-3.5 min-w-0">
+                  <div className="flex items-start gap-3.5 min-w-0 flex-1">
                     {/* Platform Icon Badge */}
                     <div
                       className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 ${
@@ -493,10 +570,10 @@ export default function Activity24hTab({
                     </div>
 
                     {/* Title & Metadata */}
-                    <div className="min-w-0 space-y-1">
+                    <div className="min-w-0 space-y-1 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="text-sm font-semibold text-white truncate">
-                          {item.title}
+                          {decodeClientEntities(item.title)}
                         </h4>
                         {item.metadata?.year && (
                           <span className="text-[11px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400">
@@ -510,9 +587,56 @@ export default function Activity24hTab({
                         )}
                       </div>
 
-                      <p className="text-xs text-slate-400">
-                        {item.subtitle}
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        {displaySubtitle}
                       </p>
+
+                      {/* Expandable Diary Titles list (for Letterboxd RSS runs) */}
+                      {diaryTitles && diaryTitles.length > 0 && (
+                        <div className="pt-1.5">
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(item.id)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-[11px] font-medium text-slate-300 transition-colors"
+                          >
+                            <ChevronDown
+                              className={`h-3 w-3 text-slate-400 transition-transform duration-200 ${
+                                isExpanded ? "rotate-180" : ""
+                              }`}
+                            />
+                            <span>
+                              {isExpanded ? "Hide" : "View"} {diaryTitles.length} diary title(s) scanned
+                            </span>
+                          </button>
+
+                          {isExpanded && (
+                            <div className="mt-2 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 max-h-48 overflow-y-auto flex flex-wrap gap-1.5 shadow-inner">
+                              {diaryTitles.map((t, idx) => (
+                                <span
+                                  key={idx}
+                                  className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[11px] text-slate-300 font-medium"
+                                >
+                                  {decodeClientEntities(t)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Updated Anime Titles pills (for MAL sync runs) */}
+                      {item.metadata?.updatedTitles && item.metadata.updatedTitles.length > 0 && (
+                        <div className="pt-1.5 flex flex-wrap gap-1.5">
+                          {item.metadata.updatedTitles.map((u, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 rounded-md bg-indigo-950/50 border border-indigo-800/50 text-[11px] text-indigo-300 font-medium"
+                            >
+                              {decodeClientEntities(u.title)} (Ep. {u.episodes})
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-0.5 flex-wrap">
                         {item.metadata?.imdbId && (

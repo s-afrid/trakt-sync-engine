@@ -29,6 +29,19 @@ export interface LetterboxdRssItem {
   guid?: string;
 }
 
+export function decodeHtmlEntities(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&#0*39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}
+
 export class LetterboxdClient {
   /**
    * Convert Trakt watched movies list to Letterboxd import CSV format
@@ -100,7 +113,10 @@ export class LetterboxdClient {
     const itemArray = Array.isArray(items) ? items : [items];
 
     return itemArray.map((it: Record<string, unknown>) => {
-      const filmTitle = (it["letterboxd:filmTitle"] as string) || (it["title"] as string) || "";
+      const rawTitle = (it["title"] as string) || "";
+      const rawFilmTitle = (it["letterboxd:filmTitle"] as string) || rawTitle;
+      const filmTitle = decodeHtmlEntities(rawFilmTitle);
+      const title = decodeHtmlEntities(rawTitle);
       const filmYearStr = it["letterboxd:filmYear"] as string;
       const filmYear = filmYearStr ? parseInt(filmYearStr, 10) : undefined;
       const watchedDate = it["letterboxd:watchedDate"] as string;
@@ -109,7 +125,7 @@ export class LetterboxdClient {
       const rating = memberRatingStr ? Math.round(parseFloat(memberRatingStr) * 2) : undefined;
 
       return {
-        title: (it["title"] as string) || "",
+        title,
         filmTitle,
         filmYear,
         watchedDate,
