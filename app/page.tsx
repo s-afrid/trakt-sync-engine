@@ -253,11 +253,11 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-slate-800/80 gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-red-600 via-indigo-600 to-emerald-500 p-0.5">
-                <div className="h-full w-full bg-[#0B0F19] rounded-[10px] flex items-center justify-center">
-                  <RefreshCw className="h-5 w-5 text-indigo-400" />
-                </div>
-              </div>
+              <img
+                src="/icon.png"
+                alt="Trakt Sync Engine Logo"
+                className="h-10 w-10 rounded-xl object-contain shadow-md shadow-sky-500/25"
+              />
               <h1 className="text-2xl font-bold tracking-tight text-white">
                 Trakt Sync Engine
               </h1>
