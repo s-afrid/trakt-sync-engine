@@ -22,8 +22,11 @@ import {
   Terminal,
   Copy,
   Check,
+  Clock,
+  Trash2,
 } from "lucide-react";
 import { TraktLogo, MalLogo, LetterboxdLogo } from "@/components/icons";
+import Activity24hTab from "@/components/Activity24hTab";
 
 interface SyncStatus {
   connected: {
@@ -91,6 +94,8 @@ export default function Dashboard() {
   const [autoImportError, setAutoImportError] = useState<string | null>(null);
   const [isCloudHost, setIsCloudHost] = useState<boolean>(false);
   const [copiedDaemon, setCopiedDaemon] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<"dashboard" | "activity24h">("dashboard");
+  const [isActivityTabDeleted, setIsActivityTabDeleted] = useState<boolean>(false);
 
   const fetchStatus = async () => {
     try {
@@ -285,7 +290,81 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Global Error Banner */}
+        {/* Navigation Tabs */}
+        <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveTab("dashboard")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                activeTab === "dashboard"
+                  ? "bg-slate-800 text-white shadow-sm border border-slate-700/80"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60"
+              }`}
+            >
+              <Layers className="h-4 w-4 text-indigo-400" />
+              <span>Dashboard</span>
+            </button>
+
+            {!isActivityTabDeleted ? (
+              <button
+                onClick={() => setActiveTab("activity24h")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                  activeTab === "activity24h"
+                    ? "bg-gradient-to-r from-red-600/20 via-indigo-600/20 to-purple-600/20 text-white border border-indigo-500/40 shadow-sm"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60"
+                }`}
+              >
+                <Clock className="h-4 w-4 text-red-400" />
+                <span>24h Updates</span>
+                <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
+                  Live Log
+                </span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsActivityTabDeleted(false);
+                  setActiveTab("activity24h");
+                }}
+                className="text-xs text-slate-500 hover:text-indigo-400 px-3 py-1.5 flex items-center gap-1.5 transition-colors"
+                title="Restore the 24h activity tab"
+              >
+                <span>+ Restore 24h Updates Tab</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {!isActivityTabDeleted && activeTab === "activity24h" && (
+              <button
+                onClick={() => {
+                  setIsActivityTabDeleted(true);
+                  setActiveTab("dashboard");
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-800 hover:border-red-900/60 bg-red-950/20 text-xs text-slate-400 hover:text-red-300 transition-colors"
+                title="Dismiss or delete this inspection tab"
+              >
+                <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                <span>Delete Tab</span>
+              </button>
+            )}
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-950/40 text-emerald-400 border border-emerald-800/40">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              15-Min Sync Engine Active
+            </span>
+          </div>
+        </div>
+
+        {activeTab === "activity24h" && !isActivityTabDeleted ? (
+          <Activity24hTab
+            onDeleteTab={() => {
+              setIsActivityTabDeleted(true);
+              setActiveTab("dashboard");
+            }}
+          />
+        ) : (
+          <>
+            {/* Global Error Banner */}
         {errorMsg && (
           <div className="p-4 rounded-xl bg-red-950/40 border border-red-800/60 text-red-200 flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
@@ -1161,6 +1240,8 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

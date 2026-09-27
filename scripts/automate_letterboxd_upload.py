@@ -225,20 +225,24 @@ def get_latest_movies_data(app_url: str, export_type: str, target_csv: Path) -> 
         except Exception as e:
             print(f"⚠️ Direct Trakt fetch error ({e}), attempting local server route...")
 
-    # Fallback to local server route
-    url = f"{app_url}/api/export/letterboxd?type={export_type}"
-    try:
-        csv_path = download_csv_from_server(url, target_csv)
-        return csv_path, []
-    except Exception as e:
-        print(f"❌ Failed to fetch CSV from local server ({e}).")
-        if trakt_client_id and trakt_username:
-            print("🔄 Retrying direct Trakt API fetch...")
-            movies = fetch_from_trakt_direct(trakt_client_id, trakt_username)
-            if movies:
-                generate_watched_csv(movies, target_csv)
-                return target_csv, movies
-        raise
+    # Fallback to server route (try app_url, then production Vercel app)
+    candidate_urls = [f"{app_url}/api/export/letterboxd?type={export_type}"]
+    prod_url = f"https://trakt-sync-engine.vercel.app/api/export/letterboxd?type={export_type}"
+    if prod_url not in candidate_urls:
+        candidate_urls.append(prod_url)
+
+    for url in candidate_urls:
+        try:
+            csv_path = download_csv_from_server(url, target_csv)
+            return csv_path, []
+        except Exception:
+            pass
+
+    if target_csv.exists() and target_csv.stat().st_size > 0:
+        print(f"📁 Using existing verified CSV file on disk: {target_csv.name}")
+        return target_csv, []
+
+    raise Exception("Could not fetch movies from Trakt or sync server, and no local CSV exists.")
 
 
 def automate_letterboxd_upload(
@@ -440,12 +444,14 @@ def automate_letterboxd_upload(
 
         # Step 3. Wait for Letterboxd to match titles
         print("⏳ Waiting for Letterboxd matching engine to resolve titles...")
-        if "Just a moment" in page.title():
-            print("⏳ Cloudflare verification detected after upload. Waiting for automatic pass...")
-            try:
-                page.wait_for_function("!document.title.includes('Just a moment')", timeout=20000)
-            except Exception:
-                pass
+        try:
+            page.wait_for_url("**/import/csv/**", timeout=20000)
+        except Exception:
+            pass
+        time.sleep(3)
+
+        # Run automated Turnstile solver on the import/csv endpoint
+        handle_turnstile_if_present(page, timeout_sec=30)
 
         try:
             page.wait_for_selector(

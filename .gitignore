@@ -45,3 +45,4 @@ __pycache__/
 *.csv
 .letterboxd_session.json
 .letterboxd_sync_state.json
+letterboxd_debug_*.png
