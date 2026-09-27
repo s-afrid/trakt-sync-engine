@@ -255,8 +255,8 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#08090D] text-slate-100 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="min-h-screen bg-[#08090D] text-slate-100 py-6 sm:py-10 px-3 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
         {/* Header - Haulix Telemetry Console */}
         <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-white/[0.08] gap-4">
           <div>
@@ -264,30 +264,30 @@ export default function Dashboard() {
               <img
                 src="/icon.png"
                 alt="Trakt Sync Engine Logo"
-                className="h-10 w-10 rounded-xl object-contain shadow-lg shadow-red-500/20 border border-white/[0.08]"
+                className="h-10 w-10 rounded-xl object-contain shadow-lg shadow-red-500/20 border border-white/[0.08] shrink-0"
               />
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-2xl font-black tracking-tight text-white">
+                  <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
                     Trakt Sync Engine
                   </h1>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-sm">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-sm shrink-0">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     Live 15-Min Daemon
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
                   Autonomous 3-way synchronization across Trakt.tv, MyAnimeList, and Letterboxd.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full md:w-auto">
             <button
               onClick={handleTriggerSync}
               disabled={syncing || !status?.connected?.trakt}
-              className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs tracking-wider uppercase transition-all shadow-lg ${
+              className={`w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs tracking-wider uppercase transition-all shadow-lg ${
                 syncing
                   ? "bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700"
                   : !status?.connected?.trakt
@@ -302,11 +302,11 @@ export default function Dashboard() {
         </div>
 
         {/* Navigation Tabs - Haulix Obsidian Bar */}
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-0.5">
             <button
               onClick={() => setActiveTab("dashboard")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+              className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === "dashboard"
                   ? "bg-[#0D111A] text-white shadow-sm border border-white/[0.12]"
                   : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
@@ -319,14 +319,14 @@ export default function Dashboard() {
             {!isActivityTabDeleted ? (
               <button
                 onClick={() => setActiveTab("activity24h")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+                className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                   activeTab === "activity24h"
                     ? "bg-[#0D111A] text-white border border-indigo-500/40 shadow-sm"
                     : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
                 }`}
               >
                 <Clock className="h-4 w-4 text-red-400" />
-                <span>24h Updates & Posters</span>
+                <span>24h Updates <span className="hidden sm:inline">& Posters</span></span>
                 <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
                   Live Log
                 </span>
@@ -337,7 +337,7 @@ export default function Dashboard() {
                   setIsActivityTabDeleted(false);
                   setActiveTab("activity24h");
                 }}
-                className="text-xs text-slate-500 hover:text-indigo-400 px-3 py-1.5 flex items-center gap-1.5 transition-colors font-medium"
+                className="shrink-0 text-xs text-slate-500 hover:text-indigo-400 px-3 py-1.5 flex items-center gap-1.5 transition-colors font-medium"
                 title="Restore the 24h activity tab"
               >
                 <span>+ Restore 24h Updates Tab</span>
@@ -345,7 +345,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between sm:justify-end gap-2">
             {!isActivityTabDeleted && activeTab === "activity24h" && (
               <button
                 onClick={() => {
@@ -359,7 +359,7 @@ export default function Dashboard() {
                 <span>Delete Tab</span>
               </button>
             )}
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-950/40 text-emerald-400 border border-emerald-800/40 font-mono">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-emerald-950/40 text-emerald-400 border border-emerald-800/40 font-mono">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               15-Min Engine Active
             </span>
@@ -413,9 +413,9 @@ export default function Dashboard() {
         )}
 
         {/* 3 Main Connection Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* 1. Trakt Card */}
-          <div className="p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#ED1C24] hover:border-slate-700/80 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
+          <div className="p-5 sm:p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#ED1C24] hover:border-slate-700/80 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -555,7 +555,7 @@ export default function Dashboard() {
           </div>
 
           {/* 2. MyAnimeList Card */}
-          <div className="p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#3B82F6] hover:border-slate-700/80 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
+          <div className="p-5 sm:p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#3B82F6] hover:border-slate-700/80 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -652,7 +652,7 @@ export default function Dashboard() {
           </div>
 
           {/* 3. Letterboxd Card */}
-          <div className="p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#00E054] hover:border-slate-700/80 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
+          <div className="md:col-span-2 lg:col-span-1 p-5 sm:p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#00E054] hover:border-slate-700/80 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -833,12 +833,12 @@ export default function Dashboard() {
         </div>
 
         {/* Letterboxd 1-Click CSV Export & Playwright Automation Deck */}
-        <div className="p-6 rounded-2xl bg-[#0D111A]/95 border border-white/[0.08] space-y-5 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-4 sm:p-6 rounded-2xl bg-[#0D111A]/95 border border-white/[0.08] space-y-4 sm:space-y-5 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
                 <LetterboxdLogo size={22} />
-                <h2 className="text-lg font-semibold text-white">
+                <h2 className="text-base sm:text-lg font-semibold text-white">
                   Letterboxd 1-Click Import Tool
                 </h2>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
@@ -846,12 +846,12 @@ export default function Dashboard() {
                   Playwright Enabled
                 </span>
               </div>
-              <p className="text-sm text-slate-400 mt-1 max-w-2xl">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl leading-relaxed">
                 Because Letterboxd lacks a public open-write API, this engine formats your entire Trakt movie history into standard Letterboxd import CSV files (with verified TMDB & IMDb IDs) and can automate the browser upload via Playwright.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3 w-full lg:w-auto">
               <button
                 type="button"
                 onClick={() => {
@@ -859,7 +859,7 @@ export default function Dashboard() {
                   setAutoImportError(null);
                   setAutoImportMessage(null);
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-teal-500 text-white transition-all shadow-lg shadow-emerald-950/50"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-teal-500 text-white transition-all shadow-lg shadow-emerald-950/50"
               >
                 <Bot className="h-4 w-4" />
                 {showAutoImportModal ? "Close Automation" : "Auto-Upload (Playwright)"}
@@ -867,35 +867,37 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => setShowSessionModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
                 title="Update Letterboxd session via browser cookie extension"
               >
                 <Key className="h-4 w-4 text-emerald-400" />
                 <span>Update Session</span>
               </button>
-              <a
-                href="/api/export/letterboxd?type=watched"
-                download
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
-              >
-                <Download className="h-4 w-4" />
-                Watched CSV
-              </a>
-              <a
-                href="/api/export/letterboxd?type=ratings"
-                download
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
-              >
-                <Download className="h-4 w-4" />
-                Ratings CSV
-              </a>
+              <div className="grid grid-cols-2 sm:flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
+                <a
+                  href="/api/export/letterboxd?type=watched"
+                  download
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors text-center"
+                >
+                  <Download className="h-4 w-4 shrink-0" />
+                  <span>Watched CSV</span>
+                </a>
+                <a
+                  href="/api/export/letterboxd?type=ratings"
+                  download
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors text-center"
+                >
+                  <Download className="h-4 w-4 shrink-0" />
+                  <span>Ratings CSV</span>
+                </a>
+              </div>
               <a
                 href="https://letterboxd.com/import/"
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-slate-400 hover:text-slate-200 transition-colors"
               >
-                Open Importer
+                <span>Open Importer</span>
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </div>
@@ -903,7 +905,7 @@ export default function Dashboard() {
 
           {/* Playwright Automation Interactive Drawer */}
           {showAutoImportModal && (
-            <div className="p-5 rounded-xl bg-slate-900/90 border border-emerald-900/40 space-y-4">
+            <div className="p-4 sm:p-5 rounded-xl bg-slate-900/90 border border-emerald-900/40 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-800/50">
@@ -1169,7 +1171,7 @@ export default function Dashboard() {
 
         {/* Live Sync Result Panel */}
         {syncResult && (
-          <div className="p-6 rounded-2xl bg-[#0B0F19] border border-indigo-900/40 space-y-4">
+          <div className="p-4 sm:p-6 rounded-2xl bg-[#0B0F19] border border-indigo-900/40 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-white flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-emerald-400" />
@@ -1182,7 +1184,7 @@ export default function Dashboard() {
 
             {syncResult.anime && (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
                   <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
                     <p className="text-xs text-slate-400">Trakt Shows Scanned</p>
                     <p className="text-lg font-bold text-white mt-1">
@@ -1235,12 +1237,12 @@ export default function Dashboard() {
         )}
 
         {/* Vercel Deployment Checklist */}
-        <div className="p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] space-y-4 shadow-sm">
+        <div className="p-4 sm:p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] space-y-4 shadow-sm">
           <div className="flex items-center gap-2">
             <Database className="h-5 w-5 text-indigo-400" />
             <h3 className="font-semibold text-white">Vercel Deployment Architecture</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-400">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 text-xs text-slate-400">
             <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/60 space-y-2">
               <p className="font-medium text-slate-200 flex items-center gap-1.5">
                 <Calendar className="h-4 w-4 text-emerald-400" /> 1. Vercel Cron

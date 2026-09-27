@@ -277,30 +277,30 @@ export default function Activity24hTab({
   return (
     <div className="space-y-6">
       {/* Top Notice & Delete Tab Action Bar */}
-      <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-slate-900/60 border border-indigo-800/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-start gap-3">
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-slate-900/60 border border-indigo-800/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-xl">
+        <div className="flex items-start gap-3 min-w-0">
           <div className="h-9 w-9 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center shrink-0 mt-0.5">
             <Clock className="h-5 w-5 text-indigo-400" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold text-white">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              <h2 className="text-sm sm:text-base font-semibold text-white">
                 Live Activity Log
               </h2>
-              <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              <span className="px-2 py-0.5 text-[10px] sm:text-[11px] font-medium rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                 Last {hours} Hours
               </span>
-              <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              <span className="px-2 py-0.5 text-[10px] sm:text-[11px] font-medium rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
                 Inspection View
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
               Live updates synced between Trakt ➔ Letterboxd (Movies) and Trakt ➔ MyAnimeList (Anime).
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-center">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end sm:justify-center shrink-0">
           <button
             onClick={() => fetchActivity(hours)}
             disabled={loading}
@@ -360,60 +360,60 @@ export default function Activity24hTab({
       )}
 
       {/* Quick Stats Overview - Haulix Obsidian Telemetry */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Updates */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-indigo-500 shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-indigo-500 shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
           <div className="space-y-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Telemetry</p>
-            <p className="text-3xl font-black text-white tracking-tight">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Telemetry</p>
+            <p className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               {data ? data.summary.total : "--"}
             </p>
-            <p className="text-[11px] text-indigo-400 flex items-center gap-1 font-medium">
+            <p className="text-[10px] sm:text-[11px] text-indigo-400 flex items-center gap-1 font-medium">
               <Sparkles className="h-3 w-3" /> In selected {hours}h window
             </p>
           </div>
-          <div className="h-11 w-11 rounded-xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center shrink-0">
             <Layers className="h-5 w-5 text-indigo-400" />
           </div>
         </div>
 
         {/* Letterboxd Movies */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#00E054] shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#00E054] shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
           <div className="space-y-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Letterboxd Cinema</p>
-            <p className="text-3xl font-black text-[#00E054] tracking-tight">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Letterboxd Cinema</p>
+            <p className="text-2xl sm:text-3xl font-black text-[#00E054] tracking-tight">
               {data ? data.summary.letterboxdCount : "--"}
             </p>
-            <p className="text-[11px] text-slate-400 flex items-center gap-1 font-medium">
+            <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 font-medium">
               <Film className="h-3 w-3 text-emerald-400" /> Scrobbles & Imports
             </p>
           </div>
-          <div className="h-11 w-11 rounded-xl bg-[#00E054]/10 border border-[#00E054]/25 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-[#00E054]/10 border border-[#00E054]/25 flex items-center justify-center shrink-0">
             <LetterboxdLogo size={22} />
           </div>
         </div>
 
         {/* MyAnimeList Anime */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#3B82F6] shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#3B82F6] shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
           <div className="space-y-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">MyAnimeList Feed</p>
-            <p className="text-3xl font-black text-sky-400 tracking-tight">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">MyAnimeList Feed</p>
+            <p className="text-2xl sm:text-3xl font-black text-sky-400 tracking-tight">
               {data ? data.summary.malCount : "--"}
             </p>
-            <p className="text-[11px] text-slate-400 flex items-center gap-1 font-medium">
+            <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 font-medium">
               <Tv className="h-3 w-3 text-sky-400" /> Episodes & Finales
             </p>
           </div>
-          <div className="h-11 w-11 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center shrink-0">
             <MalLogo size={22} className="text-sky-400" />
           </div>
         </div>
 
         {/* Background Daemon Cycle & Cloud Engine */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-emerald-400 shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-emerald-400 shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">15-Min Daemon</p>
+              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">15-Min Daemon</p>
               {ghRun?.htmlUrl && (
                 <a
                   href={ghRun.htmlUrl}
@@ -439,7 +439,7 @@ export default function Activity24hTab({
                     : "bg-emerald-400 shadow-sm shadow-emerald-400/80 animate-pulse"
                 }`}
               />
-              <p className="text-base font-black text-emerald-400 tracking-tight truncate">
+              <p className="text-sm sm:text-base font-black text-emerald-400 tracking-tight truncate">
                 {ghRun?.conclusion === "success"
                   ? "Cloud 15-Min: OK"
                   : ghRun?.status === "in_progress"
@@ -447,13 +447,13 @@ export default function Activity24hTab({
                   : "Active Daemon"}
               </p>
             </div>
-            <p className="text-[11px] text-slate-400 truncate">
+            <p className="text-[10px] sm:text-[11px] text-slate-400 truncate">
               {ghRun?.updatedAt
                 ? `Last run: ${formatRelativeTime(ghRun.updatedAt)} (#${ghRun.runNumber})`
                 : `Refreshed ${formatRelativeTime(lastRefreshed.toISOString())}`}
             </p>
           </div>
-          <div className="h-11 w-11 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center shrink-0">
             <RefreshCw className="h-5 w-5 text-emerald-400" />
           </div>
         </div>
@@ -462,15 +462,15 @@ export default function Activity24hTab({
       {/* Letterboxd Session Status Banner - Haulix Obsidian Card */}
       {sessionInfo && (
         <div
-          className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-md transition-all ${
+          className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-md transition-all ${
             sessionInfo.hasSession && !sessionInfo.isExpired
               ? "bg-[#0D151E]/95 border-emerald-500/30 text-emerald-200"
               : "bg-[#18110D]/95 border-amber-500/40 text-amber-200"
           }`}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-start sm:items-center gap-3">
             <div
-              className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border ${
+              className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 sm:mt-0 ${
                 sessionInfo.hasSession && !sessionInfo.isExpired
                   ? "bg-emerald-500/15 border-emerald-500/30"
                   : "bg-amber-500/15 border-amber-500/30"
@@ -482,9 +482,9 @@ export default function Activity24hTab({
                 <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
               )}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-white text-sm">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-white text-xs sm:text-sm">
                   Letterboxd Playwright Session:{" "}
                   {sessionInfo.hasSession && !sessionInfo.isExpired
                     ? "Active & Verified"
@@ -496,7 +496,7 @@ export default function Activity24hTab({
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                 )}
               </div>
-              <p className="text-slate-300 text-xs mt-0.5">
+              <p className="text-slate-300 text-[11px] sm:text-xs mt-0.5 leading-relaxed">
                 {sessionInfo.hasSession && !sessionInfo.isExpired
                   ? `${sessionInfo.cookieCount} session cookies stored${
                       sessionInfo.expiresAt
@@ -509,7 +509,7 @@ export default function Activity24hTab({
           </div>
           <button
             onClick={() => setShowSessionModal(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs shrink-0 self-start sm:self-auto transition-all shadow-sm hover:shadow"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs shrink-0 transition-all shadow-sm hover:shadow"
           >
             <Key className="h-3.5 w-3.5 text-emerald-400" />
             <span>Update Session</span>
@@ -518,13 +518,13 @@ export default function Activity24hTab({
       )}
 
       {/* Filter and Control Bar - Haulix Obsidian Layout */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] space-y-4 shadow-sm">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] space-y-3 sm:space-y-4 shadow-sm">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 sm:gap-3">
           {/* Platform Pills */}
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/40 border border-white/[0.06] overflow-x-auto">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/40 border border-white/[0.06] overflow-x-auto scrollbar-none">
             <button
               onClick={() => setPlatformFilter("all")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 platformFilter === "all"
                   ? "bg-slate-800 text-white shadow-sm border border-slate-700"
                   : "text-slate-400 hover:text-white"
@@ -534,7 +534,7 @@ export default function Activity24hTab({
             </button>
             <button
               onClick={() => setPlatformFilter("letterboxd")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 platformFilter === "letterboxd"
                   ? "bg-[#00E054]/20 text-[#00E054] border border-[#00E054]/40"
                   : "text-slate-400 hover:text-white"
@@ -546,7 +546,7 @@ export default function Activity24hTab({
             </button>
             <button
               onClick={() => setPlatformFilter("myanimelist")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 platformFilter === "myanimelist"
                   ? "bg-[#2E51A2]/25 text-sky-300 border border-[#2E51A2]/40"
                   : "text-slate-400 hover:text-white"
@@ -559,8 +559,8 @@ export default function Activity24hTab({
           </div>
 
           {/* Time Horizon Horizon Selector */}
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/40 border border-white/[0.06]">
-            <span className="text-[11px] text-slate-400 pl-2 pr-1 font-semibold flex items-center gap-1">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-black/40 border border-white/[0.06] overflow-x-auto scrollbar-none self-start sm:self-auto shrink-0">
+            <span className="text-[10px] sm:text-[11px] text-slate-400 pl-2 pr-1 font-semibold flex items-center gap-1 shrink-0">
               <Calendar className="h-3 w-3" /> Time:
             </span>
             {[
@@ -573,7 +573,7 @@ export default function Activity24hTab({
               <button
                 key={t.value}
                 onClick={() => setHours(t.value)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`shrink-0 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
                   hours === t.value
                     ? "bg-indigo-600 text-white shadow-sm"
                     : "text-slate-400 hover:text-white"
@@ -588,21 +588,21 @@ export default function Activity24hTab({
         {/* Second Row: Type Filter & Live Search */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-white/[0.06]">
           {/* Type Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0">
+            <span className="text-xs text-slate-400 font-semibold flex items-center gap-1 shrink-0">
               <Filter className="h-3.5 w-3.5" /> Type:
             </span>
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5">
               {[
-                { id: "all", label: "All Types" },
+                { id: "all", label: "All" },
                 { id: "movie", label: "Movies" },
-                { id: "episode", label: "Episodes" },
+                { id: "episode", label: "Anime" },
                 { id: "sync_run", label: "Sync Runs" },
               ].map((opt) => (
                 <button
                   key={opt.id}
                   onClick={() => setTypeFilter(opt.id)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                  className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                     typeFilter === opt.id
                       ? "bg-slate-800 text-white border border-slate-700 shadow-sm"
                       : "text-slate-400 hover:text-slate-200"
@@ -615,13 +615,13 @@ export default function Activity24hTab({
           </div>
 
           {/* Search Input */}
-          <div className="relative flex-1 sm:max-w-xs">
+          <div className="relative w-full sm:w-64 md:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by title, show, or ID..."
+              placeholder="Search title or ID..."
               className="w-full pl-9 pr-8 py-1.5 rounded-xl bg-black/40 border border-white/[0.08] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
             />
             {searchQuery && (
@@ -693,9 +693,9 @@ export default function Activity24hTab({
               return (
                 <div
                   key={item.id}
-                  className="group p-4 sm:p-5 rounded-2xl bg-[#0D111A]/90 hover:bg-[#111726]/95 border border-white/[0.08] hover:border-slate-600/80 transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm hover:shadow-xl hover:shadow-black/30"
+                  className="group p-3.5 sm:p-5 rounded-2xl bg-[#0D111A]/90 hover:bg-[#111726]/95 border border-white/[0.08] hover:border-slate-600/80 transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-sm hover:shadow-xl hover:shadow-black/30"
                 >
-                  <div className="flex items-start gap-4 min-w-0 flex-1">
+                  <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1 w-full sm:w-auto">
                     {/* Visual Asset Thumbnail: Poster or Telemetry Engine Icon */}
                     {item.type === "movie" || item.type === "episode" || item.type === "completed" ? (
                       <MoviePoster
@@ -722,12 +722,12 @@ export default function Activity24hTab({
                     )}
 
                     {/* Title & Telemetry Metadata */}
-                    <div className="min-w-0 space-y-1.5 flex-1">
+                    <div className="min-w-0 space-y-1 sm:space-y-1.5 flex-1">
                       {/* Top Chips Row */}
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                         {/* Platform Badge */}
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold tracking-tight border ${
+                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold tracking-tight border ${
                             isLB
                               ? "bg-[#00E054]/10 border-[#00E054]/30 text-[#00E054]"
                               : isMAL
@@ -756,7 +756,7 @@ export default function Activity24hTab({
 
                         {/* Season & Episode Chip */}
                         {item.metadata?.season !== undefined && item.metadata?.episode !== undefined && (
-                          <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                          <span className="text-[10px] sm:text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
                             S{String(item.metadata.season).padStart(2, "0")} E{String(item.metadata.episode).padStart(2, "0")}
                           </span>
                         )}
@@ -778,12 +778,12 @@ export default function Activity24hTab({
                       </div>
 
                       {/* Title */}
-                      <h4 className="text-sm sm:text-base font-bold text-white tracking-tight group-hover:text-indigo-200 transition-colors line-clamp-1">
+                      <h4 className="text-sm sm:text-base font-bold text-white tracking-tight group-hover:text-indigo-200 transition-colors line-clamp-2 sm:line-clamp-1">
                         {decodeClientEntities(item.title)}
                       </h4>
 
                       {/* Subtitle / Telemetry Log */}
-                      <p className="text-xs text-slate-300/90 leading-relaxed">
+                      <p className="text-xs text-slate-300/90 leading-relaxed line-clamp-2">
                         {displaySubtitle}
                       </p>
 
@@ -835,7 +835,7 @@ export default function Activity24hTab({
                       )}
 
                       {/* Bottom Telemetry Row: Rating, IMDb, TMDb, MAL, Genres, Plays */}
-                      <div className="flex items-center gap-2 text-[11px] text-slate-400 pt-1 flex-wrap">
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-slate-400 pt-1 flex-wrap">
                         {item.metadata?.rating && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[10px] font-bold">
                             <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
@@ -847,7 +847,7 @@ export default function Activity24hTab({
                             href={`https://www.imdb.com/title/${item.metadata.imdbId}/`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="hover:text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded text-[10px] font-mono text-amber-400/90 flex items-center gap-1 transition-colors"
+                            className="hover:text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded text-[10px] font-mono text-amber-400/90 flex items-center gap-1 transition-colors"
                           >
                             <span>IMDb: {item.metadata.imdbId}</span>
                             <ExternalLink className="h-2.5 w-2.5" />
@@ -863,7 +863,7 @@ export default function Activity24hTab({
                             href={`https://myanimelist.net/anime/${item.metadata.malId}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="hover:text-sky-300 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded text-[10px] font-mono text-sky-300 flex items-center gap-1 transition-colors"
+                            className="hover:text-sky-300 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded text-[10px] font-mono text-sky-300 flex items-center gap-1 transition-colors"
                           >
                             <span>MAL #{item.metadata.malId}</span>
                             <ExternalLink className="h-2.5 w-2.5" />
@@ -884,10 +884,10 @@ export default function Activity24hTab({
                   </div>
 
                   {/* Right Column: Status Pill, Timestamp, External Action Button */}
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto gap-2.5 shrink-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-white/[0.06]">
-                    <div className="flex items-center gap-1.5">
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto gap-2 shrink-0 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-white/[0.06]">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <span
-                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-sm ${
+                        className={`inline-flex items-center gap-1 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-bold tracking-wide uppercase shadow-sm ${
                           item.status === "pending"
                             ? "bg-amber-500/15 text-amber-300 border border-amber-500/35"
                             : isLB
@@ -921,7 +921,7 @@ export default function Activity24hTab({
                           href={item.metadata.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white border border-white/[0.08] transition-colors"
+                          className="p-1 sm:p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white border border-white/[0.08] transition-colors"
                           title="Open item page"
                         >
                           <ArrowUpRight className="h-3.5 w-3.5" />
@@ -930,7 +930,7 @@ export default function Activity24hTab({
                     </div>
 
                     <span
-                      className="text-xs text-slate-400 hover:text-slate-200 cursor-default font-mono"
+                      className="text-[11px] sm:text-xs text-slate-400 hover:text-slate-200 cursor-default font-mono shrink-0"
                       title={new Date(item.timestamp).toLocaleString()}
                     >
                       {formatRelativeTime(item.timestamp)}

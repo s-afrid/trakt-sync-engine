@@ -121,38 +121,38 @@ export default function LetterboxdSessionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
       <div className="relative w-full max-w-2xl rounded-2xl bg-[#0B0F19] border border-slate-800 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="p-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/40">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-              <Key className="h-5 w-5 text-emerald-400" />
+        <div className="p-4 sm:p-5 border-b border-slate-800/80 flex items-start sm:items-center justify-between bg-slate-900/40 gap-3">
+          <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+              <Key className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-semibold text-white">
-                  Letterboxd Cookie Session Manager
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h3 className="text-sm sm:text-base font-semibold text-white">
+                  Letterboxd Cookie Session
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 shrink-0">
                   Cookie-Editor / Extension
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 leading-relaxed">
                 Import exported cookies to keep cloud & local background sync authenticated.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-5 overflow-y-auto">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto">
           {/* Status Banner */}
           <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -280,7 +280,7 @@ export default function LetterboxdSessionModal({
           {/* 1-Click Copy for GitHub Secret */}
           {secretPayload && (
             <div className="p-4 rounded-xl bg-slate-900/90 border border-emerald-900/50 space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold text-white flex items-center gap-1.5">
                     <ShieldCheck className="h-4 w-4 text-emerald-400" />
@@ -294,7 +294,7 @@ export default function LetterboxdSessionModal({
                 <button
                   type="button"
                   onClick={handleCopySecret}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  className={`w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-medium transition-all ${
                     copiedSecret
                       ? "bg-emerald-500 text-white shadow-sm"
                       : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
