@@ -1,4 +1,4 @@
-name: 15-Minute Trakt Cloud Sync (MAL & Letterboxd)
+name: 15-Minute Trakt Cloud Sync (MAL and Letterboxd)
 
 on:
   schedule:
@@ -17,23 +17,10 @@ permissions:
 
 jobs:
   sync:
-    name: Sync Trakt ➔ Letterboxd & MAL
+    name: Sync Trakt to Letterboxd and MAL
     runs-on: ubuntu-latest
     timeout-minutes: 10
     
-    env:
-      TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID || 'LJ3u_lRoHsyvfFiUbthSJ7Tk45uEgA_kQEQ5Yz57Ci0' }}
-      TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET || '3C-UsSsW_BkGARa5bJ8c0HW9M7MzlLtfIqcKgonoXOo' }}
-      TRAKT_USERNAME: ${{ secrets.TRAKT_USERNAME || 'afsindbad' }}
-      LETTERBOXD_USERNAME: ${{ secrets.LETTERBOXD_USERNAME || 'Af_Sindbad' }}
-      LETTERBOXD_PASSWORD: ${{ secrets.LETTERBOXD_PASSWORD || 'Af02052002' }}
-      LETTERBOXD_SESSION_JSON: ${{ secrets.LETTERBOXD_SESSION_JSON }}
-      LETTERBOXD_PROXY: ${{ secrets.LETTERBOXD_PROXY }}
-      NEXT_PUBLIC_APP_URL: "https://trakt-sync-engine.vercel.app"
-      PYTHONUNBUFFERED: "1"
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_REPOSITORY: ${{ github.repository }}
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -76,15 +63,50 @@ jobs:
         run: |
           playwright install-deps chromium
 
-      - name: 1. Letterboxd Auth & Session Refresh
+      - name: 1. Letterboxd Auth and Session Refresh
+        env:
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID || 'LJ3u_lRoHsyvfFiUbthSJ7Tk45uEgA_kQEQ5Yz57Ci0' }}
+          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET || '3C-UsSsW_BkGARa5bJ8c0HW9M7MzlLtfIqcKgonoXOo' }}
+          TRAKT_USERNAME: ${{ secrets.TRAKT_USERNAME || 'afsindbad' }}
+          LETTERBOXD_USERNAME: ${{ secrets.LETTERBOXD_USERNAME || 'Af_Sindbad' }}
+          LETTERBOXD_PASSWORD: ${{ secrets.LETTERBOXD_PASSWORD || 'Af02052002' }}
+          LETTERBOXD_SESSION_JSON: ${{ secrets.LETTERBOXD_SESSION_JSON }}
+          LETTERBOXD_PROXY: ${{ secrets.LETTERBOXD_PROXY }}
+          NEXT_PUBLIC_APP_URL: "https://trakt-sync-engine.vercel.app"
+          PYTHONUNBUFFERED: "1"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           xvfb-run -a --server-args="-screen 0 1280x1024x24" python scripts/automate_letterboxd_upload.py --job login
 
-      - name: 2. Trakt ➔ Letterboxd Sync & Upload
+      - name: 2. Trakt to Letterboxd Sync and Upload
+        env:
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID || 'LJ3u_lRoHsyvfFiUbthSJ7Tk45uEgA_kQEQ5Yz57Ci0' }}
+          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET || '3C-UsSsW_BkGARa5bJ8c0HW9M7MzlLtfIqcKgonoXOo' }}
+          TRAKT_USERNAME: ${{ secrets.TRAKT_USERNAME || 'afsindbad' }}
+          LETTERBOXD_USERNAME: ${{ secrets.LETTERBOXD_USERNAME || 'Af_Sindbad' }}
+          LETTERBOXD_PASSWORD: ${{ secrets.LETTERBOXD_PASSWORD || 'Af02052002' }}
+          LETTERBOXD_SESSION_JSON: ${{ secrets.LETTERBOXD_SESSION_JSON }}
+          LETTERBOXD_PROXY: ${{ secrets.LETTERBOXD_PROXY }}
+          NEXT_PUBLIC_APP_URL: "https://trakt-sync-engine.vercel.app"
+          PYTHONUNBUFFERED: "1"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           xvfb-run -a --server-args="-screen 0 1280x1024x24" python scripts/automate_letterboxd_upload.py --auto-confirm --keep-open 5 --job upload
 
       - name: 3. Watchlist Cleanup
+        env:
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID || 'LJ3u_lRoHsyvfFiUbthSJ7Tk45uEgA_kQEQ5Yz57Ci0' }}
+          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET || '3C-UsSsW_BkGARa5bJ8c0HW9M7MzlLtfIqcKgonoXOo' }}
+          TRAKT_USERNAME: ${{ secrets.TRAKT_USERNAME || 'afsindbad' }}
+          LETTERBOXD_USERNAME: ${{ secrets.LETTERBOXD_USERNAME || 'Af_Sindbad' }}
+          LETTERBOXD_PASSWORD: ${{ secrets.LETTERBOXD_PASSWORD || 'Af02052002' }}
+          LETTERBOXD_SESSION_JSON: ${{ secrets.LETTERBOXD_SESSION_JSON }}
+          LETTERBOXD_PROXY: ${{ secrets.LETTERBOXD_PROXY }}
+          NEXT_PUBLIC_APP_URL: "https://trakt-sync-engine.vercel.app"
+          PYTHONUNBUFFERED: "1"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           xvfb-run -a --server-args="-screen 0 1280x1024x24" python scripts/automate_letterboxd_upload.py --job cleanup
-
