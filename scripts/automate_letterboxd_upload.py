@@ -376,6 +376,7 @@ def automate_letterboxd_upload(
     auto_confirm: bool = False,
     inspection_seconds: int = 15,
     cleanup_movies: list = None,
+    job: str = "all",
 ) -> bool:
     """Launches Playwright to log in to Letterboxd and upload the CSV file."""
     if not csv_path.exists():
@@ -836,6 +837,22 @@ def automate_letterboxd_upload(
             handle_turnstile_if_present(page, timeout_sec=30)
             time.sleep(1)
 
+        # Job Check: If only doing login, exit now
+        if job == "login":
+            print("🏁 Login job completed successfully.")
+            browser.close()
+            return True
+
+        # Job Check: If only doing cleanup, skip upload and confirmation
+        if job == "cleanup":
+            print("⏩ Job is 'cleanup'. Skipping file upload and proceeding directly to Watchlist Cleanup...")
+            if cleanup_movies:
+                cleanup_letterboxd_watchlist(cleanup_movies)
+            else:
+                print("ℹ️ No movies provided for watchlist cleanup.")
+            browser.close()
+            return True
+
         # Step 2. Handle File Upload
         print(f"🌐 Current page: {page.url} | Title: {page.title()}")
 
@@ -1128,7 +1145,7 @@ def automate_letterboxd_upload(
                 success = True
 
                 # Step 5: Automated Watchlist Cleanup for newly watched movies (runs in dedicated separate tab)
-                if cleanup_movies:
+                if cleanup_movies and job == "all":
                     cleanup_letterboxd_watchlist(cleanup_movies)
             except Exception as e:
                 print(f"⚠️ Could not auto-click import button: {e}")
@@ -1293,6 +1310,7 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
         auto_confirm=args.auto_confirm,
         inspection_seconds=3 if (args.auto_confirm and args.interval) else args.keep_open,
         cleanup_movies=cleanup_candidates if (args.auto_confirm and getattr(args, "cleanup_watchlist", True)) else None,
+        job=getattr(args, "job", "all")
     )
 
     if success:
@@ -1413,6 +1431,12 @@ def main():
         dest="cleanup_watchlist",
         action="store_false",
         help="Disable automatic Watchlist cleanup",
+    )
+    parser.add_argument(
+        "--job",
+        choices=["all", "login", "upload", "cleanup"],
+        default="all",
+        help="Run specific stages: 'login' (auth only), 'upload' (import only), 'cleanup' (watchlist only), or 'all' (default).",
     )
 
     args = parser.parse_args()
