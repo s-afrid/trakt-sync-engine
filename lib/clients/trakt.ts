@@ -92,6 +92,40 @@ export interface TraktRatingItem {
   };
 }
 
+export interface TraktWatchlistItem {
+  id: number;
+  listed_at: string;
+  type: "movie" | "show";
+  movie?: {
+    title: string;
+    year: number;
+    ids: {
+      trakt: number;
+      slug: string;
+      imdb?: string;
+      tmdb?: number;
+    };
+    overview?: string;
+    rating?: number;
+    genres?: string[];
+  };
+  show?: {
+    title: string;
+    year: number;
+    ids: {
+      trakt: number;
+      slug: string;
+      imdb?: string;
+      tmdb?: number;
+      tvdb?: number;
+    };
+    overview?: string;
+    rating?: number;
+    genres?: string[];
+    aired_episodes?: number;
+  };
+}
+
 export interface TraktEpisodeHistoryItem {
   id: number;
   watched_at: string;
@@ -301,6 +335,30 @@ export class TraktClient {
     if (!res.ok) {
       throw new Error(`Failed to fetch watched shows: ${res.statusText}`);
     }
+    return res.json();
+  }
+
+  async getWatchlistMovies(): Promise<TraktWatchlistItem[]> {
+    const endpoint = this.accessToken
+      ? "https://api.trakt.tv/sync/watchlist/movies?extended=full"
+      : `https://api.trakt.tv/users/${this.username}/watchlist/movies?extended=full`;
+
+    const res = await fetch(endpoint, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) return [];
+    return res.json();
+  }
+
+  async getWatchlistShows(): Promise<TraktWatchlistItem[]> {
+    const endpoint = this.accessToken
+      ? "https://api.trakt.tv/sync/watchlist/shows?extended=full"
+      : `https://api.trakt.tv/users/${this.username}/watchlist/shows?extended=full`;
+
+    const res = await fetch(endpoint, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) return [];
     return res.json();
   }
 

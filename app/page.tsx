@@ -25,10 +25,14 @@ import {
   Clock,
   Trash2,
   Key,
+  Bookmark,
+  PlayCircle,
 } from "lucide-react";
 import { TraktLogo, MalLogo, LetterboxdLogo } from "@/components/icons";
 import Activity24hTab from "@/components/Activity24hTab";
 import LetterboxdSessionModal from "@/components/LetterboxdSessionModal";
+import WatchlistTab from "@/components/WatchlistTab";
+import ContinueWatchingTab from "@/components/ContinueWatchingTab";
 
 interface SyncStatus {
   connected: {
@@ -96,7 +100,7 @@ export default function Dashboard() {
   const [autoImportError, setAutoImportError] = useState<string | null>(null);
   const [isCloudHost, setIsCloudHost] = useState<boolean>(false);
   const [copiedDaemon, setCopiedDaemon] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "activity24h">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "activity24h" | "watchlist" | "continueWatching">("dashboard");
   const [isActivityTabDeleted, setIsActivityTabDeleted] = useState<boolean>(false);
   const [showSessionModal, setShowSessionModal] = useState<boolean>(false);
 
@@ -316,6 +320,36 @@ export default function Dashboard() {
               <span>Dashboard</span>
             </button>
 
+            <button
+              onClick={() => setActiveTab("watchlist")}
+              className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+                activeTab === "watchlist"
+                  ? "bg-[#0D111A] text-white border border-amber-500/40 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+              }`}
+            >
+              <Bookmark className="h-4 w-4 text-amber-400" />
+              <span>Watchlist</span>
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                3-Way
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("continueWatching")}
+              className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+                activeTab === "continueWatching"
+                  ? "bg-[#0D111A] text-white border border-emerald-500/40 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+              }`}
+            >
+              <PlayCircle className="h-4 w-4 text-emerald-400" />
+              <span>Continue Watching</span>
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                Active
+              </span>
+            </button>
+
             {!isActivityTabDeleted ? (
               <button
                 onClick={() => setActiveTab("activity24h")}
@@ -366,7 +400,11 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {activeTab === "activity24h" && !isActivityTabDeleted ? (
+        {activeTab === "watchlist" ? (
+          <WatchlistTab />
+        ) : activeTab === "continueWatching" ? (
+          <ContinueWatchingTab />
+        ) : activeTab === "activity24h" && !isActivityTabDeleted ? (
           <Activity24hTab
             onDeleteTab={() => {
               setIsActivityTabDeleted(true);
