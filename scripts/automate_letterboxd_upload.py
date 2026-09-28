@@ -1045,7 +1045,7 @@ def automate_letterboxd_upload(
                         // A button click triggers Letterboxd's jQuery AJAX submission which fails silently behind Cloudflare.
                         // Instead, try to submit the parent form natively. This forces a full-page POST navigation 
                         // that can render the Cloudflare challenge widget correctly!
-                        const parentForm = primary.closest('form');
+                        const parentForm = primary.closest('form') || document.querySelector('form.import-step-2, form#imdb-form');
                         if (parentForm && typeof parentForm.submit === 'function') {
                             parentForm.submit();
                         } else if (parentForm) {
@@ -1120,6 +1120,12 @@ def automate_letterboxd_upload(
                 save_confirmed = False
                 wait_start = time.time()
                 while time.time() - wait_start < 40:
+                    # Solve any Turnstile challenges that pop up mid-submission!
+                    try:
+                        handle_turnstile_if_present(page, timeout_sec=5)
+                    except Exception:
+                        pass
+
                     cur_url = page.url
                     # Check if Letterboxd navigated to import summary, diary, or user page
                     if "/import/csv/" not in cur_url and ("letterboxd.com/import" in cur_url or "diary" in cur_url or "films" in cur_url):
