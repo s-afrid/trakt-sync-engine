@@ -263,6 +263,7 @@ export class TraktClient {
 
     const res = await fetch(endpoint, {
       headers: this.getHeaders(),
+      cache: "no-store",
     });
     if (!res.ok) {
       throw new Error(`Failed to fetch Trakt user: ${res.statusText}`);
@@ -280,8 +281,8 @@ export class TraktClient {
       : `https://api.trakt.tv/users/${this.username}/history/movies?limit=100`;
 
     const [watchedRes, historyRes] = await Promise.all([
-      fetch(watchedEndpoint, { headers: this.getHeaders() }),
-      fetch(historyEndpoint, { headers: this.getHeaders() }).catch(() => null),
+      fetch(watchedEndpoint, { headers: this.getHeaders(), cache: "no-store" }),
+      fetch(historyEndpoint, { headers: this.getHeaders(), cache: "no-store" }).catch(() => null),
     ]);
 
     if (!watchedRes.ok) {
@@ -331,6 +332,7 @@ export class TraktClient {
 
     const res = await fetch(endpoint, {
       headers: this.getHeaders(),
+      cache: "no-store",
     });
     if (!res.ok) {
       throw new Error(`Failed to fetch watched shows: ${res.statusText}`);
@@ -345,6 +347,7 @@ export class TraktClient {
 
     const res = await fetch(endpoint, {
       headers: this.getHeaders(),
+      cache: "no-store",
     });
     if (!res.ok) return [];
     return res.json();
@@ -357,6 +360,7 @@ export class TraktClient {
 
     const res = await fetch(endpoint, {
       headers: this.getHeaders(),
+      cache: "no-store",
     });
     if (!res.ok) return [];
     return res.json();
@@ -369,6 +373,7 @@ export class TraktClient {
 
     const res = await fetch(endpoint, {
       headers: this.getHeaders(),
+      cache: "no-store",
     });
     if (!res.ok) return [];
     return res.json();
@@ -381,6 +386,7 @@ export class TraktClient {
 
     const res = await fetch(endpoint, {
       headers: this.getHeaders(),
+      cache: "no-store",
     });
     if (!res.ok) return [];
     return res.json();
@@ -393,6 +399,7 @@ export class TraktClient {
 
     const res = await fetch(endpoint, {
       headers: this.getHeaders(),
+      cache: "no-store",
     });
     if (!res.ok) return [];
     return res.json();
@@ -408,6 +415,7 @@ export class TraktClient {
 
     const res = await fetch(endpoint, {
       headers: this.getHeaders(),
+      cache: "no-store",
     });
     if (!res.ok) return [];
     return res.json();
@@ -454,6 +462,7 @@ export class TraktClient {
 
     const res = await fetch(endpoint, {
       headers: this.getHeaders(),
+      cache: "no-store",
     });
     if (!res.ok) return [];
     return res.json();
