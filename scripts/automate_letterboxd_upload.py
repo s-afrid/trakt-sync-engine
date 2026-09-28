@@ -288,6 +288,7 @@ def automate_letterboxd_upload(
     headless: bool = False,
     auto_confirm: bool = False,
     inspection_seconds: int = 15,
+    cleanup_movies: list = None,
 ) -> bool:
     """Launches Playwright to log in to Letterboxd and upload the CSV file."""
     if not csv_path.exists():
@@ -457,6 +458,120 @@ def automate_letterboxd_upload(
             return False
 
         handle_turnstile_if_present(page, timeout_sec=45)
+
+        # Automated Watchlist Cleanup for newly watched movies
+        def cleanup_letterboxd_watchlist(p_page, movies):
+            """Navigates to the Letterboxd page for newly watched movies (via TMDb redirect),
+            checks if the movie is currently active in the user's Watchlist, and untoggles it."""
+            if not movies:
+                return
+
+            print(f"\n🧹 Checking Letterboxd Watchlist cleanup for {len(movies)} movie(s)...")
+            for m in movies:
+                movie_obj = m.get("movie", {}) if isinstance(m, dict) else {}
+                title = movie_obj.get("title", "Unknown")
+                tmdb_id = movie_obj.get("ids", {}).get("tmdb")
+                slug = movie_obj.get("ids", {}).get("slug")
+
+                if not tmdb_id and not slug:
+                    print(f"⚠️ Skipping Watchlist check for '{title}' (no TMDb ID or slug available).")
+                    continue
+
+                target_url = f"https://letterboxd.com/tmdb/{tmdb_id}/" if tmdb_id else f"https://letterboxd.com/film/{slug}/"
+                print(f"🔍 Navigating to Letterboxd page for '{title}': {target_url}...")
+
+                try:
+                    p_page.goto(target_url, wait_until="domcontentloaded", timeout=25000)
+                    time.sleep(2)
+
+                    # Handle Cloudflare challenge if presented
+                    handle_turnstile_if_present(p_page, timeout_sec=15)
+
+                    # Wait for sidebar action panel to appear
+                    try:
+                        p_page.wait_for_selector(
+                            ".watch-panel, .actions-panel, .add-to-watchlist, [data-action*='watchlist'], .sidebar",
+                            timeout=10000
+                        )
+                    except Exception:
+                        pass
+
+                    # Inspect and click the watchlist button if currently active
+                    eval_res = p_page.evaluate("""() => {
+                        const candidates = [
+                            ".add-to-watchlist",
+                            "a[data-action*='watchlist']",
+                            "button[data-action*='watchlist']",
+                            "a.watchlist-action",
+                            "a.has-icon.icon-watchlist",
+                            ".action-watchlist",
+                            "[data-track-action='Watchlist']",
+                            "[data-action='watchlist']"
+                        ];
+
+                        let btn = null;
+                        for (const sel of candidates) {
+                            const el = document.querySelector(sel);
+                            if (el) {
+                                btn = el;
+                                break;
+                            }
+                        }
+
+                        if (!btn) {
+                            const all = Array.from(document.querySelectorAll("a, button, span, div.action"));
+                            for (const el of all) {
+                                const t = (el.innerText || el.textContent || '').trim().toLowerCase();
+                                const title = (el.getAttribute('title') || el.getAttribute('aria-label') || '').toLowerCase();
+                                if (t === 'watchlist' || t === 'in watchlist' || title.includes('watchlist')) {
+                                    btn = el;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!btn) {
+                            return { found: false, inWatchlist: false };
+                        }
+
+                        const classStr = (btn.className || '') + ' ' + (btn.parentElement ? btn.parentElement.className || '' : '');
+                        const titleStr = (btn.getAttribute('title') || btn.getAttribute('data-original-title') || btn.getAttribute('aria-label') || '').toLowerCase();
+                        const textStr = (btn.innerText || btn.textContent || '').trim().toLowerCase();
+
+                        // On Letterboxd, an active watchlist button has class '-active', 'active', 'in-watchlist', or title 'Remove from your watchlist'
+                        const isActive = classStr.includes('-active') ||
+                                         classStr.includes(' active') ||
+                                         classStr.includes('in-watchlist') ||
+                                         titleStr.includes('remove') ||
+                                         titleStr.includes('in your watchlist') ||
+                                         textStr === 'in watchlist';
+
+                        if (isActive) {
+                            try { btn.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch (e) {}
+                            btn.click();
+                            return { found: true, inWatchlist: true, clicked: true, title: titleStr, classStr: classStr };
+                        }
+
+                        return { found: true, inWatchlist: false, title: titleStr, classStr: classStr };
+                    }""")
+
+                    if eval_res.get("clicked"):
+                        print(f"🗑️ Untoggled Watchlist: '{title}' successfully removed from your Letterboxd Watchlist!")
+                        time.sleep(2)
+                    elif eval_res.get("inWatchlist"):
+                        fallback_btn = p_page.locator(".add-to-watchlist.-active, a[data-action*='watchlist'].-active, [title*='Remove from your watchlist'], a.has-icon.icon-watchlist.-active").first
+                        if fallback_btn.count() > 0:
+                            fallback_btn.click(force=True, timeout=5000)
+                            print(f"🗑️ Untoggled Watchlist (via locator fallback): '{title}' successfully removed from your Letterboxd Watchlist!")
+                            time.sleep(2)
+                    elif eval_res.get("found"):
+                        print(f"ℹ️ '{title}' is not currently in your Watchlist (already clear).")
+                    else:
+                        print(f"⚠️ Could not locate Watchlist toggle on '{title}' film page.")
+
+                except Exception as e:
+                    print(f"⚠️ Watchlist cleanup skipped for '{title}': {e}")
+
 
         # Wait up to 15 seconds for page elements to settle
         try:
@@ -749,6 +864,10 @@ def automate_letterboxd_upload(
 
                 time.sleep(4)
                 success = True
+
+                # Step 5: Automated Watchlist Cleanup for newly watched movies
+                if cleanup_movies:
+                    cleanup_letterboxd_watchlist(page, cleanup_movies)
             except Exception as e:
                 print(f"⚠️ Could not auto-click import button: {e}")
         else:
@@ -853,6 +972,9 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
     # Generate fresh CSV
     generate_watched_csv(upload_movies, csv_path)
 
+    # Determine newly watched movies to clean up from Letterboxd Watchlist
+    cleanup_candidates = new_movies if new_movies else (movies[:1] if movies else [])
+
     # Perform upload
     success = automate_letterboxd_upload(
         csv_path=csv_path,
@@ -861,6 +983,7 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
         headless=args.headless,
         auto_confirm=args.auto_confirm,
         inspection_seconds=3 if (args.auto_confirm and args.interval) else args.keep_open,
+        cleanup_movies=cleanup_candidates if (args.auto_confirm and getattr(args, "cleanup_watchlist", True)) else None,
     )
 
     if success:
@@ -969,6 +1092,18 @@ def main():
         type=int,
         default=15,
         help="Seconds to keep browser open after upload for inspection (default: 15s)",
+    )
+    parser.add_argument(
+        "--cleanup-watchlist",
+        action="store_true",
+        default=True,
+        help="Automatically remove newly watched movies from Letterboxd Watchlist (default: True)",
+    )
+    parser.add_argument(
+        "--no-cleanup-watchlist",
+        dest="cleanup_watchlist",
+        action="store_false",
+        help="Disable automatic Watchlist cleanup",
     )
 
     args = parser.parse_args()
