@@ -245,6 +245,36 @@ def get_latest_movies_data(app_url: str, export_type: str, target_csv: Path) -> 
     raise Exception("Could not fetch movies from Trakt or sync server, and no local CSV exists.")
 
 
+def get_letterboxd_confirmed_tmdb_ids(lb_username: str) -> set:
+    """Fetches Letterboxd's public RSS feed and returns confirmed TMDb IDs in the Diary."""
+    if not lb_username:
+        return set()
+    try:
+        import urllib.request
+        import xml.etree.ElementTree as ET
+        clean_user = lb_username.lower().strip()
+        url = f"https://letterboxd.com/{clean_user}/rss/"
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) TraktSyncEngine/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            xml_data = resp.read()
+        root = ET.fromstring(xml_data)
+        tmdb_ids = set()
+        for item in root.findall(".//item"):
+            for child in item:
+                if "movieId" in child.tag and child.text:
+                    try:
+                        tmdb_ids.add(int(child.text.strip()))
+                    except ValueError:
+                        pass
+        return tmdb_ids
+    except Exception as e:
+        print(f"Notice: Could not query Letterboxd RSS feed ({e}). Falling back to local state diff.")
+        return set()
+
+
 def parse_proxy(raw_proxy: str) -> dict:
     """Parses any proxy format (URL, host:port:user:pass, or simple host:port) for Playwright."""
     raw_proxy = raw_proxy.strip()
@@ -460,117 +490,149 @@ def automate_letterboxd_upload(
         handle_turnstile_if_present(page, timeout_sec=45)
 
         # Automated Watchlist Cleanup for newly watched movies
-        def cleanup_letterboxd_watchlist(p_page, movies):
-            """Navigates to the Letterboxd page for newly watched movies (via TMDb redirect),
-            checks if the movie is currently active in the user's Watchlist, and untoggles it."""
+        def cleanup_letterboxd_watchlist(movies):
+            """Opens a dedicated separate tab to check and untoggle Watchlist for newly watched movies.
+            Keeps the import page completely untouched and open to prevent in-flight save aborts."""
             if not movies:
                 return
 
             print(f"\n🧹 Checking Letterboxd Watchlist cleanup for {len(movies)} movie(s)...")
-            for m in movies:
-                movie_obj = m.get("movie", {}) if isinstance(m, dict) else {}
-                title = movie_obj.get("title", "Unknown")
-                tmdb_id = movie_obj.get("ids", {}).get("tmdb")
-                slug = movie_obj.get("ids", {}).get("slug")
-
-                if not tmdb_id and not slug:
-                    print(f"⚠️ Skipping Watchlist check for '{title}' (no TMDb ID or slug available).")
-                    continue
-
-                target_url = f"https://letterboxd.com/tmdb/{tmdb_id}/" if tmdb_id else f"https://letterboxd.com/film/{slug}/"
-                print(f"🔍 Navigating to Letterboxd page for '{title}': {target_url}...")
-
+            p_page = None
+            try:
+                p_page = context.new_page()
                 try:
-                    p_page.goto(target_url, wait_until="domcontentloaded", timeout=25000)
-                    time.sleep(2)
+                    from playwright_stealth.stealth import Stealth
+                    Stealth().apply_stealth_sync(p_page)
+                except Exception:
+                    pass
 
-                    # Handle Cloudflare challenge if presented
-                    handle_turnstile_if_present(p_page, timeout_sec=15)
+                for m in movies:
+                    movie_obj = m.get("movie", {}) if isinstance(m, dict) else {}
+                    title = movie_obj.get("title", "Unknown")
+                    tmdb_id = movie_obj.get("ids", {}).get("tmdb")
+                    slug = movie_obj.get("ids", {}).get("slug")
 
-                    # Wait for sidebar action panel to appear
+                    if not tmdb_id and not slug:
+                        print(f"⚠️ Skipping Watchlist check for '{title}' (no TMDb ID or slug available).")
+                        continue
+
+                    target_url = f"https://letterboxd.com/film/{slug}/" if slug else f"https://letterboxd.com/tmdb/{tmdb_id}/"
+                    print(f"🔍 Navigating to Letterboxd page for '{title}': {target_url}...")
+
                     try:
-                        p_page.wait_for_selector(
-                            ".watch-panel, .actions-panel, .add-to-watchlist, [data-action*='watchlist'], .sidebar",
-                            timeout=10000
-                        )
-                    except Exception:
-                        pass
+                        p_page.goto(target_url, wait_until="domcontentloaded", timeout=25000)
+                        time.sleep(2)
 
-                    # Inspect and click the watchlist button if currently active
-                    eval_res = p_page.evaluate("""() => {
-                        const candidates = [
-                            ".add-to-watchlist",
-                            "a[data-action*='watchlist']",
-                            "button[data-action*='watchlist']",
-                            "a.watchlist-action",
-                            "a.has-icon.icon-watchlist",
-                            ".action-watchlist",
-                            "[data-track-action='Watchlist']",
-                            "[data-action='watchlist']"
-                        ];
+                        # Handle Cloudflare challenge if presented
+                        handle_turnstile_if_present(p_page, timeout_sec=15)
 
-                        let btn = null;
-                        for (const sel of candidates) {
-                            const el = document.querySelector(sel);
-                            if (el) {
-                                btn = el;
-                                break;
+                        # Wait for client-side injected (CSI) user action panel to finish loading
+                        # Letterboxd renders user actions asynchronously via /csi/film/.../sidebar-user-actions/
+                        try:
+                            p_page.wait_for_selector(
+                                "#userpanel .add-to-watchlist, #userpanel [data-action*='watchlist'], #userpanel a[href*='watchlist'], #userpanel .has-icon.icon-watchlist, #userpanel .action-watchlist, #userpanel button, #userpanel li.panel-sharing",
+                                timeout=12000
+                            )
+                        except Exception:
+                            try:
+                                p_page.wait_for_load_state("networkidle", timeout=6000)
+                            except Exception:
+                                pass
+                        time.sleep(1)
+
+                        # Inspect and click the watchlist button if currently active
+                        # IMPORTANT: Scope ONLY within #userpanel / .actions-panel to avoid navbar false-positives!
+                        eval_res = p_page.evaluate("""() => {
+                            const panel = document.querySelector("#userpanel, .actions-panel, .js-actions-panel, aside.sidebar");
+                            if (!panel) {
+                                return { found: false, inWatchlist: false, reason: "no_panel" };
                             }
-                        }
 
-                        if (!btn) {
-                            const all = Array.from(document.querySelectorAll("a, button, span, div.action"));
-                            for (const el of all) {
-                                const t = (el.innerText || el.textContent || '').trim().toLowerCase();
-                                const title = (el.getAttribute('title') || el.getAttribute('aria-label') || '').toLowerCase();
-                                if (t === 'watchlist' || t === 'in watchlist' || title.includes('watchlist')) {
-                                    btn = el;
-                                    break;
+                            // Look exclusively inside the user actions panel
+                            const candidates = [
+                                panel.querySelector(".add-to-watchlist"),
+                                panel.querySelector("a[data-action*='watchlist']"),
+                                panel.querySelector("button[data-action*='watchlist']"),
+                                panel.querySelector(".action-watchlist"),
+                                panel.querySelector("a.has-icon.icon-watchlist"),
+                                panel.querySelector("[data-track-action='Watchlist']"),
+                                panel.querySelector("[data-action='watchlist']"),
+                                panel.querySelector("a.watchlist-action")
+                            ].filter(Boolean);
+
+                            let btn = candidates[0] || null;
+
+                            if (!btn) {
+                                const allInPanel = Array.from(panel.querySelectorAll("a, button, span, li, div.action"));
+                                for (const el of allInPanel) {
+                                    const t = (el.innerText || el.textContent || '').trim().toLowerCase();
+                                    const title = (el.getAttribute('title') || el.getAttribute('aria-label') || '').toLowerCase();
+                                    const cls = (el.className || '').toLowerCase();
+                                    if (cls.includes('watchlist') || t === 'watchlist' || t === 'in watchlist' || title.includes('watchlist')) {
+                                        btn = el;
+                                        break;
+                                    }
                                 }
                             }
-                        }
 
-                        if (!btn) {
-                            return { found: false, inWatchlist: false };
-                        }
+                            if (!btn) {
+                                return { found: false, inWatchlist: false, reason: "button_not_in_panel" };
+                            }
 
-                        const classStr = (btn.className || '') + ' ' + (btn.parentElement ? btn.parentElement.className || '' : '');
-                        const titleStr = (btn.getAttribute('title') || btn.getAttribute('data-original-title') || btn.getAttribute('aria-label') || '').toLowerCase();
-                        const textStr = (btn.innerText || btn.textContent || '').trim().toLowerCase();
+                            const classStr = ((btn.className || '') + ' ' + (btn.parentElement ? btn.parentElement.className || '' : '')).toLowerCase();
+                            const titleStr = (btn.getAttribute('title') || btn.getAttribute('data-original-title') || btn.getAttribute('aria-label') || '').toLowerCase();
+                            const textStr = (btn.innerText || btn.textContent || '').trim().toLowerCase();
+                            const stateAttr = (btn.getAttribute('data-action-state') || btn.getAttribute('data-state') || '').toLowerCase();
+                            const ariaChecked = btn.getAttribute('aria-checked');
 
-                        // On Letterboxd, an active watchlist button has class '-active', 'active', 'in-watchlist', or title 'Remove from your watchlist'
-                        const isActive = classStr.includes('-active') ||
-                                         classStr.includes(' active') ||
-                                         classStr.includes('in-watchlist') ||
-                                         titleStr.includes('remove') ||
-                                         titleStr.includes('in your watchlist') ||
-                                         textStr === 'in watchlist';
+                            // On Letterboxd, an active watchlist button has:
+                            // - class '-active', 'active', '-watchlisted', or 'in-watchlist'
+                            // - title 'Remove from your watchlist' or containing 'remove'
+                            // - text 'In watchlist'
+                            // - aria-checked="true"
+                            // - data-action-state="active"
+                            const isActive = classStr.includes('-active') ||
+                                             classStr.includes(' active') ||
+                                             classStr.includes('-watchlisted') ||
+                                             classStr.includes('in-watchlist') ||
+                                             titleStr.includes('remove') ||
+                                             titleStr.includes('in your watchlist') ||
+                                             textStr === 'in watchlist' ||
+                                             ariaChecked === 'true' ||
+                                             stateAttr === 'active';
 
-                        if (isActive) {
-                            try { btn.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch (e) {}
-                            btn.click();
-                            return { found: true, inWatchlist: true, clicked: true, title: titleStr, classStr: classStr };
-                        }
+                            if (isActive) {
+                                try { btn.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch (e) {}
+                                btn.click();
+                                return { found: true, inWatchlist: true, clicked: true, title: titleStr, classStr: classStr, text: textStr };
+                            }
 
-                        return { found: true, inWatchlist: false, title: titleStr, classStr: classStr };
-                    }""")
+                            return { found: true, inWatchlist: false, title: titleStr, classStr: classStr, text: textStr };
+                        }""")
 
-                    if eval_res.get("clicked"):
-                        print(f"🗑️ Untoggled Watchlist: '{title}' successfully removed from your Letterboxd Watchlist!")
-                        time.sleep(2)
-                    elif eval_res.get("inWatchlist"):
-                        fallback_btn = p_page.locator(".add-to-watchlist.-active, a[data-action*='watchlist'].-active, [title*='Remove from your watchlist'], a.has-icon.icon-watchlist.-active").first
-                        if fallback_btn.count() > 0:
-                            fallback_btn.click(force=True, timeout=5000)
-                            print(f"🗑️ Untoggled Watchlist (via locator fallback): '{title}' successfully removed from your Letterboxd Watchlist!")
-                            time.sleep(2)
-                    elif eval_res.get("found"):
-                        print(f"ℹ️ '{title}' is not currently in your Watchlist (already clear).")
-                    else:
-                        print(f"⚠️ Could not locate Watchlist toggle on '{title}' film page.")
+                        if eval_res.get("clicked"):
+                            print(f"🗑️ Untoggled Watchlist: '{title}' successfully removed from your Letterboxd Watchlist!")
+                            time.sleep(2.5)
+                        elif eval_res.get("inWatchlist"):
+                            fallback_btn = p_page.locator("#userpanel .add-to-watchlist.-active, #userpanel a[data-action*='watchlist'].-active, #userpanel [title*='Remove from your watchlist'], #userpanel a.has-icon.icon-watchlist.-active").first
+                            if fallback_btn.count() > 0:
+                                fallback_btn.click(force=True, timeout=5000)
+                                print(f"🗑️ Untoggled Watchlist (via locator fallback): '{title}' successfully removed from your Letterboxd Watchlist!")
+                                time.sleep(2.5)
+                        elif eval_res.get("found"):
+                            print(f"ℹ️ '{title}' is not currently in your Watchlist (already clear).")
+                        else:
+                            print(f"⚠️ Could not locate Watchlist toggle in user action panel for '{title}' (reason: {eval_res.get('reason')}).")
 
-                except Exception as e:
-                    print(f"⚠️ Watchlist cleanup skipped for '{title}': {e}")
+                    except Exception as e:
+                        print(f"⚠️ Watchlist cleanup skipped for '{title}': {e}")
+
+            finally:
+                if p_page:
+                    try:
+                        p_page.close()
+                    except Exception:
+                        pass
 
 
         # Wait up to 15 seconds for page elements to settle
@@ -854,20 +916,50 @@ def automate_letterboxd_upload(
                     else:
                         print("⚠️ Import button not found on matching screen.")
 
-                # Wait for save/success confirmation
-                try:
-                    saved_indicator = page.locator("strong:has-text('Saved'), h1:has-text('Saved'), text='Saved', text='saved', .message.-success, strong:has-text('Import complete')").first
-                    saved_indicator.wait_for(state="visible", timeout=20000)
-                    print("🎉 Import verified: Letterboxd saved the films!")
-                except Exception:
-                    pass
+                # Wait for save/success confirmation on the main import page
+                print("⏳ Waiting for Letterboxd to finish processing and saving import...")
+                save_confirmed = False
+                wait_start = time.time()
+                while time.time() - wait_start < 40:
+                    cur_url = page.url
+                    # Check if Letterboxd navigated to import summary, diary, or user page
+                    if "/import/csv/" not in cur_url and ("letterboxd.com/import" in cur_url or "diary" in cur_url or "films" in cur_url):
+                        print(f"🎉 Import verified: Letterboxd successfully saved the films! (Destination: {cur_url})")
+                        save_confirmed = True
+                        break
 
-                time.sleep(4)
+                    # Check DOM for success banners or completion indicators
+                    status_info = page.evaluate("""() => {
+                        const txt = (document.body.innerText || '').toLowerCase();
+                        const primaryBtn = document.querySelector("a.save-users-imported-imdb-history, a.submit-matched-films, input.save-users-imported-imdb-history");
+                        const btnText = primaryBtn ? (primaryBtn.innerText || primaryBtn.value || '').trim() : '';
+                        const isSuccessBanner = document.querySelector(".message.-success, .alert-success, .import-report") !== null;
+                        
+                        if (isSuccessBanner || txt.includes("import complete") || txt.includes("films imported") || txt.includes("successfully imported")) {
+                            return { done: true, reason: "success_element" };
+                        }
+                        if (primaryBtn && !btnText.includes("Saving") && !btnText.includes("saving") && (btnText.includes("Saved") || btnText.includes("Complete"))) {
+                            return { done: true, reason: "button_saved" };
+                        }
+                        return { done: false, btnText: btnText };
+                    }""")
+
+                    if status_info.get("done"):
+                        print(f"🎉 Import verified: Letterboxd finished saving! ({status_info.get('reason')})")
+                        save_confirmed = True
+                        break
+
+                    time.sleep(2)
+
+                if not save_confirmed:
+                    print("⏱️ Save request dispatched; waiting 6s for backend processing to settle...")
+                    time.sleep(6)
+
                 success = True
 
-                # Step 5: Automated Watchlist Cleanup for newly watched movies
+                # Step 5: Automated Watchlist Cleanup for newly watched movies (runs in dedicated separate tab)
                 if cleanup_movies:
-                    cleanup_letterboxd_watchlist(page, cleanup_movies)
+                    cleanup_letterboxd_watchlist(cleanup_movies)
             except Exception as e:
                 print(f"⚠️ Could not auto-click import button: {e}")
         else:
@@ -942,6 +1034,24 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
     # Find movies not yet recorded in state
     new_ids = current_ids - synced_ids
     new_movies = [current_movie_map[mid] for mid in new_ids]
+
+    # Cross-reference with live Letterboxd Diary RSS feed
+    # If any movie in Trakt watch history is not yet confirmed in the Letterboxd Diary,
+    # it must be treated as pending and included in the sync queue!
+    lb_confirmed_tmdb_ids = get_letterboxd_confirmed_tmdb_ids(username)
+    unconfirmed_movies = []
+    if lb_confirmed_tmdb_ids:
+        for m in movies:
+            tmdb_id = m.get("movie", {}).get("ids", {}).get("tmdb")
+            if tmdb_id and int(tmdb_id) not in lb_confirmed_tmdb_ids:
+                unconfirmed_movies.append(m)
+
+    if unconfirmed_movies:
+        unconfirmed_titles = [m.get("movie", {}).get("title") for m in unconfirmed_movies]
+        print(f"[{now_str}] 🔄 Unconfirmed Movie(s) in Letterboxd Diary: {', '.join(unconfirmed_titles)}. Adding to sync queue.")
+        for um in unconfirmed_movies:
+            if um not in new_movies:
+                new_movies.append(um)
 
     # Find latest watched timestamp from current movies
     max_watched_at = max(
