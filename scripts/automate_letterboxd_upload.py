@@ -427,16 +427,12 @@ def automate_letterboxd_upload(
             clicking checkboxes, or simulating mouse events on widget coordinates."""
             time.sleep(1)
             title = p_page.title()
-            if "Just a moment..." not in title and (
-                "Letterboxd" in title
-                or p_page.locator("input[type='file'], .nav-account, a.avatar, form#imdb-form, a.save-users-imported-imdb-history").count() > 0
-            ):
-                return True
 
+            # Accurate detection: only trigger if an actual challenge indicator or iframe exists
             turnstile_detected = (
-                "challenges.cloudflare.com" in p_page.content()
-                or "Just a moment..." in title
-                or p_page.locator("iframe[src*='challenges.cloudflare.com'], div#cf-turnstile, dialog.turnstile-dialog").count() > 0
+                "Just a moment..." in title
+                or "Attention Required" in title
+                or p_page.locator("iframe[src*='challenges.cloudflare.com'], div#cf-turnstile, dialog.turnstile-dialog, .cf-turnstile").count() > 0
             )
             if not turnstile_detected:
                 return True
@@ -444,12 +440,9 @@ def automate_letterboxd_upload(
             print("⏳ Cloudflare Turnstile detected. Engaging automated stealth solver...")
             start_w = time.time()
             while time.time() - start_w < timeout_sec:
-                # Check if challenge cleared
                 cur_title = p_page.title()
-                if "Just a moment..." not in cur_title and (
-                    "Letterboxd" in cur_title
-                    or p_page.locator("input[type='file'], .nav-account, a.avatar, form#imdb-form, a.save-users-imported-imdb-history").count() > 0
-                ):
+                has_cf_widget = p_page.locator("iframe[src*='challenges.cloudflare.com'], div#cf-turnstile, dialog.turnstile-dialog").count() > 0
+                if "Just a moment..." not in cur_title and "Attention Required" not in cur_title and not has_cf_widget:
                     print("✨ Cloudflare verification cleared!")
                     time.sleep(1)
                     return True
@@ -480,7 +473,7 @@ def automate_letterboxd_upload(
                 time.sleep(1.5)
 
             cur_title = p_page.title()
-            if "Just a moment..." not in cur_title:
+            if "Just a moment..." not in cur_title and p_page.locator("iframe[src*='challenges.cloudflare.com']").count() == 0:
                 print("✨ Cloudflare verification cleared!")
                 return True
 
@@ -767,36 +760,84 @@ def automate_letterboxd_upload(
             except Exception:
                 pass
             time.sleep(2)
+            # Clear Turnstile that may appear after post-login redirect to /import/
+            handle_turnstile_if_present(page, timeout_sec=30)
+            time.sleep(1)
         else:
             print("🎉 Already authenticated via saved session!")
+            # Ensure we're on /import/ and Turnstile is cleared for authenticated sessions too
+            if "/import" not in page.url:
+                page.goto("https://letterboxd.com/import/", wait_until="commit", timeout=60000)
+                try:
+                    page.wait_for_load_state("domcontentloaded", timeout=45000)
+                except Exception:
+                    pass
+                time.sleep(2)
+            handle_turnstile_if_present(page, timeout_sec=30)
+            time.sleep(1)
 
         # Step 2. Handle File Upload
-        # Check for intermittent "Continue" prompt from any previously abandoned import
-        try:
-            continue_btn = page.locator("button:has-text('Continue'), a:has-text('Continue')").first
-            if continue_btn.is_visible():
-                print("🔄 Found previous unfinished import prompt, clicking 'Continue'...")
-                continue_btn.click()
-                time.sleep(1.5)
-        except Exception:
-            pass
+        print(f"🌐 Current page: {page.url} | Title: {page.title()}")
 
-        print(f"📤 Uploading CSV file: {csv_path.name}...")
-        file_input = page.locator("input[type='file']")
+        # Fast-path: already on a /import/csv/ matching screen from a prior run — skip upload entirely
+        if "/import/csv/" in page.url or page.locator("a.save-users-imported-imdb-history, a.submit-matched-films").count() > 0:
+            print("✨ Already on matching screen — skipping file upload, proceeding directly to confirmation.")
+        else:
+            # Check for intermittent "Continue" prompt from any previously abandoned import
+            try:
+                continue_btn = page.locator("button:has-text('Continue'), a:has-text('Continue')").first
+                if continue_btn.is_visible(timeout=2000):
+                    print("🔄 Found previous unfinished import prompt, clicking 'Continue'...")
+                    continue_btn.click()
+                    time.sleep(1.5)
+                    # After continuing, we may already be on the matching screen
+                    if "/import/csv/" in page.url or page.locator("a.save-users-imported-imdb-history").count() > 0:
+                        print("✨ Resumed previous import session — skipping file upload.")
+                        # Jump to Step 3
+                        pass
+            except Exception:
+                pass
 
-        try:
-            if file_input.count() > 0:
-                file_input.set_input_files(str(csv_path.resolve()))
-            else:
-                with page.expect_file_chooser(timeout=15000) as fc_info:
-                    page.click(".file-button-container, .dropzone, a.button:has-text('Select File'), input[type='file']")
-                fc_info.value.set_files(str(csv_path.resolve()))
-            print("⚡ File transferred successfully!")
-        except Exception as e:
-            print(f"⚠️ Standard file chooser fallback: {e}")
-            page.wait_for_selector("input[type='file']", state="attached", timeout=15000)
-            page.set_input_files("input[type='file']", str(csv_path.resolve()))
-            print("⚡ File transferred via direct file input!")
+            if "/import/csv/" not in page.url and page.locator("a.save-users-imported-imdb-history").count() == 0:
+                print(f"📤 Uploading CSV file: {csv_path.name}...")
+
+                # Wait for file input to be attached to DOM (it may be hidden by CSS — that's fine for set_input_files)
+                file_input_attached = False
+                try:
+                    page.wait_for_selector("input[type='file']", state="attached", timeout=20000)
+                    file_input_attached = True
+                except Exception:
+                    pass
+
+                if file_input_attached:
+                    try:
+                        page.set_input_files("input[type='file']", str(csv_path.resolve()))
+                        print("⚡ File transferred via direct file input!")
+                    except Exception as e:
+                        print(f"⚠️ Direct set_input_files failed: {e}")
+                        # Fallback: try via file chooser dialog
+                        try:
+                            with page.expect_file_chooser(timeout=15000) as fc_info:
+                                page.locator(".file-button-container, .dropzone, a.button, label[for]").first.click(force=True, timeout=10000)
+                            fc_info.value.set_files(str(csv_path.resolve()))
+                            print("⚡ File transferred via file chooser fallback!")
+                        except Exception as e2:
+                            print(f"❌ All file upload strategies failed: {e2}")
+                            try:
+                                page.screenshot(path=str(ROOT_DIR / "debug_upload_missing.png"))
+                                print(f"📸 Debug screenshot saved: debug_upload_missing.png")
+                            except Exception:
+                                pass
+                            raise
+                else:
+                    # input[type='file'] never appeared — take debug screenshot and raise
+                    print(f"❌ input[type='file'] not found after 20s. URL: {page.url} | Title: {page.title()}")
+                    try:
+                        page.screenshot(path=str(ROOT_DIR / "debug_upload_missing.png"))
+                        print("📸 Debug screenshot saved: debug_upload_missing.png")
+                    except Exception:
+                        pass
+                    raise TimeoutError("File input not found on import page — Cloudflare or auth issue likely. Check debug_upload_missing.png")
 
         # Step 3. Wait for Letterboxd to match titles
         print("⏳ Waiting for Letterboxd matching engine to resolve titles...")
