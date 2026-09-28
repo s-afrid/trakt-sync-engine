@@ -1041,8 +1041,20 @@ def automate_letterboxd_upload(
                     const primary = document.querySelector("a.save-users-imported-imdb-history, a.submit-matched-films, input.save-users-imported-imdb-history");
                     if (primary) {
                         try { primary.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch (e) {}
-                        primary.click();
-                        return { clicked: true, text: (primary.innerText || primary.value || '').trim(), method: "primary_class" };
+                        // CLOUDFLARE FIX: Do NOT click the button directly if we can avoid it. 
+                        // A button click triggers Letterboxd's jQuery AJAX submission which fails silently behind Cloudflare.
+                        // Instead, try to submit the parent form natively. This forces a full-page POST navigation 
+                        // that can render the Cloudflare challenge widget correctly!
+                        const parentForm = primary.closest('form');
+                        if (parentForm && typeof parentForm.submit === 'function') {
+                            parentForm.submit();
+                        } else if (parentForm) {
+                            // If form.submit is shadowed by an input named 'submit'
+                            HTMLFormElement.prototype.submit.call(parentForm);
+                        } else {
+                            primary.click();
+                        }
+                        return { clicked: true, text: (primary.innerText || primary.value || '').trim(), method: "primary_class_native_submit" };
                     }
 
                     // Priority 2: Check all visible clickable elements for matching keywords
@@ -1139,10 +1151,11 @@ def automate_letterboxd_upload(
                     time.sleep(2)
 
                 if not save_confirmed:
-                    print("⏱️ Save request dispatched; waiting 6s for backend processing to settle...")
-                    time.sleep(6)
-
-                success = True
+                    print("⚠️ Save request timed out! Letterboxd got stuck on 'Saving...' due to a silent Cloudflare block or server error.")
+                    print("❌ Import failed.")
+                    success = False
+                else:
+                    success = True
 
                 # Step 5: Automated Watchlist Cleanup for newly watched movies (runs in dedicated separate tab)
                 if cleanup_movies and job == "all":
