@@ -37,6 +37,22 @@ export async function GET(request: NextRequest) {
     let letterboxdUsername = request.cookies.get("letterboxd_username")?.value || process.env.LETTERBOXD_USERNAME || "Af_Sindbad";
     let letterboxdCookies = request.cookies.get("letterboxd_cookies")?.value;
 
+    const traktUserCookie = request.cookies.get("trakt_user")?.value;
+    if (traktUserCookie) {
+      try {
+        const parsed = JSON.parse(traktUserCookie);
+        if (parsed.username) traktUsername = parsed.username;
+      } catch {}
+    }
+
+    const letterboxdUserCookie = request.cookies.get("letterboxd_user")?.value;
+    if (letterboxdUserCookie) {
+      try {
+        const parsed = JSON.parse(letterboxdUserCookie);
+        if (parsed.username) letterboxdUsername = parsed.username;
+      } catch {}
+    }
+
     // Hydrate from DB if available
     if (db) {
       try {
@@ -47,15 +63,14 @@ export async function GET(request: NextRequest) {
 
         for (const acc of accounts) {
           if (acc.provider === "trakt") {
-            if (!traktToken && acc.accessToken) traktToken = acc.accessToken;
-            if (!traktUsername && acc.providerUsername) traktUsername = acc.providerUsername;
+            if (acc.accessToken) traktToken = acc.accessToken;
+            if (acc.providerUsername) traktUsername = acc.providerUsername;
           }
           if (acc.provider === "myanimelist" && !malToken && acc.accessToken) {
             malToken = acc.accessToken;
           }
           if (acc.provider === "letterboxd") {
-            if (!letterboxdUsername && acc.providerUsername) letterboxdUsername = acc.providerUsername;
-            if (!letterboxdCookies && acc.accessToken) letterboxdCookies = acc.accessToken;
+            if (acc.providerUsername) letterboxdUsername = acc.providerUsername;
           }
         }
       } catch (e) {
@@ -193,32 +208,70 @@ export async function GET(request: NextRequest) {
       fetchPromises.push(
         (async () => {
           try {
-            const rssItems = await LetterboxdClient.fetchUserWatchlistRss(
+            const rawItems = await LetterboxdClient.fetchUserWatchlistRss(
               letterboxdUsername,
               letterboxdCookies
             ).catch(() => []);
 
-            for (const it of rssItems) {
-              const titleLower = (it.filmTitle || it.title).trim().toLowerCase();
+            for (const it of rawItems) {
+              const filmTitle = (it.filmTitle || it.title).trim();
+              const titleLower = filmTitle.toLowerCase();
+
               if (watchedMovieTitles.has(titleLower) || (it.tmdbId && watchedTmdbIds.has(it.tmdbId))) {
                 continue; // Skip completed film
               }
 
+              let tmdbId = it.tmdbId;
+              let imdbId: string | undefined = undefined;
+              let overview: string | undefined = undefined;
+              let rating: number | undefined = undefined;
+              let genres: string[] | undefined = undefined;
+              let posterUrl = it.posterUrl;
+
+              // Enrich with Trakt/TMDb metadata if traktClient is available
+              if (traktClient && (!tmdbId || !posterUrl)) {
+                try {
+                  const searchResults = await traktClient.searchMovie(filmTitle, it.filmYear);
+                  if (searchResults && searchResults.length > 0) {
+                    const m = searchResults[0].movie;
+                    if (m) {
+                      if (!tmdbId && m.ids?.tmdb) tmdbId = m.ids.tmdb;
+                      if (m.ids?.imdb) imdbId = m.ids.imdb;
+                      if (m.overview) overview = m.overview;
+                      if (m.rating) rating = Math.round(m.rating * 10) / 10;
+                      if (m.genres) genres = m.genres;
+
+                      if (tmdbId && watchedTmdbIds.has(tmdbId)) {
+                        continue;
+                      }
+
+                      if (!posterUrl && imdbId) {
+                        posterUrl = `https://images.metahub.space/poster/medium/${imdbId}/img`;
+                      }
+                    }
+                  }
+                } catch {}
+              }
+
               items.push({
-                id: `lb-${it.guid || it.tmdbId || it.filmTitle}`,
+                id: `lb-${it.guid || tmdbId || filmTitle}`,
                 platform: "letterboxd",
                 type: "movie",
-                title: it.filmTitle || it.title,
+                title: filmTitle,
                 year: it.filmYear,
-                posterUrl: it.posterUrl,
-                url: it.reviewLink || `https://letterboxd.com/film/${encodeURIComponent(it.filmTitle || it.title)}/`,
+                overview,
+                rating,
+                genres,
+                posterUrl,
+                url: it.reviewLink || `https://letterboxd.com/film/${encodeURIComponent(filmTitle)}/`,
                 metadata: {
-                  tmdbId: it.tmdbId,
+                  tmdbId,
+                  imdbId,
                 },
               });
             }
           } catch (e) {
-            console.warn("Letterboxd watchlist RSS fetch failed:", e);
+            console.warn("Letterboxd watchlist fetch failed:", e);
           }
         })()
       );

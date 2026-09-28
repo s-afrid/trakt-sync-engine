@@ -38,6 +38,14 @@ export async function GET(request: NextRequest) {
     let traktUsername = request.cookies.get("trakt_username")?.value || process.env.TRAKT_USERNAME || "afsindbad";
     let malToken = request.cookies.get("mal_token")?.value;
 
+    const traktUserCookie = request.cookies.get("trakt_user")?.value;
+    if (traktUserCookie) {
+      try {
+        const parsed = JSON.parse(traktUserCookie);
+        if (parsed.username) traktUsername = parsed.username;
+      } catch {}
+    }
+
     // Hydrate from DB if available
     if (db) {
       try {
@@ -48,8 +56,8 @@ export async function GET(request: NextRequest) {
 
         for (const acc of accounts) {
           if (acc.provider === "trakt") {
-            if (!traktToken && acc.accessToken) traktToken = acc.accessToken;
-            if (!traktUsername && acc.providerUsername) traktUsername = acc.providerUsername;
+            if (acc.accessToken) traktToken = acc.accessToken;
+            if (acc.providerUsername) traktUsername = acc.providerUsername;
           }
           if (acc.provider === "myanimelist" && !malToken && acc.accessToken) {
             malToken = acc.accessToken;
@@ -124,30 +132,76 @@ export async function GET(request: NextRequest) {
         (async () => {
           try {
             const traktClient = new TraktClient(traktToken, traktUsername);
-            const watchedShows = await traktClient.getWatchedShows().catch(() => []);
+            const [watchedShows, episodeHistory] = await Promise.all([
+              traktClient.getWatchedShows().catch(() => []),
+              traktClient.getUserEpisodeHistory(100).catch(() => []),
+            ]);
+
+            // Index history by show ID and title
+            const historyByShowId = new Map<number, { season: number; number: number; title: string; watchedAt: string }[]>();
+            const historyByTitle = new Map<string, { season: number; number: number; title: string; watchedAt: string }[]>();
+
+            for (const h of episodeHistory) {
+              if (!h.show || !h.episode) continue;
+              const entry = {
+                season: h.episode.season,
+                number: h.episode.number,
+                title: h.episode.title,
+                watchedAt: h.watched_at,
+              };
+              if (h.show.ids?.trakt) {
+                if (!historyByShowId.has(h.show.ids.trakt)) historyByShowId.set(h.show.ids.trakt, []);
+                historyByShowId.get(h.show.ids.trakt)!.push(entry);
+              }
+              const titleKey = h.show.title.toLowerCase().trim();
+              if (!historyByTitle.has(titleKey)) historyByTitle.set(titleKey, []);
+              historyByTitle.get(titleKey)!.push(entry);
+            }
 
             for (const item of watchedShows) {
               const show = item.show;
               if (!show) continue;
+              const showId = show.ids?.trakt;
 
               const totalAired = show.aired_episodes || 0;
+              const histEntries = (showId ? historyByShowId.get(showId) : null) || historyByTitle.get(show.title.toLowerCase().trim()) || [];
 
-              // Collect all watched episodes excluding specials (season 0)
+              // Collect watched episodes from seasons if present, or from history
               const watchedEps: { season: number; number: number; lastWatched: string }[] = [];
-              for (const season of item.seasons || []) {
-                if (season.number === 0) continue;
-                for (const ep of season.episodes || []) {
-                  watchedEps.push({
-                    season: season.number,
-                    number: ep.number,
-                    lastWatched: ep.last_watched_at,
-                  });
+              if (item.seasons && item.seasons.length > 0) {
+                for (const season of item.seasons) {
+                  if (season.number === 0) continue;
+                  for (const ep of season.episodes || []) {
+                    watchedEps.push({
+                      season: season.number,
+                      number: ep.number,
+                      lastWatched: ep.last_watched_at,
+                    });
+                  }
+                }
+              } else if (histEntries.length > 0) {
+                const seen = new Set<string>();
+                for (const h of histEntries) {
+                  if (h.season === 0) continue;
+                  const key = `${h.season}-${h.number}`;
+                  if (!seen.has(key)) {
+                    seen.add(key);
+                    watchedEps.push({
+                      season: h.season,
+                      number: h.number,
+                      lastWatched: h.watchedAt,
+                    });
+                  }
                 }
               }
 
-              const completedCount = watchedEps.length;
+              // Determine completed count
+              let completedCount = watchedEps.length;
+              if (completedCount === 0 && item.plays && item.plays > 0) {
+                completedCount = item.plays;
+              }
 
-              // If no episodes watched or show is 100% completed, skip!
+              // Skip unstarted or completed shows
               if (completedCount === 0) continue;
               if (totalAired > 0 && completedCount >= totalAired) continue;
 
@@ -163,6 +217,12 @@ export async function GET(request: NextRequest) {
                 ? `S${String(latestEp.season).padStart(2, "0")}E${String(latestEp.number + 1).padStart(2, "0")}`
                 : undefined;
 
+              // Generate array of completed episode numbers
+              const epList: number[] = [];
+              for (let i = 1; i <= completedCount; i++) {
+                epList.push(i);
+              }
+
               items.push({
                 id: `trakt-show-progress-${show.ids.trakt}`,
                 platform: "trakt",
@@ -174,7 +234,8 @@ export async function GET(request: NextRequest) {
                 progressPercent: percent,
                 lastWatchedEpisode: lastWatchedFormatted,
                 nextEpisode: nextEp,
-                lastWatchedAt: item.last_watched_at,
+                completedEpisodesList: epList,
+                lastWatchedAt: item.last_watched_at || (latestEp ? latestEp.lastWatched : undefined),
                 genres: show.genres,
                 url: `https://trakt.tv/shows/${show.ids.slug || show.ids.trakt}`,
                 metadata: {

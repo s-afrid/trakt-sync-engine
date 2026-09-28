@@ -189,7 +189,7 @@ export class TraktClient {
       "Content-Type": "application/json",
       "trakt-api-version": "2",
       "trakt-api-key": this.clientId,
-      "User-Agent": "TraktSyncEngine/1.0",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
     };
     if (this.accessToken) {
       headers["Authorization"] = `Bearer ${this.accessToken}`;
@@ -441,6 +441,21 @@ export class TraktClient {
     if (!res.ok) {
       throw new Error(`Failed to add ratings to Trakt: ${res.statusText}`);
     }
+    return res.json();
+  }
+
+  async searchMovie(
+    title: string,
+    year?: number
+  ): Promise<{ movie: TraktMovieWatched["movie"] }[]> {
+    const cleanTitle = encodeURIComponent(title.trim());
+    const yearParam = year ? `&years=${year}` : "";
+    const endpoint = `https://api.trakt.tv/search/movie?query=${cleanTitle}${yearParam}&extended=full`;
+
+    const res = await fetch(endpoint, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) return [];
     return res.json();
   }
 }

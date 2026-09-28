@@ -148,18 +148,19 @@ export class LetterboxdClient {
   }
 
   /**
-   * Fetch and parse Letterboxd user Watchlist RSS feed
+   * Fetch and parse Letterboxd user Watchlist
    */
   static async fetchUserWatchlistRss(
     username: string,
     cookieHeader?: string
   ): Promise<LetterboxdRssItem[]> {
     const cleanUsername = username.trim().toLowerCase();
-    const url = `https://letterboxd.com/${cleanUsername}/watchlist/rss/`;
+    const url = `https://letterboxd.com/${cleanUsername}/watchlist/`;
 
     const headers: Record<string, string> = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
-      Accept: "application/rss+xml, application/xml, text/xml, */*",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
     };
     if (cookieHeader) {
       headers["Cookie"] = cookieHeader;
@@ -171,46 +172,35 @@ export class LetterboxdClient {
     });
 
     if (!res.ok) {
-      throw new Error(`Failed to fetch Letterboxd Watchlist RSS for user ${username}: ${res.statusText}`);
+      throw new Error(`Failed to fetch Letterboxd Watchlist for user ${username}: ${res.statusText}`);
     }
 
-    const xmlText = await res.text();
-    const parser = new XMLParser({
-      ignoreAttributes: false,
-      attributeNamePrefix: "@_",
-    });
+    const html = await res.text();
 
-    const parsed = parser.parse(xmlText);
-    const items = parsed?.rss?.channel?.item;
+    const items: LetterboxdRssItem[] = [];
+    const itemRegex = /data-item-name="([^"]+)"\s+data-item-slug="([^"]+)"\s+data-item-link="([^"]+)"/g;
+    let match;
 
-    if (!items) return [];
+    while ((match = itemRegex.exec(html)) !== null) {
+      const rawName = decodeHtmlEntities(match[1]);
+      const slug = match[2];
+      const link = match[3];
 
-    const itemArray = Array.isArray(items) ? items : [items];
+      // Parse title and year: "Master (2021)" or "District 9 (2009)"
+      const nameMatch = rawName.match(/^(.*?)(?:\s+\((\d{4})\))?$/);
+      const title = nameMatch ? nameMatch[1].trim() : rawName;
+      const year = nameMatch && nameMatch[2] ? parseInt(nameMatch[2], 10) : undefined;
 
-    return itemArray.map((it: Record<string, unknown>) => {
-      const rawTitle = (it["title"] as string) || "";
-      const rawFilmTitle = (it["letterboxd:filmTitle"] as string) || rawTitle;
-      const filmTitle = decodeHtmlEntities(rawFilmTitle);
-      const title = decodeHtmlEntities(rawTitle);
-      const filmYearStr = it["letterboxd:filmYear"] as string;
-      const filmYear = filmYearStr ? parseInt(filmYearStr, 10) : undefined;
-      const tmdbIdStr = (it["tmdb:movieId"] as string) || (it["{https://themoviedb.org}movieId"] as string);
-      const tmdbId = tmdbIdStr ? parseInt(String(tmdbIdStr), 10) : undefined;
+      items.push({
+        title: rawName,
+        filmTitle: title,
+        filmYear: year,
+        reviewLink: `https://letterboxd.com${link}`,
+        guid: slug,
+      });
+    }
 
-      const rawDesc = (it["description"] as string) || "";
-      const imgMatch = rawDesc.match(/<img\s+[^>]*src="([^"]+)"/i);
-      const posterUrl = imgMatch ? imgMatch[1] : undefined;
-
-      return {
-        title,
-        filmTitle,
-        filmYear,
-        tmdbId,
-        posterUrl,
-        reviewLink: (it["link"] as string) || "",
-        guid: (it["guid"] as string) || "",
-      };
-    });
+    return items;
   }
 
   /**
