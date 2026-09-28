@@ -7,8 +7,8 @@ interface MoviePosterProps {
   src?: string;
   title: string;
   year?: number | string;
-  platform?: "letterboxd" | "myanimelist" | "system";
-  type?: "movie" | "episode" | "completed" | "sync_run";
+  platform?: "letterboxd" | "myanimelist" | "trakt" | "system";
+  type?: "movie" | "episode" | "completed" | "sync_run" | "show" | "anime";
   className?: string;
   aspect?: "poster" | "backdrop" | "square";
 }
@@ -56,7 +56,13 @@ export default function MoviePoster({
       >
         <div className="w-full flex items-center justify-between opacity-50">
           <span className="text-[9px] font-mono tracking-wider uppercase text-slate-400">
-            {platform === "myanimelist" ? "MAL" : platform === "letterboxd" ? "FILM" : "SYNC"}
+            {platform === "myanimelist"
+              ? "MAL"
+              : platform === "letterboxd"
+              ? "FILM"
+              : platform === "trakt"
+              ? "TRAKT"
+              : "SYNC"}
           </span>
           {isEpisode ? (
             <Tv className="h-3 w-3 text-indigo-400" />
@@ -83,6 +89,8 @@ export default function MoviePoster({
                 ? "bg-indigo-500/40"
                 : platform === "letterboxd"
                 ? "bg-emerald-500/40"
+                : platform === "trakt"
+                ? "bg-red-500/40"
                 : "bg-amber-500/40"
             }`}
           />
