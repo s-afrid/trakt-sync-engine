@@ -955,6 +955,35 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
     if not has_new_watches and not args.force:
         latest_title = movies[0]["movie"]["title"] if movies else "None"
         print(f"[{now_str}] ⏱️ Trakt is up to date (Latest: '{latest_title}'). No new watches since last sync.")
+
+        # Notify app database of the verified quiet sleep check
+        report_urls = []
+        if base_app_url:
+            report_urls.append(f"{base_app_url}/api/sync/report")
+        if "https://trakt-sync-engine.vercel.app/api/sync/report" not in report_urls:
+            report_urls.append("https://trakt-sync-engine.vercel.app/api/sync/report")
+
+        quiet_payload = {
+            "status": "success",
+            "type": "quiet_check",
+            "title": f"Quiet Check: Trakt up to date (Latest: '{latest_title}')",
+            "itemsCount": 0,
+            "details": {
+                "latestMovie": latest_title,
+                "latestWatchedAt": max_watched_at,
+                "runtime": "github_actions" if os.getenv("GITHUB_ACTIONS") else "local_daemon",
+                "runId": os.getenv("GITHUB_RUN_ID", "local"),
+                "timestamp": now_str,
+                "syncedTitles": [m.get("movie", {}).get("title") for m in movies[:2]],
+            },
+        }
+        for r_url in report_urls:
+            try:
+                requests.post(r_url, json=quiet_payload, timeout=8)
+                break
+            except Exception:
+                pass
+
         return False
 
     if args.force:

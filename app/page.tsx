@@ -33,6 +33,7 @@ import Activity24hTab from "@/components/Activity24hTab";
 import LetterboxdSessionModal from "@/components/LetterboxdSessionModal";
 import WatchlistTab from "@/components/WatchlistTab";
 import ContinueWatchingTab from "@/components/ContinueWatchingTab";
+import ActionsDaemonTab from "@/components/ActionsDaemonTab";
 
 interface SyncStatus {
   connected: {
@@ -100,7 +101,9 @@ export default function Dashboard() {
   const [autoImportError, setAutoImportError] = useState<string | null>(null);
   const [isCloudHost, setIsCloudHost] = useState<boolean>(false);
   const [copiedDaemon, setCopiedDaemon] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "activity24h" | "watchlist" | "continueWatching">("dashboard");
+  const [activeTab, setActiveTab] = useState<
+    "dashboard" | "activity24h" | "watchlist" | "continueWatching" | "actionsDaemon"
+  >("dashboard");
   const [isActivityTabDeleted, setIsActivityTabDeleted] = useState<boolean>(false);
   const [showSessionModal, setShowSessionModal] = useState<boolean>(false);
 
@@ -350,6 +353,21 @@ export default function Dashboard() {
               </span>
             </button>
 
+            <button
+              onClick={() => setActiveTab("actionsDaemon")}
+              className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+                activeTab === "actionsDaemon"
+                  ? "bg-[#0D111A] text-white border border-blue-500/40 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+              }`}
+            >
+              <Bot className="h-4 w-4 text-blue-400" />
+              <span>Actions Daemon</span>
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                Live
+              </span>
+            </button>
+
             {!isActivityTabDeleted ? (
               <button
                 onClick={() => setActiveTab("activity24h")}
@@ -404,6 +422,8 @@ export default function Dashboard() {
           <WatchlistTab />
         ) : activeTab === "continueWatching" ? (
           <ContinueWatchingTab />
+        ) : activeTab === "actionsDaemon" ? (
+          <ActionsDaemonTab />
         ) : activeTab === "activity24h" && !isActivityTabDeleted ? (
           <Activity24hTab
             onDeleteTab={() => {
