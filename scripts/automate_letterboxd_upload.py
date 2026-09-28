@@ -801,84 +801,73 @@ def automate_letterboxd_upload(
             if "/import/csv/" not in page.url and page.locator("a.save-users-imported-imdb-history").count() == 0:
                 print(f"📤 Uploading CSV file: {csv_path.name}...")
 
-                # Wait for file input to be attached to DOM (it may be hidden by CSS — that's fine for set_input_files)
-                file_input_attached = False
+                # Strategy 1 (primary): Use Playwright's expect_file_chooser.
+                # This is the correct native approach for AJAX-driven file inputs.
+                # Letterboxd auto-uploads and redirects when a file is chosen — no form submit needed.
+                upload_success = False
                 try:
-                    page.wait_for_selector("input[type='file']", state="attached", timeout=20000)
-                    file_input_attached = True
-                except Exception:
-                    pass
+                    # Find the visible upload trigger (label, button, or dropzone)
+                    trigger = page.locator(
+                        "label[for='upload-imdb-import'], "
+                        "label[for='csv-file'], "
+                        "label[for='import-file'], "
+                        "label.file-button, "
+                        ".file-button-container label, "
+                        ".file-button-container a, "
+                        ".dropzone, "
+                        "a.button:has-text('Choose'), "
+                        "a.button:has-text('Select'), "
+                        "a.button:has-text('Upload'), "
+                        "input[type='file']"
+                    ).first
 
-                if file_input_attached:
+                    with page.expect_file_chooser(timeout=10000) as fc_info:
+                        trigger.click(force=True, timeout=8000)
+                    fc_info.value.set_files(str(csv_path.resolve()))
+                    print("⚡ File chosen via native file chooser!")
+                    upload_success = True
+                except Exception as e:
+                    print(f"⚠️ File chooser strategy failed ({e}), trying direct input...")
+
+                # Strategy 2 (fallback): set_input_files directly on attached input.
+                # Letterboxd listens to 'change' and 'input' events on the file input.
+                if not upload_success:
+                    file_input_attached = False
                     try:
-                        page.set_input_files("input[type='file']", str(csv_path.resolve()))
-                        print("⚡ File set on input element!")
+                        page.wait_for_selector("input[type='file']", state="attached", timeout=15000)
+                        file_input_attached = True
+                    except Exception:
+                        pass
 
-                        # After set_input_files, Letterboxd needs the form submitted.
-                        # Dispatch change event then click the upload/submit button via JS.
-                        submit_result = page.evaluate("""() => {
-                            // Trigger change event so JS listeners fire
-                            const inp = document.querySelector("input[type='file']");
-                            if (inp) {
-                                try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch(e) {}
-                            }
-                            // Try to find and click the form submit / upload button
-                            const submitSelectors = [
-                                "input[type='submit']",
-                                "button[type='submit']",
-                                "a.button.-action",
-                                "button.-action",
-                                ".button.-action",
-                                "form input[type='submit']",
-                                "button:not([type='button'])"
-                            ];
-                            for (const sel of submitSelectors) {
-                                const btn = document.querySelector(sel);
-                                if (btn) {
-                                    const text = (btn.innerText || btn.value || '').trim().toLowerCase();
-                                    if (text.includes('sign') || text.includes('cancel') || text.includes('back')) continue;
-                                    try { btn.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch(e) {}
-                                    btn.click();
-                                    return { clicked: true, text: (btn.innerText || btn.value || '').trim(), selector: sel };
-                                }
-                            }
-                            // Last resort: submit the enclosing form directly
-                            const form = document.querySelector("form[enctype*='multipart'], form[action*='import'], form");
-                            if (form) {
-                                form.submit();
-                                return { clicked: true, text: 'form.submit()', selector: 'form' };
-                            }
-                            return { clicked: false };
-                        }""")
-
-                        if submit_result and submit_result.get("clicked"):
-                            print(f"🚀 Upload form submitted! (btn: '{submit_result.get('text')}', via: '{submit_result.get('selector')}')")
-                        else:
-                            print("⚠️ No upload submit button found — form may auto-submit on file change.")
-
-                    except Exception as e:
-                        print(f"⚠️ Direct set_input_files/submit failed: {e}")
+                    if file_input_attached:
                         try:
-                            with page.expect_file_chooser(timeout=15000) as fc_info:
-                                page.locator(".file-button-container, .dropzone, a.button, label[for]").first.click(force=True, timeout=10000)
-                            fc_info.value.set_files(str(csv_path.resolve()))
-                            print("⚡ File transferred via file chooser fallback!")
+                            page.locator("input[type='file']").set_input_files(str(csv_path.resolve()))
+                            # Dispatch both 'input' and 'change' events — Letterboxd may listen to either
+                            page.evaluate("""() => {
+                                const inp = document.querySelector("input[type='file']");
+                                if (inp) {
+                                    inp.dispatchEvent(new Event('input',  { bubbles: true }));
+                                    inp.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                            }""")
+                            print("⚡ File set via direct input + events dispatched!")
+                            upload_success = True
                         except Exception as e2:
-                            print(f"❌ All file upload strategies failed: {e2}")
+                            print(f"❌ Direct set_input_files also failed: {e2}")
                             try:
                                 page.screenshot(path=str(ROOT_DIR / "debug_upload_missing.png"))
-                                print(f"📸 Debug screenshot saved: debug_upload_missing.png")
+                                print("📸 Debug screenshot saved: debug_upload_missing.png")
                             except Exception:
                                 pass
                             raise
-                else:
-                    print(f"❌ input[type='file'] not found after 20s. URL: {page.url} | Title: {page.title()}")
-                    try:
-                        page.screenshot(path=str(ROOT_DIR / "debug_upload_missing.png"))
-                        print("📸 Debug screenshot saved: debug_upload_missing.png")
-                    except Exception:
-                        pass
-                    raise TimeoutError("File input not found on import page — Cloudflare or auth issue likely. Check debug_upload_missing.png")
+                    else:
+                        print(f"❌ input[type='file'] not found after 15s. URL: {page.url} | Title: {page.title()}")
+                        try:
+                            page.screenshot(path=str(ROOT_DIR / "debug_upload_missing.png"))
+                            print("📸 Debug screenshot saved: debug_upload_missing.png")
+                        except Exception:
+                            pass
+                        raise TimeoutError("File input not found — Cloudflare or auth issue. Check debug_upload_missing.png")
 
         # Step 3. Wait for Letterboxd to process upload and redirect to /import/csv/<hash>/
         print("⏳ Waiting for Letterboxd to process upload and redirect to matching session...")
