@@ -13,7 +13,6 @@ concurrency:
 
 permissions:
   contents: read
-  secrets: write   # needed so the script can auto-refresh LETTERBOXD_SESSION_JSON
 
 jobs:
   sync:
