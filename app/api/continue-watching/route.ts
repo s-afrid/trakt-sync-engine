@@ -25,6 +25,7 @@ export interface ContinueWatchingItem {
   metadata?: {
     traktId?: number;
     tmdbId?: number;
+    imdbId?: string;
     tvdbId?: number;
     malId?: number;
   };

@@ -36,6 +36,7 @@ export interface WatchlistItem {
     traktId?: number;
     tmdbId?: number;
     imdbId?: string;
+    tvdbId?: number;
     malId?: number;
   };
 }
