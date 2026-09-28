@@ -929,79 +929,72 @@ def automate_letterboxd_upload(
                             pass
                         raise TimeoutError("File input not found — Cloudflare or auth issue. Check debug_upload_missing.png")
 
-        # Step 3. Wait for Letterboxd to process upload and redirect to /import/csv/<hash>/
-        print("⏳ Waiting for Letterboxd to process upload and redirect to matching session...")
-        import_hash_url = False
-        wait_start = time.time()
-        while time.time() - wait_start < 90:
-            cur_url = page.url
-            # A valid session URL looks like /import/csv/abc123/ — has a non-empty segment after csv/
-            if "/import/csv/" in cur_url:
-                session_part = cur_url.split("/import/csv/")[-1].strip("/")
-                if session_part and len(session_part) > 4:
-                    import_hash_url = True
-                    print(f"✅ Letterboxd matching session ready: {cur_url}")
-                    break
-            time.sleep(1.5)
+        # Step 3. Wait for Letterboxd matching screen to render in-page
+        # NOTE: Letterboxd does NOT redirect to /import/csv/<hash>/ — it renders the
+        # matching summary on the SAME /import/ page via AJAX after file upload.
+        print("⏳ Waiting for Letterboxd to process the upload and show the matching screen...")
 
-        if not import_hash_url:
-            cur_url = page.url
-            print(f"⚠️ Timed out waiting for matching session URL. Current URL: {cur_url}")
+        MATCH_SCREEN_SELECTOR = (
+            "a.save-users-imported-imdb-history, "
+            "a.submit-matched-films, "
+            "strong:has-text('Matching complete'), "
+            "h2:has-text('Import summary'), "
+            ".import-summary, "
+            "a:has-text('Import Titles'), "
+            "a:has-text('Import Films')"
+        )
+
+        matching_screen_visible = False
+        try:
+            page.wait_for_selector(MATCH_SCREEN_SELECTOR, timeout=120000)
+            matching_screen_visible = True
+            print(f"✅ Matching screen ready! (URL: {page.url})")
+        except PlaywrightTimeoutError:
+            print(f"⚠️ Matching screen did not appear after 120s. URL: {page.url}")
             try:
                 page.screenshot(path=str(ROOT_DIR / "debug_upload_stuck.png"))
                 print("📸 Debug screenshot saved: debug_upload_stuck.png")
             except Exception:
                 pass
 
-        time.sleep(2)
+        time.sleep(1)
 
-        # Print new movies queued for import
+        # Print new titles queued for import (import-specific selectors only)
         try:
             new_titles_info = page.evaluate("""() => {
-                const rows = document.querySelectorAll("tr, .import-row, li.import-item, .match-row, .film-title");
+                // Use import-specific containers to avoid picking up calendar/nav elements
+                const rows = document.querySelectorAll(
+                    ".import-summary li, .import-item, [class*='import'] .film-title, " +
+                    "h3.title-1, .film-detail h2, td.title"
+                );
                 const titles = [];
                 rows.forEach(row => {
                     const text = (row.innerText || '').trim();
-                    if (text) titles.push(text.split('\\n')[0]);
+                    if (text && text.length < 100) titles.push(text.split('\\n')[0]);
                 });
-                return titles.slice(0, 20);
+                return titles.slice(0, 10);
             }""")
             if new_titles_info:
-                print(f"🎬 New entries queued for Letterboxd import ({len(new_titles_info)}):")
+                print(f"🎬 Titles queued for Letterboxd import ({len(new_titles_info)}):")
                 for t in new_titles_info:
                     print(f"   • {t}")
         except Exception:
             pass
 
-        # Run automated Turnstile solver on the import/csv endpoint
+        # Run automated Turnstile solver on the matching screen if it appeared
         handle_turnstile_if_present(page, timeout_sec=30)
-
-        match_ready_selectors = (
-            "a.save-users-imported-imdb-history, a.submit-matched-films, "
-            "form.import-step-2, .import-matches-container, .table-container, "
-            "strong:has-text('Matching complete'), span:has-text('Matching complete'), "
-            "a:has-text('Import Titles'), a:has-text('Import Films')"
-        )
-
-        try:
-            page.wait_for_selector(
-                match_ready_selectors,
-                timeout=60000,
-            )
-            print("✨ Match processing complete! Matching preview is visible.")
-        except PlaywrightTimeoutError:
-            print("⚠️ Matched entries selector wait timed out (large catalog parsing).")
 
         # Step 4. Final Confirmation
         success = False
 
-        # Guard: only confirm if we're on an actual matching session (URL has hash after /import/csv/)
-        cur_url_check = page.url
-        session_segment = cur_url_check.split("/import/csv/")[-1].strip("/") if "/import/csv/" in cur_url_check else ""
-        on_valid_session = bool(session_segment) and len(session_segment) > 4
-        if not on_valid_session:
-            print(f"⛔ Skipping auto-confirm — not on a valid import matching session. URL: {cur_url_check}")
-            print("   The upload/form submission did not trigger properly. Check debug_upload_stuck.png.")
+        # Guard: only confirm when the matching screen DOM elements are visible
+        confirm_btn_present = page.locator(
+            "a.save-users-imported-imdb-history, a.submit-matched-films, "
+            "a:has-text('Import Titles'), a:has-text('Import Films')"
+        ).count() > 0
+
+        if not matching_screen_visible and not confirm_btn_present:
+            print(f"⛔ Matching screen not detected — skipping auto-confirm. Check debug_upload_stuck.png.")
             return False
 
         if auto_confirm:
