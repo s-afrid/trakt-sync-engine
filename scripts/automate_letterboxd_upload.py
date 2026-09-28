@@ -812,10 +812,52 @@ def automate_letterboxd_upload(
                 if file_input_attached:
                     try:
                         page.set_input_files("input[type='file']", str(csv_path.resolve()))
-                        print("⚡ File transferred via direct file input!")
+                        print("⚡ File set on input element!")
+
+                        # After set_input_files, Letterboxd needs the form submitted.
+                        # Dispatch change event then click the upload/submit button via JS.
+                        submit_result = page.evaluate("""() => {
+                            // Trigger change event so JS listeners fire
+                            const inp = document.querySelector("input[type='file']");
+                            if (inp) {
+                                try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch(e) {}
+                            }
+                            // Try to find and click the form submit / upload button
+                            const submitSelectors = [
+                                "input[type='submit']",
+                                "button[type='submit']",
+                                "a.button.-action",
+                                "button.-action",
+                                ".button.-action",
+                                "form input[type='submit']",
+                                "button:not([type='button'])"
+                            ];
+                            for (const sel of submitSelectors) {
+                                const btn = document.querySelector(sel);
+                                if (btn) {
+                                    const text = (btn.innerText || btn.value || '').trim().toLowerCase();
+                                    if (text.includes('sign') || text.includes('cancel') || text.includes('back')) continue;
+                                    try { btn.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch(e) {}
+                                    btn.click();
+                                    return { clicked: true, text: (btn.innerText || btn.value || '').trim(), selector: sel };
+                                }
+                            }
+                            // Last resort: submit the enclosing form directly
+                            const form = document.querySelector("form[enctype*='multipart'], form[action*='import'], form");
+                            if (form) {
+                                form.submit();
+                                return { clicked: true, text: 'form.submit()', selector: 'form' };
+                            }
+                            return { clicked: false };
+                        }""")
+
+                        if submit_result and submit_result.get("clicked"):
+                            print(f"🚀 Upload form submitted! (btn: '{submit_result.get('text')}', via: '{submit_result.get('selector')}')")
+                        else:
+                            print("⚠️ No upload submit button found — form may auto-submit on file change.")
+
                     except Exception as e:
-                        print(f"⚠️ Direct set_input_files failed: {e}")
-                        # Fallback: try via file chooser dialog
+                        print(f"⚠️ Direct set_input_files/submit failed: {e}")
                         try:
                             with page.expect_file_chooser(timeout=15000) as fc_info:
                                 page.locator(".file-button-container, .dropzone, a.button, label[for]").first.click(force=True, timeout=10000)
@@ -830,7 +872,6 @@ def automate_letterboxd_upload(
                                 pass
                             raise
                 else:
-                    # input[type='file'] never appeared — take debug screenshot and raise
                     print(f"❌ input[type='file'] not found after 20s. URL: {page.url} | Title: {page.title()}")
                     try:
                         page.screenshot(path=str(ROOT_DIR / "debug_upload_missing.png"))
@@ -839,13 +880,49 @@ def automate_letterboxd_upload(
                         pass
                     raise TimeoutError("File input not found on import page — Cloudflare or auth issue likely. Check debug_upload_missing.png")
 
-        # Step 3. Wait for Letterboxd to match titles
-        print("⏳ Waiting for Letterboxd matching engine to resolve titles...")
+        # Step 3. Wait for Letterboxd to process upload and redirect to /import/csv/<hash>/
+        print("⏳ Waiting for Letterboxd to process upload and redirect to matching session...")
+        import_hash_url = False
+        wait_start = time.time()
+        while time.time() - wait_start < 90:
+            cur_url = page.url
+            # A valid session URL looks like /import/csv/abc123/ — has a non-empty segment after csv/
+            if "/import/csv/" in cur_url:
+                session_part = cur_url.split("/import/csv/")[-1].strip("/")
+                if session_part and len(session_part) > 4:
+                    import_hash_url = True
+                    print(f"✅ Letterboxd matching session ready: {cur_url}")
+                    break
+            time.sleep(1.5)
+
+        if not import_hash_url:
+            cur_url = page.url
+            print(f"⚠️ Timed out waiting for matching session URL. Current URL: {cur_url}")
+            try:
+                page.screenshot(path=str(ROOT_DIR / "debug_upload_stuck.png"))
+                print("📸 Debug screenshot saved: debug_upload_stuck.png")
+            except Exception:
+                pass
+
+        time.sleep(2)
+
+        # Print new movies queued for import
         try:
-            page.wait_for_url("**/import/csv/**", timeout=20000)
+            new_titles_info = page.evaluate("""() => {
+                const rows = document.querySelectorAll("tr, .import-row, li.import-item, .match-row, .film-title");
+                const titles = [];
+                rows.forEach(row => {
+                    const text = (row.innerText || '').trim();
+                    if (text) titles.push(text.split('\\n')[0]);
+                });
+                return titles.slice(0, 20);
+            }""")
+            if new_titles_info:
+                print(f"🎬 New entries queued for Letterboxd import ({len(new_titles_info)}):")
+                for t in new_titles_info:
+                    print(f"   • {t}")
         except Exception:
             pass
-        time.sleep(3)
 
         # Run automated Turnstile solver on the import/csv endpoint
         handle_turnstile_if_present(page, timeout_sec=30)
@@ -868,6 +945,16 @@ def automate_letterboxd_upload(
 
         # Step 4. Final Confirmation
         success = False
+
+        # Guard: only confirm if we're on an actual matching session (URL has hash after /import/csv/)
+        cur_url_check = page.url
+        session_segment = cur_url_check.split("/import/csv/")[-1].strip("/") if "/import/csv/" in cur_url_check else ""
+        on_valid_session = bool(session_segment) and len(session_segment) > 4
+        if not on_valid_session:
+            print(f"⛔ Skipping auto-confirm — not on a valid import matching session. URL: {cur_url_check}")
+            print("   The upload/form submission did not trigger properly. Check debug_upload_stuck.png.")
+            return False
+
         if auto_confirm:
             print(f"⚡ Auto-submitting import confirmation... (URL: {page.url} | Title: {page.title()})")
             try:
