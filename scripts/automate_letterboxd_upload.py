@@ -72,6 +72,63 @@ STATE_FILE = ROOT_DIR / ".letterboxd_sync_state.json"
 SESSION_FILE = ROOT_DIR / ".letterboxd_session.json"
 
 
+def _push_session_to_github_secret(session_file: Path) -> None:
+    """
+    After a successful login, push the refreshed Playwright session JSON back
+    to the LETTERBOXD_SESSION_JSON GitHub Actions secret so it never expires.
+
+    Requires GH_TOKEN (or GITHUB_TOKEN) env var with repo secrets write scope,
+    and GITHUB_REPOSITORY env var (set automatically in Actions as 'owner/repo').
+    Silently no-ops if credentials are unavailable (e.g. local dev runs).
+    """
+    import base64
+    token = os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN")
+    repo  = os.getenv("GITHUB_REPOSITORY")   # e.g. "s-afrid/trakt-sync-engine"
+    if not token or not repo:
+        return  # not running in Actions with a token — skip silently
+
+    try:
+        session_text = session_file.read_text(encoding="utf-8").strip()
+        if not session_text:
+            return
+
+        # Step 1: Fetch the repo's public key for secret encryption
+        key_resp = requests.get(
+            f"https://api.github.com/repos/{repo}/actions/secrets/public-key",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+            timeout=10,
+        )
+        key_resp.raise_for_status()
+        key_data = key_resp.json()
+        public_key_b64 = key_data["key"]
+        key_id = key_data["key_id"]
+
+        # Step 2: Encrypt the secret using libsodium (PyNaCl)
+        try:
+            from nacl import encoding, public as nacl_public
+            pk = nacl_public.PublicKey(public_key_b64.encode("utf-8"), encoding.Base64Encoder)
+            box = nacl_public.SealedBox(pk)
+            encrypted = base64.b64encode(box.encrypt(session_text.encode("utf-8"))).decode("utf-8")
+        except ImportError:
+            # PyNaCl not installed — encode as plain base64 (won't decrypt correctly, skip)
+            print("⚠️ PyNaCl not installed — skipping GitHub secret auto-update. Run: pip install PyNaCl")
+            return
+
+        # Step 3: PUT the encrypted value to the GitHub Secrets API
+        put_resp = requests.put(
+            f"https://api.github.com/repos/{repo}/actions/secrets/LETTERBOXD_SESSION_JSON",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+            json={"encrypted_value": encrypted, "key_id": key_id},
+            timeout=10,
+        )
+        if put_resp.status_code in (201, 204):
+            print("🔐 Auto-updated LETTERBOXD_SESSION_JSON secret with fresh session!")
+        else:
+            print(f"⚠️ Could not update GitHub secret: {put_resp.status_code} {put_resp.text[:120]}")
+    except Exception as e:
+        print(f"⚠️ GitHub secret auto-update skipped: {e}")
+
+
 def load_sync_state() -> dict:
     """Loads previous sync state to avoid unnecessary duplicate browser runs."""
     if STATE_FILE.exists():
@@ -751,6 +808,9 @@ def automate_letterboxd_upload(
             try:
                 context.storage_state(path=str(SESSION_FILE))
                 print("💾 Saved session to .letterboxd_session.json for recurring headless sync.")
+
+                # Auto-push fresh session back to GitHub Actions secret so it never expires
+                _push_session_to_github_secret(SESSION_FILE)
             except Exception:
                 pass
 

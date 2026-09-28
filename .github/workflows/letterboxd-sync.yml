@@ -11,6 +11,10 @@ concurrency:
   group: trakt-sync-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  secrets: write   # needed so the script can auto-refresh LETTERBOXD_SESSION_JSON
+
 jobs:
   sync:
     name: Sync Trakt ➔ Letterboxd & MAL
@@ -70,5 +74,9 @@ jobs:
           LETTERBOXD_PROXY: ${{ secrets.LETTERBOXD_PROXY }}
           NEXT_PUBLIC_APP_URL: "https://trakt-sync-engine.vercel.app"
           PYTHONUNBUFFERED: "1"
+          # Passed so the script can auto-refresh the session secret after login
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           xvfb-run -a --server-args="-screen 0 1280x1024x24" python scripts/automate_letterboxd_upload.py --auto-confirm --keep-open 5
+
