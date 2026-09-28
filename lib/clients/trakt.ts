@@ -452,6 +452,20 @@ export class TraktClient {
     return res.json();
   }
 
+  async searchId(id: string, idType: 'tmdb' | 'imdb' | 'trakt', type: 'movie' | 'show' = 'movie'): Promise<any[]> {
+    const endpoint = `https://api.trakt.tv/search/${idType}/${id}?type=${type}&extended=full`;
+    const res = await fetch(endpoint, {
+      headers: this.getHeaders(),
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      if (res.status === 404) return [];
+      console.warn(`Trakt searchId failed (${res.status}) for ${idType}:${id}`);
+      return [];
+    }
+    return res.json();
+  }
+
   async searchMovie(
     title: string,
     year?: number

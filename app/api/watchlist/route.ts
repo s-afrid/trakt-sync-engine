@@ -276,11 +276,29 @@ export async function GET(request: NextRequest) {
               let posterUrl = it.posterUrl;
 
               // Enrich with Trakt/TMDb metadata if traktClient is available
-              if (traktClient && (!tmdbId || !posterUrl)) {
+              if (traktClient && (!tmdbId || !posterUrl || !overview)) {
                 try {
-                  const searchResults = await traktClient.searchMovie(filmTitle, it.filmYear);
+                  let searchResults: any[] = [];
+                  let usedIdSearch = false;
+                  
+                  // Optimize: If we extracted the TMDB ID from Letterboxd HTML, search precisely by ID instead of title!
+                  if (tmdbId) {
+                    const idResults = await traktClient.searchId(tmdbId.toString(), 'tmdb');
+                    if (idResults && idResults.length > 0 && idResults[0].movie) {
+                      searchResults = idResults;
+                      usedIdSearch = true;
+                    }
+                  }
+                  
+                  // Fallback to title search if TMDB ID search failed or we don't have one
+                  if (searchResults.length === 0) {
+                    searchResults = await traktClient.searchMovie(filmTitle, it.filmYear);
+                    usedIdSearch = false;
+                  }
+
                   if (searchResults && searchResults.length > 0) {
-                    const matched = findBestMovieMatch(searchResults, filmTitle, it.filmYear);
+                    // searchResults is an array of { type: "movie", score: ..., movie: { ... } }
+                    const matched = usedIdSearch ? searchResults[0].movie : findBestMovieMatch(searchResults, filmTitle, it.filmYear);
                     if (matched) {
                       if (!tmdbId && matched.ids?.tmdb) tmdbId = matched.ids.tmdb;
                       if (matched.ids?.imdb) imdbId = matched.ids.imdb;
@@ -289,7 +307,7 @@ export async function GET(request: NextRequest) {
                       if (matched.genres) genres = matched.genres;
 
                       if (tmdbId && watchedTmdbIds.has(tmdbId)) {
-                        continue;
+                        continue; // skip if already watched
                       }
 
                       if (!posterUrl && imdbId) {
@@ -297,7 +315,9 @@ export async function GET(request: NextRequest) {
                       }
                     }
                   }
-                } catch {}
+                } catch (e) {
+                  console.warn("Watchlist Trakt enrichment failed for item:", filmTitle, e);
+                }
               }
 
               // Fallback to scraping Letterboxd film page if poster or overview is still missing
