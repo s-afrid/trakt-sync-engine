@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
             const traktClient = new TraktClient(traktToken, traktUsername);
             const [watchedShows, episodeHistory] = await Promise.all([
               traktClient.getWatchedShows().catch(() => []),
-              traktClient.getUserEpisodeHistory(100).catch(() => []),
+              traktClient.getUserEpisodeHistory(500).catch(() => []),
             ]);
 
             // Index history by show ID and title
@@ -195,19 +195,29 @@ export async function GET(request: NextRequest) {
                 }
               }
 
-              // Determine completed count
-              let completedCount = watchedEps.length;
-              if (completedCount === 0 && item.plays && item.plays > 0) {
-                completedCount = item.plays;
-              }
-
-              // Skip unstarted or completed shows
-              if (completedCount === 0) continue;
-              if (totalAired > 0 && completedCount >= totalAired) continue;
-
               // Sort to find the latest watched episode
               watchedEps.sort((a, b) => new Date(b.lastWatched).getTime() - new Date(a.lastWatched).getTime());
               const latestEp = watchedEps[0];
+
+              const uniqueCount = watchedEps.length;
+              const plays = item.plays || 0;
+
+              // Completion checks:
+              // 1. Plays >= total aired
+              const isCompletedByPlays = totalAired > 0 && plays >= totalAired;
+              // 2. Unique watched episodes in history >= total aired
+              const isCompletedByHistory = totalAired > 0 && uniqueCount >= totalAired;
+              // 3. Finale episode watched (season finale / series finale)
+              const isCompletedByFinale = totalAired > 0 && latestEp && latestEp.number >= totalAired;
+
+              if (isCompletedByPlays || isCompletedByHistory || isCompletedByFinale) {
+                continue; // Show is fully completed
+              }
+
+              // Determine completed count (unique watched episodes or total plays)
+              let completedCount = uniqueCount > 0 ? uniqueCount : plays;
+              if (completedCount === 0) continue;
+
               const lastWatchedFormatted = latestEp
                 ? `S${String(latestEp.season).padStart(2, "0")}E${String(latestEp.number).padStart(2, "0")}`
                 : undefined;
@@ -223,12 +233,17 @@ export async function GET(request: NextRequest) {
                 epList.push(i);
               }
 
+              const posterUrl = show.ids?.imdb
+                ? `https://images.metahub.space/poster/medium/${show.ids.imdb}/img`
+                : undefined;
+
               items.push({
                 id: `trakt-show-progress-${show.ids.trakt}`,
                 platform: "trakt",
                 type: "show",
                 title: show.title,
                 year: show.year,
+                posterUrl,
                 completedEpisodes: completedCount,
                 totalEpisodes: totalAired > 0 ? totalAired : undefined,
                 progressPercent: percent,

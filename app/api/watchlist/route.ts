@@ -28,6 +28,50 @@ export interface WatchlistItem {
   };
 }
 
+function normalizeTitle(s: string) {
+  return (s || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+}
+
+function findBestMovieMatch(
+  searchResults: { movie: { title: string; year?: number; ids: { trakt: number; slug: string; imdb?: string; tmdb?: number }; overview?: string; rating?: number; genres?: string[] } }[],
+  targetTitle: string,
+  targetYear?: number
+) {
+  const normTarget = normalizeTitle(targetTitle);
+
+  // 1. Exact normalized title and exact year
+  if (targetYear) {
+    const exact = searchResults.find((r) => {
+      const m = r.movie;
+      if (!m || !m.title) return false;
+      return normalizeTitle(m.title) === normTarget && m.year === targetYear;
+    });
+    if (exact?.movie) return exact.movie;
+  }
+
+  // 2. Exact normalized title and year within +/- 1 (due to release date shifts)
+  if (targetYear) {
+    const near = searchResults.find((r) => {
+      const m = r.movie;
+      if (!m || !m.title) return false;
+      return normalizeTitle(m.title) === normTarget && m.year && Math.abs(m.year - targetYear) <= 1;
+    });
+    if (near?.movie) return near.movie;
+  }
+
+  // 3. Exact normalized title without year requirement
+  if (!targetYear) {
+    const any = searchResults.find((r) => {
+      const m = r.movie;
+      if (!m || !m.title) return false;
+      return normalizeTitle(m.title) === normTarget;
+    });
+    if (any?.movie) return any.movie;
+  }
+
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Extract credentials from cookies or environment
@@ -103,11 +147,12 @@ export async function GET(request: NextRequest) {
           const title = ws.show?.title?.trim().toLowerCase();
           if (!title) continue;
           const totalAired = ws.show?.aired_episodes || 0;
+          const plays = ws.plays || 0;
           const completedEps = ws.seasons?.reduce((acc, s) => acc + (s.episodes?.length || 0), 0) || 0;
 
-          if (totalAired > 0 && completedEps >= totalAired) {
+          if (totalAired > 0 && (plays >= totalAired || completedEps >= totalAired)) {
             completedShowTitles.add(title);
-          } else if (completedEps > 0) {
+          } else if (plays > 0 || completedEps > 0) {
             startedShowTitles.add(title);
           }
         }
@@ -156,6 +201,7 @@ export async function GET(request: NextRequest) {
                 title: m.title,
                 year: m.year,
                 overview: m.overview,
+                posterUrl: m.ids?.imdb ? `https://images.metahub.space/poster/medium/${m.ids.imdb}/img` : undefined,
                 rating: m.rating ? Math.round(m.rating * 10) / 10 : undefined,
                 genres: m.genres,
                 url: `https://trakt.tv/movies/${m.ids.slug || m.ids.trakt}`,
@@ -168,13 +214,13 @@ export async function GET(request: NextRequest) {
               });
             }
 
-            // Filter out completed shows
+            // Filter out completed or started shows (started shows are moved to Continue Watching)
             for (const item of watchlistShows) {
               const s = item.show;
               if (!s) continue;
               const titleLower = s.title.trim().toLowerCase();
-              if (completedShowTitles.has(titleLower)) {
-                continue; // Skip completed show
+              if (completedShowTitles.has(titleLower) || startedShowTitles.has(titleLower)) {
+                continue; // Skip completed or in-progress show
               }
 
               items.push({
@@ -184,6 +230,7 @@ export async function GET(request: NextRequest) {
                 title: s.title,
                 year: s.year,
                 overview: s.overview,
+                posterUrl: s.ids?.imdb ? `https://images.metahub.space/poster/medium/${s.ids.imdb}/img` : undefined,
                 rating: s.rating ? Math.round(s.rating * 10) / 10 : undefined,
                 genres: s.genres,
                 totalEpisodes: s.aired_episodes,
@@ -233,13 +280,13 @@ export async function GET(request: NextRequest) {
                 try {
                   const searchResults = await traktClient.searchMovie(filmTitle, it.filmYear);
                   if (searchResults && searchResults.length > 0) {
-                    const m = searchResults[0].movie;
-                    if (m) {
-                      if (!tmdbId && m.ids?.tmdb) tmdbId = m.ids.tmdb;
-                      if (m.ids?.imdb) imdbId = m.ids.imdb;
-                      if (m.overview) overview = m.overview;
-                      if (m.rating) rating = Math.round(m.rating * 10) / 10;
-                      if (m.genres) genres = m.genres;
+                    const matched = findBestMovieMatch(searchResults, filmTitle, it.filmYear);
+                    if (matched) {
+                      if (!tmdbId && matched.ids?.tmdb) tmdbId = matched.ids.tmdb;
+                      if (matched.ids?.imdb) imdbId = matched.ids.imdb;
+                      if (matched.overview) overview = matched.overview;
+                      if (matched.rating) rating = Math.round(matched.rating * 10) / 10;
+                      if (matched.genres) genres = matched.genres;
 
                       if (tmdbId && watchedTmdbIds.has(tmdbId)) {
                         continue;
@@ -248,6 +295,30 @@ export async function GET(request: NextRequest) {
                       if (!posterUrl && imdbId) {
                         posterUrl = `https://images.metahub.space/poster/medium/${imdbId}/img`;
                       }
+                    }
+                  }
+                } catch {}
+              }
+
+              // Fallback to scraping Letterboxd film page if poster or overview is still missing
+              if ((!posterUrl || !overview) && it.reviewLink) {
+                try {
+                  const pageRes = await fetch(it.reviewLink, {
+                    headers: {
+                      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+                      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    },
+                  });
+                  if (pageRes.ok) {
+                    const pageHtml = await pageRes.text();
+                    if (!posterUrl) {
+                      const ogImg = pageHtml.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i)?.[1]
+                        || pageHtml.match(/<meta\s+name="twitter:image"\s+content="([^"]+)"/i)?.[1];
+                      if (ogImg) posterUrl = ogImg;
+                    }
+                    if (!overview) {
+                      const ogDesc = pageHtml.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i)?.[1];
+                      if (ogDesc) overview = ogDesc;
                     }
                   }
                 } catch {}
