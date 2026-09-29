@@ -1318,7 +1318,14 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
     generate_watched_csv(upload_movies, csv_path)
 
     # Determine newly watched movies to clean up from Letterboxd Watchlist
-    cleanup_candidates = new_movies if new_movies else (movies[:1] if movies else [])
+    cleanup_candidates = new_movies
+    if not cleanup_candidates:
+        # If running as an isolated --job cleanup after state was already saved, retrieve the targeted batch
+        last_synced = state.get("last_synced_movies", [])
+        if last_synced:
+            cleanup_candidates = [m for m in movies if m.get("movie", {}).get("ids", {}).get("tmdb") in last_synced]
+        if not cleanup_candidates:
+            cleanup_candidates = movies[:1] if movies else []
 
     # Perform upload
     success = automate_letterboxd_upload(
@@ -1328,7 +1335,7 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
         headless=args.headless,
         auto_confirm=args.auto_confirm,
         inspection_seconds=3 if (args.auto_confirm and args.interval) else args.keep_open,
-        cleanup_movies=cleanup_candidates if (args.auto_confirm and getattr(args, "cleanup_watchlist", True)) else None,
+        cleanup_movies=cleanup_candidates if ((args.auto_confirm or getattr(args, "job", "all") == "cleanup") and getattr(args, "cleanup_watchlist", True)) else None,
         job=getattr(args, "job", "all")
     )
 
@@ -1338,6 +1345,8 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
         state["latest_watched_at"] = max_watched_at
         state["last_sync_time"] = datetime.now().isoformat()
         state["total_synced"] = len(current_ids)
+        if cleanup_candidates:
+            state["last_synced_movies"] = [m.get("movie", {}).get("ids", {}).get("tmdb") for m in cleanup_candidates]
         save_sync_state(state)
         print(f"[{now_str}] ✅ State saved: {len(current_ids)} movies tracked.")
 
