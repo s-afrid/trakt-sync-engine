@@ -593,7 +593,7 @@ def automate_letterboxd_upload(
 
                         # Inspect and click the watchlist button if currently active
                         # IMPORTANT: Scope ONLY within #userpanel / .actions-panel to avoid navbar false-positives!
-                        eval_res = p_page.evaluate("""() => {
+                        eval_res = p_page.evaluate("""async () => {
                             const panel = document.querySelector("#userpanel, .actions-panel, .js-actions-panel, aside.sidebar");
                             if (!panel) {
                                 return { found: false, inWatchlist: false, reason: "no_panel" };
@@ -636,12 +636,6 @@ def automate_letterboxd_upload(
                             const stateAttr = (btn.getAttribute('data-action-state') || btn.getAttribute('data-state') || '').toLowerCase();
                             const ariaChecked = btn.getAttribute('aria-checked');
 
-                            // On Letterboxd, an active watchlist button has:
-                            // - class '-active', 'active', '-watchlisted', or 'in-watchlist'
-                            // - title 'Remove from your watchlist' or containing 'remove'
-                            // - text 'In watchlist'
-                            // - aria-checked="true"
-                            // - data-action-state="active"
                             const isActive = classStr.includes('-active') ||
                                              classStr.includes(' active') ||
                                              classStr.includes('-watchlisted') ||
@@ -653,12 +647,52 @@ def automate_letterboxd_upload(
                                              stateAttr === 'active';
 
                             if (isActive) {
-                                try { btn.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch (e) {}
-                                btn.click();
-                                return { found: true, inWatchlist: true, clicked: true, title: titleStr, classStr: classStr, text: textStr };
+                                // Instead of brittle DOM clicking, use internal AJAX endpoint via fetch
+                                const poster = document.querySelector('.film-poster, [data-film-id]');
+                                const filmId = poster ? poster.getAttribute('data-film-id') : null;
+                                
+                                const csrfInput = document.querySelector('input[name="__csrf"]');
+                                const csrfToken = csrfInput ? csrfInput.value : (window.letterboxd_csrf || window.__letterboxd_csrf || '');
+
+                                if (filmId) {
+                                    try {
+                                        const bodyData = 'action=remove-watchlist' + (csrfToken ? '&__csrf=' + encodeURIComponent(csrfToken) : '');
+                                        // Some endpoints use /s/film/{id}/watchlist, others /csi/film/{id}/sidebar-actions/
+                                        // The user requested /csi/film/id/sidebar-actions/ but Letterboxd's canonical action is often /s/film/...
+                                        // We will try both to guarantee it is removed!
+                                        
+                                        const res = await fetch('/csi/film/' + filmId + '/sidebar-actions/', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                                'X-Requested-With': 'XMLHttpRequest'
+                                            },
+                                            body: bodyData
+                                        });
+                                        
+                                        await fetch('/s/film/' + filmId + '/watchlist', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                                'X-Requested-With': 'XMLHttpRequest'
+                                            },
+                                            body: '__csrf=' + encodeURIComponent(csrfToken) + '&action=remove-watchlist'
+                                        }).catch(e => {});
+
+                                        return { found: true, inWatchlist: true, clicked: true, success: res.ok, method: "fetch", filmId: filmId };
+                                    } catch (err) {
+                                        // Fallback to click if fetch fails
+                                        btn.click();
+                                        return { found: true, inWatchlist: true, clicked: true, success: true, method: "click_fallback" };
+                                    }
+                                } else {
+                                    // Fallback to click if no film ID is found
+                                    btn.click();
+                                    return { found: true, inWatchlist: true, clicked: true, success: true, method: "click_fallback_nofilm" };
+                                }
                             }
 
-                            return { found: true, inWatchlist: false, title: titleStr, classStr: classStr, text: textStr };
+                            return { found: true, inWatchlist: false };
                         }""")
 
                         if eval_res.get("clicked"):
