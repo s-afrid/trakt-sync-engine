@@ -594,105 +594,69 @@ def automate_letterboxd_upload(
                         # Inspect and click the watchlist button if currently active
                         # IMPORTANT: Scope ONLY within #userpanel / .actions-panel to avoid navbar false-positives!
                         eval_res = p_page.evaluate("""async () => {
-                            const panel = document.querySelector("#userpanel, .actions-panel, .js-actions-panel, aside.sidebar");
-                            if (!panel) {
-                                return { found: false, inWatchlist: false, reason: "no_panel" };
-                            }
-
-                            // Look exclusively inside the user actions panel
-                            const candidates = [
-                                panel.querySelector(".add-to-watchlist"),
-                                panel.querySelector("a[data-action*='watchlist']"),
-                                panel.querySelector("button[data-action*='watchlist']"),
-                                panel.querySelector(".action-watchlist"),
-                                panel.querySelector("a.has-icon.icon-watchlist"),
-                                panel.querySelector("[data-track-action='Watchlist']"),
-                                panel.querySelector("[data-action='watchlist']"),
-                                panel.querySelector("a.watchlist-action")
-                            ].filter(Boolean);
-
-                            let btn = candidates[0] || null;
-
-                            if (!btn) {
-                                const allInPanel = Array.from(panel.querySelectorAll("a, button, span, li, div.action"));
-                                for (const el of allInPanel) {
-                                    const t = (el.innerText || el.textContent || '').trim().toLowerCase();
-                                    const title = (el.getAttribute('title') || el.getAttribute('aria-label') || '').toLowerCase();
-                                    const cls = (el.className || '').toLowerCase();
-                                    if (cls.includes('watchlist') || t === 'watchlist' || t === 'in watchlist' || title.includes('watchlist')) {
-                                        btn = el;
-                                        break;
-                                    }
-                                }
-                            }
-
-                            if (!btn) {
-                                return { found: false, inWatchlist: false, reason: "button_not_in_panel" };
-                            }
-
-                            const classStr = ((btn.className || '') + ' ' + (btn.parentElement ? btn.parentElement.className || '' : '')).toLowerCase();
-                            const titleStr = (btn.getAttribute('title') || btn.getAttribute('data-original-title') || btn.getAttribute('aria-label') || '').toLowerCase();
-                            const textStr = (btn.innerText || btn.textContent || '').trim().toLowerCase();
-                            const stateAttr = (btn.getAttribute('data-action-state') || btn.getAttribute('data-state') || '').toLowerCase();
-                            const ariaChecked = btn.getAttribute('aria-checked');
-
-                            const isActive = classStr.includes('-active') ||
-                                             classStr.includes(' active') ||
-                                             classStr.includes('-watchlisted') ||
-                                             classStr.includes('in-watchlist') ||
-                                             titleStr.includes('remove') ||
-                                             titleStr.includes('in your watchlist') ||
-                                             textStr === 'in watchlist' ||
-                                             ariaChecked === 'true' ||
-                                             stateAttr === 'active';
-
-                            if (isActive) {
-                                // Instead of brittle DOM clicking, use internal AJAX endpoint via fetch
+                            // Find the internal Film ID. Letterboxd stores this in multiple places.
+                            let filmId = document.body.getAttribute('data-film-id');
+                            if (!filmId) {
                                 const poster = document.querySelector('.film-poster, [data-film-id]');
-                                const filmId = poster ? poster.getAttribute('data-film-id') : null;
-                                
-                                const csrfInput = document.querySelector('input[name="__csrf"]');
-                                const csrfToken = csrfInput ? csrfInput.value : (window.letterboxd_csrf || window.__letterboxd_csrf || '');
+                                if (poster) filmId = poster.getAttribute('data-film-id');
+                            }
+                            if (!filmId) {
+                                // Sometimes it's in a JS variable
+                                if (window.letterboxd_film_id) filmId = window.letterboxd_film_id;
+                            }
+                            
+                            const csrfInput = document.querySelector('input[name="__csrf"]');
+                            const csrfToken = csrfInput ? csrfInput.value : (window.letterboxd_csrf || window.__letterboxd_csrf || '');
 
-                                if (filmId) {
-                                    try {
-                                        const bodyData = 'action=remove-watchlist' + (csrfToken ? '&__csrf=' + encodeURIComponent(csrfToken) : '');
-                                        // Some endpoints use /s/film/{id}/watchlist, others /csi/film/{id}/sidebar-actions/
-                                        // The user requested /csi/film/id/sidebar-actions/ but Letterboxd's canonical action is often /s/film/...
-                                        // We will try both to guarantee it is removed!
-                                        
-                                        const res = await fetch('/csi/film/' + filmId + '/sidebar-actions/', {
-                                            method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                                                'X-Requested-With': 'XMLHttpRequest'
-                                            },
-                                            body: bodyData
-                                        });
-                                        
-                                        await fetch('/s/film/' + filmId + '/watchlist', {
+                            let fetchSuccess = false;
+
+                            if (filmId) {
+                                try {
+                                    // 1. User's exact snippet (No CSRF in body, just action)
+                                    const res1 = await fetch('/csi/film/' + filmId + '/sidebar-actions/', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                            'X-Requested-With': 'XMLHttpRequest'
+                                        },
+                                        body: 'action=remove-watchlist'
+                                    });
+                                    if (res1.ok) fetchSuccess = true;
+                                } catch (e) {}
+
+                                try {
+                                    // 2. Canonical endpoint with CSRF just in case
+                                    if (csrfToken) {
+                                        const res2 = await fetch('/s/film/' + filmId + '/watchlist', {
                                             method: 'POST',
                                             headers: {
                                                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                                                 'X-Requested-With': 'XMLHttpRequest'
                                             },
                                             body: '__csrf=' + encodeURIComponent(csrfToken) + '&action=remove-watchlist'
-                                        }).catch(e => {});
-
-                                        return { found: true, inWatchlist: true, clicked: true, success: res.ok, method: "fetch", filmId: filmId };
-                                    } catch (err) {
-                                        // Fallback to click if fetch fails
-                                        btn.click();
-                                        return { found: true, inWatchlist: true, clicked: true, success: true, method: "click_fallback" };
+                                        });
+                                        if (res2.ok) fetchSuccess = true;
                                     }
-                                } else {
-                                    // Fallback to click if no film ID is found
-                                    btn.click();
-                                    return { found: true, inWatchlist: true, clicked: true, success: true, method: "click_fallback_nofilm" };
-                                }
+                                } catch (e) {}
                             }
 
-                            return { found: true, inWatchlist: false };
+                            // 3. Absolute Fallback: Click the active button if it exists
+                            let clickedFallback = false;
+                            const activeBtn = document.querySelector("#userpanel .add-to-watchlist.-active, #userpanel a[data-action*='watchlist'].-active, .panel-watchlist.-watchlisted a, #userpanel .action-watchlist.-active");
+                            if (activeBtn) {
+                                try {
+                                    activeBtn.click();
+                                    clickedFallback = true;
+                                } catch (e) {}
+                            }
+
+                            return { 
+                                found: true, 
+                                inWatchlist: true, // We assume it might have been
+                                clicked: fetchSuccess || clickedFallback, 
+                                method: fetchSuccess ? "fetch_unconditional" : (clickedFallback ? "click_fallback" : "failed"), 
+                                filmId: filmId 
+                            };
                         }""")
 
                         if eval_res.get("clicked"):
