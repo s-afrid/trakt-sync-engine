@@ -184,10 +184,12 @@ export class AnimeSyncService {
       const isCompleted =
         totalMalEpisodes > 0 &&
         (maxEpisodeWatched >= totalMalEpisodes ||
-          uniqueEpisodesWatched >= totalMalEpisodes ||
-          traktPlays >= totalMalEpisodes);
+          uniqueEpisodesWatched >= totalMalEpisodes);
 
-      let targetEpisodes = Math.max(maxEpisodeWatched, uniqueEpisodesWatched, traktPlays);
+      let targetEpisodes = Math.max(maxEpisodeWatched, uniqueEpisodesWatched);
+      if (targetEpisodes === 0 && traktPlays > 0) {
+        targetEpisodes = traktPlays > totalMalEpisodes && totalMalEpisodes > 0 ? totalMalEpisodes : traktPlays;
+      }
       if (isCompleted && totalMalEpisodes > 0) {
         targetEpisodes = totalMalEpisodes;
       } else if (totalMalEpisodes > 0 && targetEpisodes > totalMalEpisodes) {

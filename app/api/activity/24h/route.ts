@@ -335,6 +335,12 @@ export async function GET(request: NextRequest) {
 
       for (const h of history) {
         if (!h.watched_at) continue;
+        
+        // Only include actual anime in the MAL feed!
+        const genres = h.show.genres || [];
+        const isAnime = genres.includes("anime") || genres.includes("animation");
+        if (!isAnime) continue;
+
         const watchDate = new Date(h.watched_at);
         if (watchDate >= cutoffTime) {
           const showTitleLower = h.show.title.toLowerCase();
