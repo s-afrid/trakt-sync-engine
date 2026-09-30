@@ -307,57 +307,19 @@ npm run dev
 
 ---
 
-## ⚠️ Cron Scheduling & Vercel Plan Limits
+## ?? Cron Scheduling & Vercel Plan Limits
 
-> **Never set the `vercel.json` cron to `*/15 * * * *` on a Hobby plan.** Vercel rejects the
-> entire deployment when a cron expression runs more than once per day:
->
-> ```
-> Hobby accounts are limited to daily cron jobs.
-> This cron expression would run more than once per day.
-> ```
->
-> The symptom is misleading — the push appears to do nothing, no new build shows up, and the
-> previous deployment simply stays live.
+> **Keep the `vercel.json` cron daily on a Hobby plan.** Vercel Hobby allows one cron run per day, and may invoke it at any time during the configured hour. The daily Vercel cron remains a safety net.
 
-`vercel.json` therefore ships with a **daily** schedule (`0 4 * * *`), which is valid on every
-plan. `/api/cron/sync` is already guarded by `Authorization: Bearer $CRON_SECRET`, so the sync
-can be driven from anywhere:
+The repository's GitHub Actions workflow calls `GET /api/cron/sync` every 15 minutes. This provides a free scheduled trigger for the sync; GitHub may delay scheduled runs during heavy load, so it is best-effort rather than an exact 15-minute guarantee.
 
-| Option | Cadence | Notes |
-| --- | --- | --- |
-| Vercel Hobby cron (default) | Once per day | Free. Deploys cleanly. |
-| Vercel Pro cron | Every minute | The original 15-min project goal. Change the schedule to `*/15 * * * *`. |
-| External scheduler | Any | Point a scheduler at `GET /api/cron/sync` with the `CRON_SECRET` bearer token. |
+Configure these values:
 
-To run the **15-minute contract** on a free plan you need an external trigger, because
-`.github/workflows/letterboxd-sync.yml` was gutted to a no-op when the project moved to Vercel
-Cron — it no longer drives the sync. Either:
+- In Vercel Project Settings > Environment Variables, set `CRON_SECRET` to a long random value.
+- In GitHub repository Settings > Secrets and variables > Actions > Repository secrets, add `CRON_SECRET` with the **same value**.
+- Optionally add the Actions variable `SYNC_APP_URL` if the deployed app uses a different host. The default is `https://trakt-sync-engine.vercel.app`.
 
-1. **GitHub Actions** — add a scheduled workflow that calls the endpoint:
-
-   ```yaml
-   on:
-     schedule:
-       - cron: "*/15 * * * *"
-     workflow_dispatch:
-
-   jobs:
-     ping:
-       runs-on: ubuntu-latest
-       steps:
-         - run: |
-             curl --fail --silent --show-error \
-               -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-               https://<your-app>.vercel.app/api/cron/sync
-   ```
-
-2. **Any external cron service** (cron-job.org, EasyCron, Upstash QStash, …) — send a `GET` to
-   `/api/cron/sync` with the `Authorization: Bearer <CRON_SECRET>` header.
-
-Whichever you pick, keep the daily Vercel cron as a safety net.
-
-
+The Vercel endpoint authenticates the bearer token and uses the database and integration credentials configured in Vercel. You can also run the workflow on demand with **Actions > 15-Minute Trakt Cloud Sync > Run workflow**.
 
 Open your browser at **[http://localhost:3000](http://localhost:3000)**.
 
@@ -385,7 +347,7 @@ Open your browser at **[http://localhost:3000](http://localhost:3000)**.
    - `MAL_CLIENT_SECRET`: Your MAL client secret.
    - `MAL_REDIRECT_URI`: `https://<your-app>.vercel.app/api/auth/mal/callback`
    - `DATABASE_URL`: Your Neon PostgreSQL connection string.
-   - `CRON_SECRET`: A secret token for securing Vercel Cron.
+   - `CRON_SECRET`: A long random token for securing Vercel Cron. Add the same value as a GitHub Actions repository secret named `CRON_SECRET` to enable the 15-minute workflow.
    - `STREMBOXD_USERNAME` and `STREMBOXD_PASSWORD`: Required for Trakt -> Letterboxd movie sync. You may instead set `LETTERBOXD_USERNAME` and `LETTERBOXD_PASSWORD`.
 4. **Update OAuth Redirects**:
    - Update your Trakt application redirect URI to `https://<your-app>.vercel.app/api/auth/trakt/callback`.

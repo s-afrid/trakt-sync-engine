@@ -230,8 +230,11 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Load movie IDs the sync engine already marked watched through Stremboxd.
+  // Confirm movies from both the durable ID cache and successful sync logs.
+  // Logs cover older sync runs and prevent a completed import being shown as pending
+  // when the settings cache was not populated or was reset.
   const syncedLetterboxdImdbIds = new Set<string>();
+  const syncedLetterboxdTitles = new Set<string>();
   if (db && syncUserId) {
     try {
       const settingsRows = await db
@@ -246,8 +249,28 @@ export async function GET(request: NextRequest) {
           for (const id of ids) syncedLetterboxdImdbIds.add(String(id));
         }
       }
+
+      const syncRows = await db
+        .select({ details: syncLogs.details })
+        .from(syncLogs)
+        .where(eq(syncLogs.userId, syncUserId))
+        .orderBy(desc(syncLogs.createdAt))
+        .limit(100);
+      for (const row of syncRows) {
+        if (!row.details) continue;
+        try {
+          const details = JSON.parse(row.details);
+          if (Array.isArray(details.syncedTitles)) {
+            for (const title of details.syncedTitles) {
+              syncedLetterboxdTitles.add(String(title).trim().toLowerCase());
+            }
+          }
+        } catch {
+          // Ignore non-JSON logs and keep checking other sync records.
+        }
+      }
     } catch (syncStateErr) {
-      console.warn("Could not load synced Letterboxd movie IDs:", syncStateErr);
+      console.warn("Could not load synced Letterboxd state:", syncStateErr);
     }
   }
 
@@ -331,7 +354,8 @@ export async function GET(request: NextRequest) {
         if (watchDate >= cutoffTime) {
           const cleanTitle = m.movie.title.trim().toLowerCase();
           const isSyncedByEngine = Boolean(
-            m.movie.ids.imdb && syncedLetterboxdImdbIds.has(m.movie.ids.imdb)
+            (m.movie.ids.imdb && syncedLetterboxdImdbIds.has(m.movie.ids.imdb)) ||
+            syncedLetterboxdTitles.has(cleanTitle)
           );
           const isConfirmedInDiary =
             verifiedLbTitles.has(cleanTitle) ||

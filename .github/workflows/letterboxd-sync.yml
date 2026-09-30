@@ -1,19 +1,29 @@
-# This workflow is RETIRED and is now only a no-op stub.
-#
-# Sync runs natively on Vercel via /api/cron/sync. See the "Cron Scheduling &
-# Vercel Plan Limits" section of the README before re-adding a schedule here:
-# Vercel's Hobby plan rejects a `*/15 * * * *` cron in vercel.json outright,
-# which fails the whole deployment.
-
-
-name: "[RETIRED] 15-Minute Trakt Cloud Sync"
+name: 15-Minute Trakt Cloud Sync
 
 on:
-  workflow_dispatch: # manual trigger only — not scheduled
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: vercel-sync
+  cancel-in-progress: false
 
 jobs:
-  retired:
+  sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Notice
-        run: echo "This workflow is retired. Sync runs on Vercel cron every 15 minutes."
+      - name: Trigger Vercel sync
+        env:
+          SYNC_APP_URL: ${{ vars.SYNC_APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "Missing CRON_SECRET repository Actions secret."
+            exit 1
+          fi
+
+          BASE_URL="${SYNC_APP_URL:-https://trakt-sync-engine.vercel.app}"
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${BASE_URL%/}/api/cron/sync"
