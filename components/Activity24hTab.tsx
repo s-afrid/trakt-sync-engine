@@ -35,7 +35,7 @@ export interface ActivityItem {
   title: string;
   subtitle: string;
   type: "episode" | "movie" | "completed" | "sync_run";
-  status: "synced" | "imported" | "completed" | "info" | "pending";
+  status: "synced" | "imported" | "completed" | "info" | "pending" | "warning" | "error";
   timestamp: string;
   metadata?: {
     year?: number;
@@ -51,6 +51,7 @@ export interface ActivityItem {
     itemsFetched?: number;
     moviesSyncedToTrakt?: number;
     updatedTitles?: { title: string; episodes: number; status: string }[];
+    errors?: string[];
     posterUrl?: string;
     fanartUrl?: string;
     screenshotUrl?: string;
@@ -833,6 +834,13 @@ export default function Activity24hTab({
                           ))}
                         </div>
                       )}
+                      {item.metadata?.errors && item.metadata.errors.length > 0 && (
+                        <ul className="pt-1 space-y-1 text-xs text-danger">
+                          {item.metadata.errors.map((error, idx) => (
+                            <li key={idx} className="break-words">{decodeClientEntities(error)}</li>
+                          ))}
+                        </ul>
+                      )}
 
                       {/* Bottom Telemetry Row: Rating, IMDb, TMDb, MAL, Genres, Plays */}
                       <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-ink-muted pt-1 flex-wrap">
@@ -888,7 +896,11 @@ export default function Activity24hTab({
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-bold tracking-wide uppercase shadow-sm ${
-                          item.status === "pending"
+                          item.status === "error"
+                            ? "bg-danger/15 text-danger border border-danger/35"
+                            : item.status === "warning"
+                            ? "bg-accent/15 text-accent border border-accent/35"
+                            : item.status === "pending"
                             ? "bg-accent/15 text-accent border border-accent/35"
                             : isLB
                             ? "bg-[#00E054]/15 text-[#00E054] border border-[#00E054]/35"
@@ -897,12 +909,20 @@ export default function Activity24hTab({
                             : "bg-elevated text-ink-muted border border-edge"
                         }`}
                       >
-                        {item.status === "pending" ? (
+                        {item.status === "error" ? (
+                          <AlertCircle className="h-3 w-3 text-danger" />
+                        ) : item.status === "warning" ? (
+                          <AlertCircle className="h-3 w-3 text-accent" />
+                        ) : item.status === "pending" ? (
                           <Clock className="h-3 w-3 text-accent" />
                         ) : (
                           <CheckCircle2 className="h-3 w-3" />
                         )}
-                        {item.status === "imported"
+                        {item.status === "error"
+                          ? "Failed"
+                          : item.status === "warning"
+                          ? "Partial"
+                          : item.status === "imported"
                           ? "Auto-Imported"
                           : item.status === "synced"
                           ? "Synced"

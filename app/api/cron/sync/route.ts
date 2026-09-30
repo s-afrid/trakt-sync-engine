@@ -80,7 +80,12 @@ export async function GET(request: NextRequest) {
             id: `log_anime_${Date.now()}`,
             userId: traktAcc.userId,
             type: "trakt_to_mal",
-            status: "success",
+            status:
+              (userRun.anime as { errors?: string[]; malUpdatedCount?: number }).errors?.length
+                ? ((userRun.anime as { malUpdatedCount?: number }).malUpdatedCount
+                    ? "warning"
+                    : "error")
+                : "success",
             title: "Trakt → MAL anime sync",
             details: JSON.stringify(userRun.anime),
             itemsCount:

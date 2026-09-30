@@ -61,7 +61,12 @@ export async function POST(request: NextRequest) {
             id: `log_anime_${Date.now()}`,
             userId: "default_user",
             type: "trakt_to_mal",
-            status: "success",
+            status:
+              (results.anime as { errors?: string[]; malUpdatedCount?: number }).errors?.length
+                ? ((results.anime as { malUpdatedCount?: number }).malUpdatedCount
+                    ? "warning"
+                    : "error")
+                : "success",
             title: "Trakt to MyAnimeList Sync",
             details: JSON.stringify(results.anime),
             itemsCount: (results.anime as { malUpdatedCount: number }).malUpdatedCount || 0,

@@ -1232,10 +1232,16 @@ export default function Dashboard() {
 
         {/* Live Sync Result Panel */}
         {syncResult && (
-          <div className="p-4 sm:p-6 rounded-2xl bg-surface border border-accent/20 space-y-4">
+          <div className={`p-4 sm:p-6 rounded-2xl bg-surface border space-y-4 ${
+            (syncResult.anime?.errors.length ?? 0) > 0 ? "border-danger/40" : "border-accent/20"
+          }`}>
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-ink flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-success" />
+                {(syncResult.anime?.errors.length ?? 0) > 0 ? (
+                  <AlertCircle className="h-5 w-5 text-danger" />
+                ) : (
+                  <CheckCircle2 className="h-5 w-5 text-success" />
+                )}
                 Sync Execution Report
               </h3>
               <span className="text-xs text-ink-muted">
@@ -1290,6 +1296,19 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {syncResult.anime.errors.length > 0 && (
+                  <div className="rounded-xl border border-danger/30 bg-danger/10 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-danger">
+                      {syncResult.anime.errors.length} MAL update error(s)
+                    </p>
+                    <ul className="space-y-1 text-xs text-ink-muted">
+                      {syncResult.anime.errors.map((error, idx) => (
+                        <li key={idx} className="break-words">{error}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>

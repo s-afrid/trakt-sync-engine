@@ -12,7 +12,7 @@ export interface ActivityItem {
   title: string;
   subtitle: string;
   type: "episode" | "movie" | "completed" | "sync_run";
-  status: "synced" | "imported" | "completed" | "info" | "pending";
+  status: "synced" | "imported" | "completed" | "info" | "pending" | "warning" | "error";
   timestamp: string;
   metadata?: {
     year?: number;
@@ -35,6 +35,7 @@ export interface ActivityItem {
     itemsFetched?: number;
     moviesSyncedToTrakt?: number;
     updatedTitles?: { title: string; episodes: number; status: string }[];
+    errors?: string[];
   };
 }
 
@@ -104,6 +105,9 @@ function parseLogDetails(
         const shows = parsed.totalTraktShows ?? 0;
         const updated = parsed.malUpdatedCount ?? 0;
         const rawUpdated = Array.isArray(parsed.updatedTitles) ? parsed.updatedTitles : [];
+        const errors: string[] = Array.isArray(parsed.errors)
+          ? parsed.errors.map((error: unknown) => decodeEntities(String(error)))
+          : [];
         const updatedTitles: UpdatedAnimeTitle[] = rawUpdated.map((u: any) => ({
           title: decodeEntities(String(u?.title || "")),
           episodes: Number(u?.episodes) || 0,
@@ -116,6 +120,8 @@ function parseLogDetails(
             .map((t: UpdatedAnimeTitle) => `${t.title} (Ep. ${t.episodes})`)
             .join(", ");
           subtitle = `Updated ${updated} anime on MyAnimeList: ${list}`;
+        } else if (errors.length > 0) {
+          subtitle = `Scanned ${shows} shows • ${errors.length} MAL update error(s)`;
         } else {
           subtitle = `Scanned ${shows} shows • MyAnimeList is already up to date`;
         }
@@ -126,6 +132,7 @@ function parseLogDetails(
             totalTraktShows: shows,
             malUpdatedCount: updated,
             updatedTitles,
+            errors,
           },
         };
       }
@@ -436,7 +443,14 @@ export async function GET(request: NextRequest) {
           title: log.title,
           subtitle,
           type: log.status === "success" && isMal ? "completed" : "sync_run",
-          status: log.status === "success" ? "synced" : "info",
+          status:
+            log.status === "error"
+              ? "error"
+              : log.status === "warning"
+              ? "warning"
+              : log.status === "success"
+              ? "synced"
+              : "info",
           timestamp: log.createdAt.toISOString(),
           metadata: {
             ...metadata,
