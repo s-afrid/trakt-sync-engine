@@ -368,6 +368,261 @@ def parse_proxy(raw_proxy: str) -> dict:
     return {"server": raw_proxy}
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Stremboxd integration — mirrors Harbor's lib/stremboxd/client.ts
+#
+# Flow (no browser needed):
+#   1. POST api.stremboxd.com/auth/login  →  userToken + userId
+#   2. GET  /stremio/{userId}/stream/movie/{imdbId}.json
+#          →  streams[] containing pre-signed action URLs (HMAC-signed by server)
+#   3. GET  watchedUrl?set=true    →  marks film as Watched on Letterboxd
+#   4. GET  watchlistUrl?set=false →  removes film from Watchlist
+# ─────────────────────────────────────────────────────────────────────────────
+
+STREMBOXD_BASE = "https://api.stremboxd.com"
+STREMBOXD_TOKEN_FILE = ROOT_DIR / ".stremboxd_session.json"
+
+_STREMBOXD_HTTP_HEADERS = {
+    "Content-Type": "application/json",
+    "User-Agent": "TraktSyncEngine/1.0 (compatible; Harbor-like client)",
+    "Accept": "application/json",
+}
+
+
+def _stremboxd_load_session() -> dict:
+    """Load cached Stremboxd session from disk."""
+    if STREMBOXD_TOKEN_FILE.exists():
+        try:
+            return json.loads(STREMBOXD_TOKEN_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+
+def _stremboxd_save_session(session: dict) -> None:
+    """Persist Stremboxd session to disk."""
+    try:
+        STREMBOXD_TOKEN_FILE.write_text(json.dumps(session, indent=2), encoding="utf-8")
+    except Exception as e:
+        print(f"⚠️ Could not save Stremboxd session: {e}")
+
+
+def stremboxd_login(sb_username: str, sb_password: str) -> dict:
+    """
+    POST /auth/login → { userToken, user: { id, username, displayName } }
+    Caches the result to .stremboxd_session.json.
+    Returns: { "userToken": str, "userId": str, "username": str }
+    """
+    print(f"🔑 Logging into Stremboxd as '{sb_username}'...")
+    resp = requests.post(
+        f"{STREMBOXD_BASE}/auth/login",
+        json={"username": sb_username, "password": sb_password},
+        headers=_STREMBOXD_HTTP_HEADERS,
+        timeout=20,
+    )
+    if not resp.ok:
+        body = resp.text[:300]
+        raise Exception(f"Stremboxd login failed ({resp.status_code}): {body}")
+
+    data = resp.json()
+    session = {
+        "userToken": data["userToken"],
+        "userId": data["user"]["id"],
+        "username": data["user"].get("username", sb_username),
+        "displayName": data["user"].get("displayName"),
+        "loginAt": time.time(),
+    }
+    _stremboxd_save_session(session)
+    print(f"✅ Stremboxd login OK — userId={session['userId']}")
+    return session
+
+
+def stremboxd_get_session(sb_username: str, sb_password: str, force_refresh: bool = False) -> dict:
+    """
+    Return a valid Stremboxd session, re-logging in if the cached one is stale
+    (tokens expire after ~24 h; we refresh after 20 h to be safe).
+    """
+    if not force_refresh:
+        cached = _stremboxd_load_session()
+        if cached.get("userToken") and cached.get("userId"):
+            age_h = (time.time() - cached.get("loginAt", 0)) / 3600
+            if age_h < 20:
+                return cached
+
+    return stremboxd_login(sb_username, sb_password)
+
+
+def stremboxd_get_film_actions(user_id: str, user_token: str, imdb_id: str) -> dict:
+    """
+    GET /stremio/{userId}/stream/movie/{imdbId}.json
+    Parses the streams[] to extract:
+      - watched, liked, inWatchlist (current state)
+      - watchedUrl, likedUrl, watchlistUrl (pre-signed action URLs)
+    Returns a dict or {} if the film is not found.
+    """
+    url = f"{STREMBOXD_BASE}/stremio/{user_id}/stream/movie/{imdb_id}.json"
+    try:
+        resp = requests.get(
+            url,
+            headers={**_STREMBOXD_HTTP_HEADERS, "Authorization": f"Bearer {user_token}"},
+            timeout=20,
+        )
+    except Exception as e:
+        raise Exception(f"Stremboxd stream fetch error: {e}")
+
+    if resp.status_code == 404:
+        return {}
+    if not resp.ok:
+        raise Exception(f"Stremboxd stream HTTP {resp.status_code}: {resp.text[:200]}")
+
+    body = resp.json()
+    streams = body.get("streams", [])
+    if not streams:
+        return {}
+
+    result = {
+        "watched": False,
+        "liked": False,
+        "inWatchlist": False,
+        "userRating": None,
+        "communityRating": None,
+        "letterboxdUrl": None,
+        "watchedUrl": None,
+        "likedUrl": None,
+        "watchlistUrl": None,
+        "rateUrl": None,
+    }
+
+    import re as _re
+    for s in streams:
+        name = s.get("name", "")
+        ext_url = s.get("externalUrl", "")
+
+        # Stream 1: info stream — description carries current status lines
+        if name == "Letterboxd" or ("/action/" not in ext_url and not result["letterboxdUrl"]):
+            result["letterboxdUrl"] = ext_url or None
+            for line in (s.get("description") or "").split("\n"):
+                m = _re.search(r"(\d+\.\d+)\s*/\s*5", line)
+                if m:
+                    result["communityRating"] = float(m.group(1))
+                if "✓ Watched" in line:
+                    result["watched"] = True
+                if "♥ Liked" in line:
+                    result["liked"] = True
+                if "In Watchlist" in line:
+                    result["inWatchlist"] = True
+                m2 = _re.search(r"Your rating:.*?(\d+\.\d+)", line)
+                if m2:
+                    result["userRating"] = float(m2.group(1))
+
+        # Action streams — identified by URL path segment
+        if "/rate/" in ext_url:
+            result["rateUrl"] = ext_url
+        if "/watched/" in ext_url:
+            result["watchedUrl"] = ext_url
+        if "/liked/" in ext_url:
+            result["likedUrl"] = ext_url
+        if "/watchlist/" in ext_url:
+            result["watchlistUrl"] = ext_url
+
+    return result
+
+
+def _toggle_set_param(url: str, next_set: bool) -> str:
+    """Mirror of Harbor's toggleSetParam — set the `set` query param to true/false."""
+    from urllib.parse import urlparse, urlencode, parse_qs, urlunparse
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query, keep_blank_values=True)
+    params["set"] = [str(next_set).lower()]
+    new_query = urlencode({k: v[0] for k, v in params.items()})
+    return urlunparse(parsed._replace(query=new_query))
+
+
+def sync_movies_via_stremboxd(
+    movies: list,
+    sb_username: str,
+    sb_password: str,
+) -> bool:
+    """
+    For each movie in `movies` (must have ids.imdb):
+      1. Fetch current status + pre-signed action URLs from Stremboxd
+      2. If not already watched → GET watchedUrl?set=true
+      3. GET watchlistUrl?set=false (unconditional — server ignores if not in list)
+
+    Returns True if at least one movie was processed without error.
+    Raises on login failure so the caller can fall back to the browser path.
+    """
+    if not movies:
+        return True
+
+    # Auth
+    session = stremboxd_get_session(sb_username, sb_password)
+    user_id = session["userId"]
+    user_token = session["userToken"]
+
+    any_success = False
+
+    for m in movies:
+        movie_obj = m.get("movie", {}) if isinstance(m, dict) else {}
+        title = movie_obj.get("title", "Unknown")
+        ids = movie_obj.get("ids", {})
+        imdb_id = ids.get("imdb")
+
+        if not imdb_id:
+            print(f"⚠️ '{title}' — no IMDb ID, cannot use Stremboxd. Skipping.")
+            continue
+
+        print(f"\n🎬 [{title}] IMDb: {imdb_id}")
+
+        try:
+            actions = stremboxd_get_film_actions(user_id, user_token, imdb_id)
+
+            if not actions:
+                print(f"   ⚠️ Film not found on Stremboxd (may not be in Letterboxd's database).")
+                continue
+
+            # ── Step 1: Mark as Watched ───────────────────────────────────
+            if actions.get("watched"):
+                print(f"   ✅ Already marked as Watched on Letterboxd.")
+                any_success = True
+            elif actions.get("watchedUrl"):
+                mark_url = _toggle_set_param(actions["watchedUrl"], True)
+                w_resp = requests.get(
+                    mark_url,
+                    headers={**_STREMBOXD_HTTP_HEADERS, "Authorization": f"Bearer {user_token}"},
+                    timeout=20,
+                    allow_redirects=True,
+                )
+                if w_resp.ok:
+                    print(f"   ✅ Marked as Watched! (HTTP {w_resp.status_code})")
+                    any_success = True
+                else:
+                    print(f"   ⚠️ Watch toggle returned HTTP {w_resp.status_code}: {w_resp.text[:120]}")
+            else:
+                print(f"   ⚠️ No watchedUrl returned by Stremboxd — film may be unsupported.")
+
+            # ── Step 2: Remove from Watchlist (unconditional) ─────────────
+            if actions.get("watchlistUrl"):
+                wl_url = _toggle_set_param(actions["watchlistUrl"], False)
+                wl_resp = requests.get(
+                    wl_url,
+                    headers={**_STREMBOXD_HTTP_HEADERS, "Authorization": f"Bearer {user_token}"},
+                    timeout=20,
+                    allow_redirects=True,
+                )
+                if wl_resp.ok:
+                    print(f"   🗑️  Removed from Watchlist (HTTP {wl_resp.status_code}).")
+                else:
+                    print(f"   ℹ️  Watchlist removal HTTP {wl_resp.status_code} (may not have been in list).")
+            else:
+                print(f"   ℹ️  No watchlistUrl — skipping watchlist removal.")
+
+        except Exception as e:
+            print(f"   ⚠️ Error processing '{title}': {e}")
+
+    return any_success
+
+
 def mark_and_sync_movies_direct(
     movies: list,
     username: str,
@@ -1728,8 +1983,28 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
     success = False
     job = getattr(args, "job", "all")
 
+    # ── Primary path: Stremboxd API (no browser, pure HTTP) ─────────────────
+    sb_username = os.getenv("STREMBOXD_USERNAME", "").strip()
+    sb_password = os.getenv("STREMBOXD_PASSWORD", "").strip()
+
     if job in ("all", "upload") and sync_movies:
-        print(f"[{now_str}] 🔗 Attempting direct AJAX watch sync for {len(sync_movies)} movie(s)...")
+        if sb_username and sb_password:
+            print(f"[{now_str}] 🔗 Using Stremboxd API to sync {len(sync_movies)} movie(s)...")
+            try:
+                success = sync_movies_via_stremboxd(
+                    movies=sync_movies,
+                    sb_username=sb_username,
+                    sb_password=sb_password,
+                )
+            except Exception as e:
+                print(f"[{now_str}] ⚠️ Stremboxd sync error: {e}. Falling back to browser AJAX...")
+                success = False
+        else:
+            print(f"[{now_str}] ℹ️ STREMBOXD_USERNAME/PASSWORD not set — skipping Stremboxd path.")
+
+    # ── Fallback 1: browser AJAX (direct Letterboxd session, no CSV) ─────────
+    if not success and job in ("all", "upload") and sync_movies:
+        print(f"[{now_str}] 🔄 Falling back to browser AJAX watch sync for {len(sync_movies)} movie(s)...")
         try:
             success = mark_and_sync_movies_direct(
                 movies=sync_movies,
@@ -1738,16 +2013,14 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
                 headless=args.headless,
             )
         except Exception as e:
-            print(f"[{now_str}] ⚠️ Direct AJAX sync error: {e}")
+            print(f"[{now_str}] ⚠️ Browser AJAX sync error: {e}")
             success = False
 
-    # ── Fallback: CSV import via Playwright (--force, first-run, or AJAX failure) ──
+    # ── Fallback 2: CSV import via Playwright ────────────────────────────────
     if not success and job in ("all", "upload"):
-        print(f"[{now_str}] 🔄 Falling back to CSV import for {len(sync_movies)} movie(s)...")
+        print(f"[{now_str}] 🔄 Final fallback: CSV import for {len(sync_movies)} movie(s)...")
         generate_watched_csv(sync_movies, csv_path)
-
         cleanup_candidates = new_movies or (sync_movies[:1] if sync_movies else [])
-
         success = automate_letterboxd_upload(
             csv_path=csv_path,
             username=username,
@@ -1761,7 +2034,7 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
             job=job,
         )
     elif job == "cleanup":
-        # --job cleanup: just run watchlist removal via CSV path (existing behaviour)
+        # --job cleanup: watchlist removal only via existing browser path
         cleanup_candidates = new_movies or (movies[:1] if movies else [])
         generate_watched_csv(movies, csv_path)
         success = automate_letterboxd_upload(
