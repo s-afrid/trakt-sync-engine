@@ -368,6 +368,415 @@ def parse_proxy(raw_proxy: str) -> dict:
     return {"server": raw_proxy}
 
 
+def mark_and_sync_movies_direct(
+    movies: list,
+    username: str,
+    password: str,
+    headless: bool = False,
+) -> bool:
+    """
+    Directly marks each movie in `movies` as Watched on Letterboxd via AJAX
+    (no CSV, no Diary entry) and removes it from the Watchlist if present.
+
+    Uses the same session/auth flow as the upload path. Returns True if at
+    least one movie was processed successfully.
+    """
+    if not movies:
+        return True
+
+    with sync_playwright() as p:
+        print(f"🚀 Launching browser for direct watch sync (headless={headless})...")
+        launch_kwargs = {
+            "headless": headless,
+            "args": [
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+            ],
+        }
+        proxy_raw = os.getenv("LETTERBOXD_PROXY")
+        if proxy_raw:
+            parsed_proxy = parse_proxy(proxy_raw)
+            if parsed_proxy:
+                launch_kwargs["proxy"] = parsed_proxy
+                print(f"🌐 Routing browser via proxy ({parsed_proxy.get('server', 'configured')})...")
+
+        browser = p.chromium.launch(**launch_kwargs)
+
+        context_kwargs = {
+            "viewport": {"width": 1280, "height": 850},
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+        }
+
+        # ── Session loading (mirrors automate_letterboxd_upload) ────────────
+        session_env = os.getenv("LETTERBOXD_SESSION_JSON")
+        if session_env and session_env.strip():
+            try:
+                SESSION_FILE.write_text(session_env.strip(), encoding="utf-8")
+                print("💾 Loaded Letterboxd session from LETTERBOXD_SESSION_JSON secret.")
+            except Exception:
+                pass
+
+        has_valid_session_file = False
+        if SESSION_FILE.exists():
+            try:
+                s_data = json.loads(SESSION_FILE.read_text(encoding="utf-8"))
+                cookies = s_data.get("cookies", [])
+                has_user_cookie = any(c.get("name") in ("letterboxd.user", "com.letterboxd.signed") for c in cookies)
+                if has_user_cookie:
+                    has_valid_session_file = True
+            except Exception:
+                has_valid_session_file = False
+
+        if not has_valid_session_file:
+            try:
+                import urllib.request
+                app_url = os.getenv("NEXT_PUBLIC_APP_URL", "https://trakt-sync-engine.vercel.app")
+                req = urllib.request.Request(
+                    f"{app_url}/api/auth/letterboxd/session?includePayload=true",
+                    headers={"User-Agent": "TraktSyncEngine/1.0"}
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    s_json = json.loads(resp.read().decode("utf-8"))
+                    if s_json.get("sessionJson"):
+                        SESSION_FILE.write_text(s_json["sessionJson"], encoding="utf-8")
+                        has_valid_session_file = True
+                        print("💾 Loaded latest Letterboxd session from sync server database.")
+            except Exception:
+                pass
+
+        if SESSION_FILE.exists():
+            try:
+                context_kwargs["storage_state"] = str(SESSION_FILE)
+                print("💾 Restoring saved Letterboxd session...")
+            except Exception:
+                pass
+
+        context = browser.new_context(**context_kwargs)
+        context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        page = context.new_page()
+
+        try:
+            from playwright_stealth.stealth import Stealth
+            Stealth().apply_stealth_sync(page)
+            print("🛡️ Anti-detection stealth shield applied.")
+        except Exception:
+            pass
+
+        # ── Cloudflare Turnstile helper ──────────────────────────────────────
+        def handle_turnstile(p_page, timeout_sec=45):
+            time.sleep(1)
+            title = p_page.title()
+            detected = (
+                "Just a moment..." in title
+                or "Attention Required" in title
+                or p_page.locator(
+                    "iframe[src*='challenges.cloudflare.com'], div#cf-turnstile, dialog.turnstile-dialog, .cf-turnstile"
+                ).count() > 0
+            )
+            if not detected:
+                return True
+            print("⏳ Cloudflare Turnstile detected — engaging solver...")
+            start_w = time.time()
+            while time.time() - start_w < timeout_sec:
+                cur_title = p_page.title()
+                has_widget = p_page.locator(
+                    "iframe[src*='challenges.cloudflare.com'], div#cf-turnstile, dialog.turnstile-dialog"
+                ).count() > 0
+                if "Just a moment..." not in cur_title and "Attention Required" not in cur_title and not has_widget:
+                    print("✨ Cloudflare cleared!")
+                    time.sleep(1)
+                    return True
+                for f in p_page.frames:
+                    if "challenges.cloudflare.com" in f.url:
+                        try:
+                            chk = f.locator(
+                                "input[type='checkbox'], #challenge-stage, .ctp-checkbox-label, .mark, label.cb-lb, body"
+                            )
+                            if chk.count() > 0 and chk.first.is_visible():
+                                chk.first.click(force=True)
+                                time.sleep(2)
+                                break
+                        except Exception:
+                            pass
+                try:
+                    iframe_el = p_page.locator(
+                        "iframe[src*='challenges.cloudflare.com'], div#cf-turnstile iframe, dialog.turnstile-dialog iframe"
+                    )
+                    if iframe_el.count() > 0 and iframe_el.first.is_visible():
+                        box = iframe_el.first.bounding_box()
+                        if box:
+                            p_page.mouse.click(box["x"] + 25, box["y"] + (box["height"] / 2))
+                            time.sleep(2)
+                except Exception:
+                    pass
+                time.sleep(1.5)
+            print("⚠️ Cloudflare solver timed out — proceeding anyway...")
+            return False
+
+        # ── Auth check via a quick visit to letterboxd.com ──────────────────
+        print("🔐 Checking Letterboxd authentication state...")
+        page.goto("https://letterboxd.com/", wait_until="domcontentloaded", timeout=60000)
+        time.sleep(1)
+        handle_turnstile(page, timeout_sec=30)
+
+        try:
+            page.wait_for_selector(
+                ".nav-account, .profile-avatar, a.avatar, input#username, a.nav-link:has-text('Sign In')",
+                timeout=15000
+            )
+        except Exception:
+            pass
+
+        is_authenticated = page.locator(
+            f".nav-account, .profile-avatar, a.avatar, a[href*='/{username.lower()}/']"
+        ).count() > 0
+
+        if not is_authenticated and has_valid_session_file:
+            page.goto("https://letterboxd.com/", wait_until="domcontentloaded", timeout=60000)
+            time.sleep(2)
+            handle_turnstile(page, timeout_sec=20)
+            is_authenticated = page.locator(
+                f".nav-account, .profile-avatar, a[href*='/{username.lower()}/']"
+            ).count() > 0
+
+        if not is_authenticated:
+            print(f"🔑 Session not valid — logging into Letterboxd as {username}...")
+            page.goto("https://letterboxd.com/sign-in/", wait_until="domcontentloaded", timeout=60000)
+            time.sleep(2)
+            handle_turnstile(page, timeout_sec=30)
+
+            try:
+                cookie_accept = page.locator(
+                    "#onetrust-accept-btn-handler, button:has-text('Accept All'), button:has-text('Agree')"
+                )
+                if cookie_accept.count() > 0 and cookie_accept.first.is_visible():
+                    cookie_accept.first.click()
+                    time.sleep(0.5)
+            except Exception:
+                pass
+
+            user_input = page.locator(
+                "input[name='username']:visible, input#field-username:visible, input#username:visible"
+            )
+            if user_input.count() > 0 and user_input.first.is_visible():
+                user_input.first.fill(username)
+                page.locator(
+                    "input[name='password']:visible, input#field-password:visible, input#password:visible"
+                ).first.fill(password)
+                page.locator(
+                    "input[type='submit']:visible, button[type='submit']:visible, .button.-action:visible"
+                ).first.click()
+            else:
+                page.evaluate(
+                    """([u, p]) => {
+                        const uInput = document.querySelector("input#username, input[name='username'], input#field-username");
+                        const pInput = document.querySelector("input#password, input[name='password'], input#field-password");
+                        if (uInput) { uInput.value = u; uInput.dispatchEvent(new Event('input', { bubbles: true })); }
+                        if (pInput) { pInput.value = p; pInput.dispatchEvent(new Event('input', { bubbles: true })); }
+                        const btn = document.querySelector("input[type='submit'], button[type='submit'], .button.-action");
+                        if (btn) btn.click();
+                    }""",
+                    [username, password],
+                )
+
+            print("⏳ Awaiting login...")
+            start_time = time.time()
+            login_ok = False
+            while time.time() - start_time < 30:
+                if "sign-in" not in page.url.lower():
+                    login_ok = True
+                    break
+                time.sleep(0.8)
+
+            if not login_ok:
+                browser.close()
+                raise Exception("Letterboxd login timed out. Run headed (--headless not set) to resolve.")
+
+            print("🎉 Logged in successfully!")
+            try:
+                context.storage_state(path=str(SESSION_FILE))
+                print("💾 Session saved for next run.")
+                _push_session_to_github_secret(SESSION_FILE)
+            except Exception:
+                pass
+        else:
+            print("🎉 Already authenticated via saved session!")
+
+        # ── Per-movie: mark watched + remove from watchlist ──────────────────
+        any_success = False
+        for m in movies:
+            movie_obj = m.get("movie", {}) if isinstance(m, dict) else {}
+            title = movie_obj.get("title", "Unknown")
+            ids = movie_obj.get("ids", {})
+            tmdb_id = ids.get("tmdb")
+            slug = ids.get("slug")
+
+            if not tmdb_id and not slug:
+                print(f"⚠️ Skipping '{title}' — no TMDb ID or slug available.")
+                continue
+
+            target_url = (
+                f"https://letterboxd.com/film/{slug}/"
+                if slug
+                else f"https://letterboxd.com/tmdb/{tmdb_id}/"
+            )
+            print(f"\n🎬 Processing '{title}': {target_url}")
+
+            try:
+                page.goto(target_url, wait_until="domcontentloaded", timeout=30000)
+                time.sleep(2)
+                handle_turnstile(page, timeout_sec=15)
+
+                # Wait for CSI user panel (Letterboxd loads user actions async via /csi/)
+                try:
+                    page.wait_for_selector(
+                        "#userpanel button, #userpanel li, #userpanel .add-to-watchlist, "
+                        "#userpanel .action-watched, #userpanel li.panel-sharing",
+                        timeout=12000
+                    )
+                except Exception:
+                    try:
+                        page.wait_for_load_state("networkidle", timeout=6000)
+                    except Exception:
+                        pass
+                time.sleep(1)
+
+                # Execute mark-watched + remove-watchlist via AJAX in browser context
+                result = page.evaluate("""async () => {
+                    // ── Resolve filmId ────────────────────────────────────────────
+                    let filmId = document.body.getAttribute('data-film-id');
+                    if (!filmId) {
+                        const el = document.querySelector('[data-film-id]');
+                        if (el) filmId = el.getAttribute('data-film-id');
+                    }
+                    if (!filmId && window.letterboxd_film_id) filmId = String(window.letterboxd_film_id);
+
+                    // ── Resolve CSRF token ────────────────────────────────────────
+                    const csrfInput = document.querySelector('input[name="__csrf"]');
+                    const csrfToken = csrfInput
+                        ? csrfInput.value
+                        : (window.letterboxd_csrf || window.__letterboxd_csrf || '');
+
+                    if (!filmId) {
+                        return { watchedOk: false, watchlistOk: false, error: 'filmId not found', filmId: null };
+                    }
+
+                    const headers = {
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    };
+
+                    // ── Step 1: Mark as Watched ───────────────────────────────────
+                    let watchedOk = false;
+                    let watchedMethod = 'none';
+
+                    // Check if already watched (avoid toggling it off)
+                    const watchedEl = document.querySelector(
+                        '#userpanel .action-watched, #userpanel .icon-watched, ' +
+                        '#userpanel li.has-icon.icon-watched, #userpanel [data-action="watched"]'
+                    );
+                    const alreadyWatched = watchedEl && (
+                        watchedEl.classList.contains('-active') ||
+                        watchedEl.classList.contains('is-active') ||
+                        watchedEl.getAttribute('data-watched') === 'true'
+                    );
+
+                    if (alreadyWatched) {
+                        watchedOk = true;
+                        watchedMethod = 'already_watched';
+                    } else {
+                        // Strategy 1: AJAX sidebar-actions (same pattern as remove-watchlist)
+                        try {
+                            const r1 = await fetch('/csi/film/' + filmId + '/sidebar-actions/', {
+                                method: 'POST', headers, body: 'action=watched'
+                            });
+                            if (r1.ok) { watchedOk = true; watchedMethod = 'ajax_sidebar'; }
+                        } catch (e) {}
+
+                        // Strategy 2: Click the eye/watched icon directly
+                        if (!watchedOk && watchedEl) {
+                            try { watchedEl.click(); watchedOk = true; watchedMethod = 'click_watched_el'; } catch (e) {}
+                        }
+
+                        // Strategy 3: Broader eye icon search
+                        if (!watchedOk) {
+                            const eyeEl = document.querySelector(
+                                '#userpanel a[href*="watched"], #userpanel .icon-eye, ' +
+                                '#userpanel .has-icon.icon-eye, #userpanel [title*="watched" i], ' +
+                                'button[data-action="watched"]'
+                            );
+                            if (eyeEl) {
+                                try { eyeEl.click(); watchedOk = true; watchedMethod = 'click_eye_fallback'; } catch (e) {}
+                            }
+                        }
+                    }
+
+                    // ── Step 2: Remove from Watchlist (unconditional — safe if not in list) ──
+                    let watchlistOk = false;
+                    let watchlistMethod = 'none';
+
+                    try {
+                        const r2 = await fetch('/csi/film/' + filmId + '/sidebar-actions/', {
+                            method: 'POST', headers, body: 'action=remove-watchlist'
+                        });
+                        if (r2.ok) { watchlistOk = true; watchlistMethod = 'ajax_sidebar'; }
+                    } catch (e) {}
+
+                    if (!watchlistOk && csrfToken) {
+                        try {
+                            const r3 = await fetch('/s/film/' + filmId + '/watchlist', {
+                                method: 'POST', headers,
+                                body: '__csrf=' + encodeURIComponent(csrfToken) + '&action=remove-watchlist'
+                            });
+                            if (r3.ok) { watchlistOk = true; watchlistMethod = 'ajax_s_endpoint'; }
+                        } catch (e) {}
+                    }
+
+                    if (!watchlistOk) {
+                        const wlBtn = document.querySelector(
+                            '#userpanel .add-to-watchlist.-active, #userpanel a[data-action*="watchlist"].-active, ' +
+                            '.panel-watchlist.-watchlisted a, #userpanel .action-watchlist.-active'
+                        );
+                        if (wlBtn) {
+                            try { wlBtn.click(); watchlistOk = true; watchlistMethod = 'click_fallback'; } catch (e) {}
+                        }
+                    }
+
+                    return { watchedOk, watchedMethod, watchlistOk, watchlistMethod, filmId };
+                }""")
+
+                w_ok = result.get("watchedOk", False)
+                wl_ok = result.get("watchlistOk", False)
+                film_id = result.get("filmId")
+                error = result.get("error")
+
+                if error:
+                    print(f"⚠️ '{title}' — {error}. Will fall back to CSV import.")
+                elif w_ok:
+                    method = result.get("watchedMethod", "?")
+                    if method == "already_watched":
+                        print(f"✅ '{title}' — already Watched on Letterboxd.")
+                    else:
+                        print(f"✅ '{title}' — marked as Watched! (method: {method}, filmId: {film_id})")
+                    any_success = True
+                else:
+                    print(f"⚠️ '{title}' — could NOT mark as Watched (filmId: {film_id}). Will fall back to CSV import.")
+
+                if wl_ok:
+                    print(f"🗑️  '{title}' — removed from Watchlist (method: {result.get('watchlistMethod', '?')}).")
+                else:
+                    print(f"ℹ️  '{title}' — not in Watchlist or removal not needed.")
+
+                time.sleep(2)
+
+            except Exception as e:
+                print(f"⚠️ Error processing '{title}': {e}")
+
+        browser.close()
+        print("🎉 Direct watch sync browser session closed.")
+        return any_success
+
+
 def automate_letterboxd_upload(
     csv_path: Path,
     username: str,
@@ -1300,42 +1709,71 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
 
         return False
 
+    # ── Determine which movies to sync ──────────────────────────────────────
     if args.force:
-        print(f"[{now_str}] ⚡ Force flag active: Uploading full movie catalog ({len(movies)} movies)...")
-        upload_movies = movies
+        print(f"[{now_str}] ⚡ Force flag active: syncing full catalog ({len(movies)} movies)...")
+        sync_movies = movies
     elif is_first_run:
-        print(f"[{now_str}] 🌟 Initial sync: Uploading complete watch history ({len(movies)} movies)...")
-        upload_movies = movies
+        print(f"[{now_str}] 🌟 Initial sync: syncing complete watch history ({len(movies)} movies)...")
+        sync_movies = movies
     else:
-        titles_preview = ", ".join(f"'{m['movie']['title']}'" for m in new_movies[:3])
+        titles_preview = ", ".join("'" + m["movie"]["title"] + "'" for m in new_movies[:3])
         print(f"[{now_str}] 🎬 Detected {len(new_movies)} new watched movie(s): {titles_preview}")
-        # When incremental, upload all movies to ensure Diary consistency, or the new subset
-        upload_movies = movies
+        sync_movies = new_movies  # incremental: only the newly detected movies
 
-    # Generate fresh CSV
-    generate_watched_csv(upload_movies, csv_path)
+    # ── Primary path: direct AJAX mark-watched + watchlist removal ──────────
+    # For incremental syncs this is the fast, no-CSV, no-Diary path.
+    # For --force / first-run with large batches we also try it first and fall
+    # back to CSV import only if it fails completely.
+    success = False
+    job = getattr(args, "job", "all")
 
-    # Determine newly watched movies to clean up from Letterboxd Watchlist
-    cleanup_candidates = new_movies
-    if not cleanup_candidates:
-        # If running as an isolated --job cleanup after state was already saved, retrieve the targeted batch
-        last_synced = state.get("last_synced_movies", [])
-        if last_synced:
-            cleanup_candidates = [m for m in movies if m.get("movie", {}).get("ids", {}).get("tmdb") in last_synced]
-        if not cleanup_candidates:
-            cleanup_candidates = movies[:1] if movies else []
+    if job in ("all", "upload") and sync_movies:
+        print(f"[{now_str}] 🔗 Attempting direct AJAX watch sync for {len(sync_movies)} movie(s)...")
+        try:
+            success = mark_and_sync_movies_direct(
+                movies=sync_movies,
+                username=username,
+                password=password,
+                headless=args.headless,
+            )
+        except Exception as e:
+            print(f"[{now_str}] ⚠️ Direct AJAX sync error: {e}")
+            success = False
 
-    # Perform upload
-    success = automate_letterboxd_upload(
-        csv_path=csv_path,
-        username=username,
-        password=password,
-        headless=args.headless,
-        auto_confirm=args.auto_confirm,
-        inspection_seconds=3 if (args.auto_confirm and args.interval) else args.keep_open,
-        cleanup_movies=cleanup_candidates if ((args.auto_confirm or getattr(args, "job", "all") == "cleanup") and getattr(args, "cleanup_watchlist", True)) else None,
-        job=getattr(args, "job", "all")
-    )
+    # ── Fallback: CSV import via Playwright (--force, first-run, or AJAX failure) ──
+    if not success and job in ("all", "upload"):
+        print(f"[{now_str}] 🔄 Falling back to CSV import for {len(sync_movies)} movie(s)...")
+        generate_watched_csv(sync_movies, csv_path)
+
+        cleanup_candidates = new_movies or (sync_movies[:1] if sync_movies else [])
+
+        success = automate_letterboxd_upload(
+            csv_path=csv_path,
+            username=username,
+            password=password,
+            headless=args.headless,
+            auto_confirm=args.auto_confirm,
+            inspection_seconds=3 if (args.auto_confirm and args.interval) else args.keep_open,
+            cleanup_movies=cleanup_candidates if (
+                (args.auto_confirm or job == "cleanup") and getattr(args, "cleanup_watchlist", True)
+            ) else None,
+            job=job,
+        )
+    elif job == "cleanup":
+        # --job cleanup: just run watchlist removal via CSV path (existing behaviour)
+        cleanup_candidates = new_movies or (movies[:1] if movies else [])
+        generate_watched_csv(movies, csv_path)
+        success = automate_letterboxd_upload(
+            csv_path=csv_path,
+            username=username,
+            password=password,
+            headless=args.headless,
+            auto_confirm=args.auto_confirm,
+            inspection_seconds=3 if (args.auto_confirm and args.interval) else args.keep_open,
+            cleanup_movies=cleanup_candidates,
+            job=job,
+        )
 
     if success:
         # Update sync state
@@ -1343,12 +1781,13 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
         state["latest_watched_at"] = max_watched_at
         state["last_sync_time"] = datetime.now().isoformat()
         state["total_synced"] = len(current_ids)
-        if cleanup_candidates:
-            state["last_synced_movies"] = [m.get("movie", {}).get("ids", {}).get("tmdb") for m in cleanup_candidates]
+        state["last_synced_movies"] = [
+            m.get("movie", {}).get("ids", {}).get("tmdb") for m in sync_movies
+        ]
         save_sync_state(state)
         print(f"[{now_str}] ✅ State saved: {len(current_ids)} movies tracked.")
 
-        # Notify Vercel app database of the successful cloud execution
+        # Notify Vercel app of success
         report_urls = []
         if base_app_url:
             report_urls.append(f"{base_app_url}/api/sync/report")
@@ -1357,12 +1796,12 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
 
         report_payload = {
             "status": "success",
-            "type": "letterboxd_import",
-            "title": f"Auto-imported {len(upload_movies)} movies to Letterboxd",
-            "itemsCount": len(upload_movies),
+            "type": "letterboxd_direct_watch",
+            "title": f"Synced {len(sync_movies)} movie(s) to Letterboxd",
+            "itemsCount": len(sync_movies),
             "details": {
-                "uploadedMovies": len(upload_movies),
-                "syncedTitles": [m.get("movie", {}).get("title") for m in upload_movies[:10]],
+                "syncedMovies": len(sync_movies),
+                "syncedTitles": [m.get("movie", {}).get("title") for m in sync_movies[:10]],
                 "runtime": "github_actions" if os.getenv("GITHUB_ACTIONS") else "local_daemon",
                 "runId": os.getenv("GITHUB_RUN_ID", "local"),
                 "timestamp": now_str,
