@@ -1,7 +1,10 @@
-# This workflow is RETIRED — sync now runs natively on Vercel via /api/cron/sync
-# (every 15 minutes, vercel.json schedule).
+# This workflow is RETIRED and is now only a no-op stub.
 #
-# Kept here for reference only. To re-enable, uncomment the `on:` block below.
+# Sync runs natively on Vercel via /api/cron/sync. See the "Cron Scheduling &
+# Vercel Plan Limits" section of the README before re-adding a schedule here:
+# Vercel's Hobby plan rejects a `*/15 * * * *` cron in vercel.json outright,
+# which fails the whole deployment.
+
 
 name: "[RETIRED] 15-Minute Trakt Cloud Sync"
 
