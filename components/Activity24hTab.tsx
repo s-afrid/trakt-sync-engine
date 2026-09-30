@@ -277,24 +277,24 @@ export default function Activity24hTab({
   return (
     <div className="space-y-6">
       {/* Top Notice & Delete Tab Action Bar */}
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-slate-900/60 border border-indigo-800/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-xl">
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-accent/10 via-accent/10 to-surface/60 border border-accent/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-xl">
         <div className="flex items-start gap-3 min-w-0">
-          <div className="h-9 w-9 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center shrink-0 mt-0.5">
-            <Clock className="h-5 w-5 text-indigo-400" />
+          <div className="h-9 w-9 rounded-xl bg-accent/10 border border-accent/30 flex items-center justify-center shrink-0 mt-0.5">
+            <Clock className="h-5 w-5 text-accent" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-              <h2 className="text-sm sm:text-base font-semibold text-white">
+              <h2 className="text-sm sm:text-base font-semibold text-ink">
                 Live Activity Log
               </h2>
-              <span className="px-2 py-0.5 text-[10px] sm:text-[11px] font-medium rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              <span className="px-2 py-0.5 text-[10px] sm:text-[11px] font-medium rounded-full bg-accent/20 text-accent border border-accent/30">
                 Last {hours} Hours
               </span>
-              <span className="px-2 py-0.5 text-[10px] sm:text-[11px] font-medium rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              <span className="px-2 py-0.5 text-[10px] sm:text-[11px] font-medium rounded-full bg-accent/15 text-accent border border-accent/30">
                 Inspection View
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+            <p className="text-xs text-ink-muted mt-0.5 leading-relaxed">
               Live updates synced between Trakt ➔ Letterboxd (Movies) and Trakt ➔ MyAnimeList (Anime).
             </p>
           </div>
@@ -304,26 +304,26 @@ export default function Activity24hTab({
           <button
             onClick={() => fetchActivity(hours)}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-xs font-medium text-slate-300 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-elevated/80 hover:bg-raised/80 border border-edge text-xs font-medium text-ink-muted transition-colors"
             title="Refresh 24h data"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-indigo-400" : ""}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-accent" : ""}`} />
             <span>Refresh</span>
           </button>
 
           {onDeleteTab && (
             confirmDelete ? (
-              <div className="flex items-center gap-1 bg-red-950/80 border border-red-800/80 p-1 rounded-xl">
-                <span className="text-[11px] text-red-200 px-2 font-medium">Delete tab?</span>
+              <div className="flex items-center gap-1 bg-danger/10 border border-danger/30 p-1 rounded-xl">
+                <span className="text-[11px] text-ink px-2 font-medium">Delete tab?</span>
                 <button
                   onClick={onDeleteTab}
-                  className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded-lg transition-colors"
+                  className="px-2.5 py-1 bg-danger hover:bg-danger/85 text-ink text-xs font-semibold rounded-lg transition-colors"
                 >
                   Yes, Remove
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
-                  className="p-1 text-slate-400 hover:text-white rounded-lg"
+                  className="p-1 text-ink-muted hover:text-ink rounded-lg"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -331,7 +331,7 @@ export default function Activity24hTab({
             ) : (
               <button
                 onClick={() => setConfirmDelete(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-950/30 hover:bg-red-950/60 border border-red-800/40 text-xs font-medium text-red-300 hover:text-red-200 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-danger/10 hover:bg-danger/10 border border-danger/30 text-xs font-medium text-danger hover:text-ink transition-colors"
                 title="Delete or dismiss this temporary inspection tab"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -344,15 +344,15 @@ export default function Activity24hTab({
 
       {/* Error Alert */}
       {error && (
-        <div className="p-4 rounded-xl bg-red-950/40 border border-red-800/60 text-red-200 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+        <div className="p-4 rounded-xl bg-danger/10 border border-danger/30 text-ink flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-danger shrink-0 mt-0.5" />
           <div className="text-sm flex-1">
             <p className="font-semibold">Unable to fetch sync activity</p>
-            <p className="text-red-300/90 mt-0.5">{error}</p>
+            <p className="text-danger/90 mt-0.5">{error}</p>
           </div>
           <button
             onClick={() => fetchActivity(hours)}
-            className="text-xs text-red-400 hover:text-red-200 underline"
+            className="text-xs text-danger hover:text-ink underline"
           >
             Retry
           </button>
@@ -362,30 +362,30 @@ export default function Activity24hTab({
       {/* Quick Stats Overview - Haulix Obsidian Telemetry */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Updates */}
-        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-indigo-500 shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-accent shadow-sm flex items-center justify-between transition-all hover:bg-surface/90">
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Telemetry</p>
-            <p className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-muted">Total Telemetry</p>
+            <p className="text-2xl sm:text-3xl font-black text-ink tracking-tight">
               {data ? data.summary.total : "--"}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-indigo-400 flex items-center gap-1 font-medium">
+            <p className="text-[10px] sm:text-[11px] text-accent flex items-center gap-1 font-medium">
               <Sparkles className="h-3 w-3" /> In selected {hours}h window
             </p>
           </div>
-          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center shrink-0">
-            <Layers className="h-5 w-5 text-indigo-400" />
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-accent/10 border border-accent/25 flex items-center justify-center shrink-0">
+            <Layers className="h-5 w-5 text-accent" />
           </div>
         </div>
 
         {/* Letterboxd Movies */}
-        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#00E054] shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-[#00E054] shadow-sm flex items-center justify-between transition-all hover:bg-surface/90">
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Letterboxd Cinema</p>
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-muted">Letterboxd Cinema</p>
             <p className="text-2xl sm:text-3xl font-black text-[#00E054] tracking-tight">
               {data ? data.summary.letterboxdCount : "--"}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-              <Film className="h-3 w-3 text-emerald-400" /> Scrobbles & Imports
+            <p className="text-[10px] sm:text-[11px] text-ink-muted flex items-center gap-1 font-medium">
+              <Film className="h-3 w-3 text-success" /> Scrobbles & Imports
             </p>
           </div>
           <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-[#00E054]/10 border border-[#00E054]/25 flex items-center justify-center shrink-0">
@@ -394,32 +394,32 @@ export default function Activity24hTab({
         </div>
 
         {/* MyAnimeList Anime */}
-        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#3B82F6] shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-accent shadow-sm flex items-center justify-between transition-all hover:bg-surface/90">
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">MyAnimeList Feed</p>
-            <p className="text-2xl sm:text-3xl font-black text-sky-400 tracking-tight">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-muted">MyAnimeList Feed</p>
+            <p className="text-2xl sm:text-3xl font-black text-accent tracking-tight">
               {data ? data.summary.malCount : "--"}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-              <Tv className="h-3 w-3 text-sky-400" /> Episodes & Finales
+            <p className="text-[10px] sm:text-[11px] text-ink-muted flex items-center gap-1 font-medium">
+              <Tv className="h-3 w-3 text-accent" /> Episodes & Finales
             </p>
           </div>
-          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center shrink-0">
-            <MalLogo size={22} className="text-sky-400" />
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-accent/10 border border-accent/25 flex items-center justify-center shrink-0">
+            <MalLogo size={22} className="text-accent" />
           </div>
         </div>
 
         {/* Background Daemon Cycle & Cloud Engine */}
-        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-emerald-400 shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-success shadow-sm flex items-center justify-between transition-all hover:bg-surface/90">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">15-Min Daemon</p>
+              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-muted">15-Min Daemon</p>
               {ghRun?.htmlUrl && (
                 <a
                   href={ghRun.htmlUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 ml-2 font-mono font-medium"
+                  className="text-[10px] text-accent hover:text-accent flex items-center gap-0.5 ml-2 font-mono font-medium"
                   title="View GitHub Actions Run Logs"
                 >
                   <span>Cloud Run</span>
@@ -431,15 +431,15 @@ export default function Activity24hTab({
               <span
                 className={`h-2.5 w-2.5 rounded-full shrink-0 ${
                   ghRun?.conclusion === "success"
-                    ? "bg-emerald-400 shadow-sm shadow-emerald-400/80 animate-pulse"
+                    ? "bg-success shadow-sm shadow-success/80 animate-pulse"
                     : ghRun?.status === "in_progress"
-                    ? "bg-amber-400 animate-spin"
+                    ? "bg-accent animate-spin"
                     : ghRun?.conclusion === "failure"
-                    ? "bg-red-500"
-                    : "bg-emerald-400 shadow-sm shadow-emerald-400/80 animate-pulse"
+                    ? "bg-danger"
+                    : "bg-success shadow-sm shadow-success/80 animate-pulse"
                 }`}
               />
-              <p className="text-sm sm:text-base font-black text-emerald-400 tracking-tight truncate">
+              <p className="text-sm sm:text-base font-black text-success tracking-tight truncate">
                 {ghRun?.conclusion === "success"
                   ? "Cloud 15-Min: OK"
                   : ghRun?.status === "in_progress"
@@ -447,14 +447,14 @@ export default function Activity24hTab({
                   : "Active Daemon"}
               </p>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 truncate">
+            <p className="text-[10px] sm:text-[11px] text-ink-muted truncate">
               {ghRun?.updatedAt
                 ? `Last run: ${formatRelativeTime(ghRun.updatedAt)} (#${ghRun.runNumber})`
                 : `Refreshed ${formatRelativeTime(lastRefreshed.toISOString())}`}
             </p>
           </div>
-          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center shrink-0">
-            <RefreshCw className="h-5 w-5 text-emerald-400" />
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-success/10 border border-success/25 flex items-center justify-center shrink-0">
+            <RefreshCw className="h-5 w-5 text-success" />
           </div>
         </div>
       </div>
@@ -464,27 +464,27 @@ export default function Activity24hTab({
         <div
           className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-md transition-all ${
             sessionInfo.hasSession && !sessionInfo.isExpired
-              ? "bg-[#0D151E]/95 border-emerald-500/30 text-emerald-200"
-              : "bg-[#18110D]/95 border-amber-500/40 text-amber-200"
+              ? "bg-success/10 border-success/30 text-ink"
+              : "bg-accent/10 border-accent/40 text-ink"
           }`}
         >
           <div className="flex items-start sm:items-center gap-3">
             <div
               className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 sm:mt-0 ${
                 sessionInfo.hasSession && !sessionInfo.isExpired
-                  ? "bg-emerald-500/15 border-emerald-500/30"
-                  : "bg-amber-500/15 border-amber-500/30"
+                  ? "bg-success/15 border-success/30"
+                  : "bg-accent/15 border-accent/30"
               }`}
             >
               {sessionInfo.hasSession && !sessionInfo.isExpired ? (
-                <ShieldCheck className="h-5 w-5 text-emerald-400 shrink-0" />
+                <ShieldCheck className="h-5 w-5 text-success shrink-0" />
               ) : (
-                <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
+                <AlertCircle className="h-5 w-5 text-accent shrink-0" />
               )}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-white text-xs sm:text-sm">
+                <span className="font-bold text-ink text-xs sm:text-sm">
                   Letterboxd Playwright Session:{" "}
                   {sessionInfo.hasSession && !sessionInfo.isExpired
                     ? "Active & Verified"
@@ -493,10 +493,10 @@ export default function Activity24hTab({
                     : "Not Configured"}
                 </span>
                 {sessionInfo.hasSession && !sessionInfo.isExpired && (
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
                 )}
               </div>
-              <p className="text-slate-300 text-[11px] sm:text-xs mt-0.5 leading-relaxed">
+              <p className="text-ink-muted text-[11px] sm:text-xs mt-0.5 leading-relaxed">
                 {sessionInfo.hasSession && !sessionInfo.isExpired
                   ? `${sessionInfo.cookieCount} session cookies stored${
                       sessionInfo.expiresAt
@@ -509,25 +509,25 @@ export default function Activity24hTab({
           </div>
           <button
             onClick={() => setShowSessionModal(true)}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs shrink-0 transition-all shadow-sm hover:shadow"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-elevated hover:bg-raised text-ink border border-edge font-semibold text-xs shrink-0 transition-all shadow-sm hover:shadow"
           >
-            <Key className="h-3.5 w-3.5 text-emerald-400" />
+            <Key className="h-3.5 w-3.5 text-success" />
             <span>Update Session</span>
           </button>
         </div>
       )}
 
       {/* Filter and Control Bar - Haulix Obsidian Layout */}
-      <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] space-y-3 sm:space-y-4 shadow-sm">
+      <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge space-y-3 sm:space-y-4 shadow-sm">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 sm:gap-3">
           {/* Platform Pills */}
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/40 border border-white/[0.06] overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-canvas/40 border border-edge overflow-x-auto scrollbar-none">
             <button
               onClick={() => setPlatformFilter("all")}
               className={`shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 platformFilter === "all"
-                  ? "bg-slate-800 text-white shadow-sm border border-slate-700"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-elevated text-ink shadow-sm border border-edge"
+                  : "text-ink-muted hover:text-ink"
               }`}
             >
               All Platforms ({data?.summary.total || 0})
@@ -537,7 +537,7 @@ export default function Activity24hTab({
               className={`shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 platformFilter === "letterboxd"
                   ? "bg-[#00E054]/20 text-[#00E054] border border-[#00E054]/40"
-                  : "text-slate-400 hover:text-white"
+                  : "text-ink-muted hover:text-ink"
               }`}
             >
               <span className="h-1.5 w-1.5 rounded-full bg-[#00E054]" />
@@ -548,19 +548,19 @@ export default function Activity24hTab({
               onClick={() => setPlatformFilter("myanimelist")}
               className={`shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 platformFilter === "myanimelist"
-                  ? "bg-[#2E51A2]/25 text-sky-300 border border-[#2E51A2]/40"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-[#2E51A2]/25 text-accent border border-[#2E51A2]/40"
+                  : "text-ink-muted hover:text-ink"
               }`}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
-              <MalLogo size={14} className="text-sky-400" />
+              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+              <MalLogo size={14} className="text-accent" />
               <span>MyAnimeList ({data?.summary.malCount || 0})</span>
             </button>
           </div>
 
           {/* Time Horizon Horizon Selector */}
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-black/40 border border-white/[0.06] overflow-x-auto scrollbar-none self-start sm:self-auto shrink-0">
-            <span className="text-[10px] sm:text-[11px] text-slate-400 pl-2 pr-1 font-semibold flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-canvas/40 border border-edge overflow-x-auto scrollbar-none self-start sm:self-auto shrink-0">
+            <span className="text-[10px] sm:text-[11px] text-ink-muted pl-2 pr-1 font-semibold flex items-center gap-1 shrink-0">
               <Calendar className="h-3 w-3" /> Time:
             </span>
             {[
@@ -575,8 +575,8 @@ export default function Activity24hTab({
                 onClick={() => setHours(t.value)}
                 className={`shrink-0 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
                   hours === t.value
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-accent text-canvas shadow-sm"
+                    : "text-ink-muted hover:text-ink"
                 }`}
               >
                 {t.label}
@@ -586,10 +586,10 @@ export default function Activity24hTab({
         </div>
 
         {/* Second Row: Type Filter & Live Search */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-white/[0.06]">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-edge">
           {/* Type Filter */}
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0">
-            <span className="text-xs text-slate-400 font-semibold flex items-center gap-1 shrink-0">
+            <span className="text-xs text-ink-muted font-semibold flex items-center gap-1 shrink-0">
               <Filter className="h-3.5 w-3.5" /> Type:
             </span>
             <div className="flex items-center gap-1.5">
@@ -604,8 +604,8 @@ export default function Activity24hTab({
                   onClick={() => setTypeFilter(opt.id)}
                   className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                     typeFilter === opt.id
-                      ? "bg-slate-800 text-white border border-slate-700 shadow-sm"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "bg-elevated text-ink border border-edge shadow-sm"
+                      : "text-ink-muted hover:text-ink"
                   }`}
                 >
                   {opt.label}
@@ -616,18 +616,18 @@ export default function Activity24hTab({
 
           {/* Search Input */}
           <div className="relative w-full sm:w-64 md:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ink-muted" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search title or ID..."
-              className="w-full pl-9 pr-8 py-1.5 rounded-xl bg-black/40 border border-white/[0.08] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+              className="w-full pl-9 pr-8 py-1.5 rounded-xl bg-canvas/40 border border-edge text-xs text-ink placeholder-ink-subtle focus:outline-none focus:ring-1 focus:ring-accent transition-all"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink-muted"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -638,28 +638,28 @@ export default function Activity24hTab({
 
       {/* Activity Timeline List */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+        <div className="flex items-center justify-between text-xs text-ink-muted px-1">
           <span>Showing {filteredItems.length} synchronization events</span>
           <span>Cutoff: {hours} hours prior to now</span>
         </div>
 
         {loading ? (
-          <div className="p-12 rounded-2xl bg-[#0B0F19] border border-slate-800/80 text-center space-y-3">
-            <RefreshCw className="h-6 w-6 text-indigo-400 animate-spin mx-auto" />
-            <p className="text-sm text-slate-300 font-medium">
+          <div className="p-12 rounded-2xl bg-surface border border-edge text-center space-y-3">
+            <RefreshCw className="h-6 w-6 text-accent animate-spin mx-auto" />
+            <p className="text-sm text-ink-muted font-medium">
               Fetching updates from Trakt, Letterboxd & MyAnimeList...
             </p>
           </div>
         ) : filteredItems.length === 0 ? (
-          <div className="p-12 rounded-2xl bg-[#0B0F19] border border-slate-800/80 text-center space-y-3">
-            <div className="h-12 w-12 rounded-full bg-slate-800/60 border border-slate-700/60 flex items-center justify-center mx-auto text-slate-400">
+          <div className="p-12 rounded-2xl bg-surface border border-edge text-center space-y-3">
+            <div className="h-12 w-12 rounded-full bg-elevated/60 border border-edge flex items-center justify-center mx-auto text-ink-muted">
               <Calendar className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">
+              <h3 className="text-sm font-semibold text-ink">
                 No activity found for this filter
               </h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+              <p className="text-xs text-ink-muted mt-1 max-w-md mx-auto">
                 No new scrobbles or sync records occurred in the selected {hours}-hour timeframe.
                 Try broadening the time range to 7 days, or watch a movie/episode on Trakt to trigger updates.
               </p>
@@ -667,7 +667,7 @@ export default function Activity24hTab({
             <div className="pt-2">
               <button
                 onClick={() => setHours(168)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-xs font-medium text-indigo-300 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent/20 hover:bg-accent/30 border border-accent/30 text-xs font-medium text-accent transition-colors"
               >
                 <span>Expand to 7 Days</span>
               </button>
@@ -693,7 +693,7 @@ export default function Activity24hTab({
               return (
                 <div
                   key={item.id}
-                  className="group p-3.5 sm:p-5 rounded-2xl bg-[#0D111A]/90 hover:bg-[#111726]/95 border border-white/[0.08] hover:border-slate-600/80 transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-sm hover:shadow-xl hover:shadow-black/30"
+                  className="group p-3.5 sm:p-5 rounded-2xl bg-surface/90 hover:bg-surface/95 border border-edge hover:border-ink-subtle/40 transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-sm hover:shadow-xl hover:shadow-black/30"
                 >
                   <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1 w-full sm:w-auto">
                     {/* Visual Asset Thumbnail: Poster or Telemetry Engine Icon */}
@@ -704,10 +704,10 @@ export default function Activity24hTab({
                         year={item.metadata?.year}
                         platform={item.platform}
                         type={item.type}
-                        className="w-14 sm:w-16 md:w-20 rounded-xl shadow-md border border-white/[0.08] shrink-0"
+                        className="w-14 sm:w-16 md:w-20 rounded-xl shadow-md border border-edge shrink-0"
                       />
                     ) : (
-                      <div className="w-14 sm:w-16 md:w-20 aspect-[2/3] rounded-xl bg-gradient-to-b from-slate-900 to-black border border-white/[0.08] flex flex-col items-center justify-center gap-1.5 shrink-0 shadow-md">
+                      <div className="w-14 sm:w-16 md:w-20 aspect-[2/3] rounded-xl bg-gradient-to-b from-surface to-canvas border border-edge flex flex-col items-center justify-center gap-1.5 shrink-0 shadow-md">
                         {isLB ? (
                           <LetterboxdLogo size={22} />
                         ) : isMAL ? (
@@ -715,7 +715,7 @@ export default function Activity24hTab({
                         ) : (
                           <TraktLogo size={20} className="text-[#ED1C24]" />
                         )}
-                        <span className="text-[9px] font-mono tracking-wider uppercase text-slate-500 font-bold">
+                        <span className="text-[9px] font-mono tracking-wider uppercase text-ink-subtle font-bold">
                           {isLB ? "LB SYNC" : isMAL ? "MAL SYNC" : "ENGINE"}
                         </span>
                       </div>
@@ -731,8 +731,8 @@ export default function Activity24hTab({
                             isLB
                               ? "bg-[#00E054]/10 border-[#00E054]/30 text-[#00E054]"
                               : isMAL
-                              ? "bg-[#2E51A2]/20 border-[#2E51A2]/35 text-sky-300"
-                              : "bg-red-500/10 border-red-500/30 text-red-300"
+                              ? "bg-[#2E51A2]/20 border-[#2E51A2]/35 text-accent"
+                              : "bg-danger/10 border-danger/30 text-danger"
                           }`}
                         >
                           <span
@@ -740,8 +740,8 @@ export default function Activity24hTab({
                               isLB
                                 ? "bg-[#00E054]"
                                 : isMAL
-                                ? "bg-sky-400"
-                                : "bg-red-400"
+                                ? "bg-accent"
+                                : "bg-danger"
                             }`}
                           />
                           {isLB ? "Letterboxd" : isMAL ? "MyAnimeList" : "Trakt Engine"}
@@ -749,41 +749,41 @@ export default function Activity24hTab({
 
                         {/* Year Chip */}
                         {item.metadata?.year && (
-                          <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.08] text-slate-300">
+                          <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-ink/10 border border-edge text-ink-muted">
                             {item.metadata.year}
                           </span>
                         )}
 
                         {/* Season & Episode Chip */}
                         {item.metadata?.season !== undefined && item.metadata?.episode !== undefined && (
-                          <span className="text-[10px] sm:text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                          <span className="text-[10px] sm:text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-accent/15 text-accent border border-accent/30">
                             S{String(item.metadata.season).padStart(2, "0")} E{String(item.metadata.episode).padStart(2, "0")}
                           </span>
                         )}
 
                         {/* Type Chip */}
                         {item.type === "movie" ? (
-                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700/50">
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-elevated text-ink-muted border border-edge">
                             Movie
                           </span>
                         ) : item.type === "completed" ? (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-purple-950/60 border border-purple-800/50 text-purple-300 flex items-center gap-1">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-accent/10 border border-accent/30 text-accent flex items-center gap-1">
                             <Sparkles className="h-2.5 w-2.5" /> Series Finale
                           </span>
                         ) : item.type === "episode" ? (
-                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700/50">
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-elevated text-ink-muted border border-edge">
                             Anime
                           </span>
                         ) : null}
                       </div>
 
                       {/* Title */}
-                      <h4 className="text-sm sm:text-base font-bold text-white tracking-tight group-hover:text-indigo-200 transition-colors line-clamp-2 sm:line-clamp-1">
+                      <h4 className="text-sm sm:text-base font-bold text-ink tracking-tight group-hover:text-ink transition-colors line-clamp-2 sm:line-clamp-1">
                         {decodeClientEntities(item.title)}
                       </h4>
 
                       {/* Subtitle / Telemetry Log */}
-                      <p className="text-xs text-slate-300/90 leading-relaxed line-clamp-2">
+                      <p className="text-xs text-ink-muted/90 leading-relaxed line-clamp-2">
                         {displaySubtitle}
                       </p>
 
@@ -793,10 +793,10 @@ export default function Activity24hTab({
                           <button
                             type="button"
                             onClick={() => toggleExpand(item.id)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/40 hover:bg-slate-800 border border-white/[0.08] hover:border-slate-700 text-[11px] font-semibold text-slate-300 transition-colors"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-canvas/40 hover:bg-elevated border border-edge hover:border-ink-subtle/40 text-[11px] font-semibold text-ink-muted transition-colors"
                           >
                             <ChevronDown
-                              className={`h-3 w-3 text-slate-400 transition-transform duration-200 ${
+                              className={`h-3 w-3 text-ink-muted transition-transform duration-200 ${
                                 isExpanded ? "rotate-180" : ""
                               }`}
                             />
@@ -806,11 +806,11 @@ export default function Activity24hTab({
                           </button>
 
                           {isExpanded && (
-                            <div className="mt-2 p-2.5 rounded-xl bg-black/60 border border-white/[0.08] max-h-48 overflow-y-auto flex flex-wrap gap-1.5 shadow-inner">
+                            <div className="mt-2 p-2.5 rounded-xl bg-canvas/60 border border-edge max-h-48 overflow-y-auto flex flex-wrap gap-1.5 shadow-inner">
                               {diaryTitles.map((t: string, idx: number) => (
                                 <span
                                   key={idx}
-                                  className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[11px] text-slate-300 font-medium"
+                                  className="px-2 py-0.5 rounded-md bg-surface border border-edge text-[11px] text-ink-muted font-medium"
                                 >
                                   {decodeClientEntities(t)}
                                 </span>
@@ -826,7 +826,7 @@ export default function Activity24hTab({
                           {item.metadata.updatedTitles.map((u: { title: string; episodes: number; status?: string }, idx: number) => (
                             <span
                               key={idx}
-                              className="px-2 py-0.5 rounded-md bg-indigo-950/60 border border-indigo-800/60 text-[11px] text-indigo-300 font-semibold"
+                              className="px-2 py-0.5 rounded-md bg-accent/10 border border-accent/30 text-[11px] text-accent font-semibold"
                             >
                               {decodeClientEntities(u.title)} (Ep. {u.episodes})
                             </span>
@@ -835,10 +835,10 @@ export default function Activity24hTab({
                       )}
 
                       {/* Bottom Telemetry Row: Rating, IMDb, TMDb, MAL, Genres, Plays */}
-                      <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-slate-400 pt-1 flex-wrap">
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-ink-muted pt-1 flex-wrap">
                         {item.metadata?.rating && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[10px] font-bold">
-                            <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent/10 border border-accent/25 text-accent text-[10px] font-bold">
+                            <Star className="h-2.5 w-2.5 fill-accent text-accent" />
                             {item.metadata.rating.toFixed(1)}
                           </span>
                         )}
@@ -847,14 +847,14 @@ export default function Activity24hTab({
                             href={`https://www.imdb.com/title/${item.metadata.imdbId}/`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="hover:text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded text-[10px] font-mono text-amber-400/90 flex items-center gap-1 transition-colors"
+                            className="hover:text-accent bg-accent/10 border border-accent/20 px-1.5 py-0.5 rounded text-[10px] font-mono text-accent/90 flex items-center gap-1 transition-colors"
                           >
                             <span>IMDb: {item.metadata.imdbId}</span>
                             <ExternalLink className="h-2.5 w-2.5" />
                           </a>
                         )}
                         {item.metadata?.tmdbId && (
-                          <span className="px-2 py-0.5 rounded bg-sky-500/10 border border-sky-500/20 text-sky-400/90 font-mono text-[10px]">
+                          <span className="px-2 py-0.5 rounded bg-accent/10 border border-accent/20 text-accent/90 font-mono text-[10px]">
                             TMDb: {item.metadata.tmdbId}
                           </span>
                         )}
@@ -863,19 +863,19 @@ export default function Activity24hTab({
                             href={`https://myanimelist.net/anime/${item.metadata.malId}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="hover:text-sky-300 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded text-[10px] font-mono text-sky-300 flex items-center gap-1 transition-colors"
+                            className="hover:text-accent bg-accent/10 border border-accent/20 px-1.5 py-0.5 rounded text-[10px] font-mono text-accent flex items-center gap-1 transition-colors"
                           >
                             <span>MAL #{item.metadata.malId}</span>
                             <ExternalLink className="h-2.5 w-2.5" />
                           </a>
                         )}
                         {item.metadata?.genres && item.metadata.genres.slice(0, 2).map((g, idx) => (
-                          <span key={idx} className="px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-slate-400 text-[10px] font-medium">
+                          <span key={idx} className="px-1.5 py-0.5 rounded bg-ink/10 border border-edge text-ink-muted text-[10px] font-medium">
                             {g}
                           </span>
                         ))}
                         {item.metadata?.plays && item.metadata.plays > 1 && (
-                          <span className="text-indigo-400 text-[10px] font-semibold bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                          <span className="text-accent text-[10px] font-semibold bg-accent/10 px-1.5 py-0.5 rounded border border-accent/20">
                             {item.metadata.plays} plays logged
                           </span>
                         )}
@@ -884,21 +884,21 @@ export default function Activity24hTab({
                   </div>
 
                   {/* Right Column: Status Pill, Timestamp, External Action Button */}
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto gap-2 shrink-0 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-white/[0.06]">
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto gap-2 shrink-0 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-edge">
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-bold tracking-wide uppercase shadow-sm ${
                           item.status === "pending"
-                            ? "bg-amber-500/15 text-amber-300 border border-amber-500/35"
+                            ? "bg-accent/15 text-accent border border-accent/35"
                             : isLB
                             ? "bg-[#00E054]/15 text-[#00E054] border border-[#00E054]/35"
                             : isMAL
-                            ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/35"
-                            : "bg-slate-800 text-slate-300 border border-slate-700"
+                            ? "bg-accent/15 text-accent border border-accent/35"
+                            : "bg-elevated text-ink-muted border border-edge"
                         }`}
                       >
                         {item.status === "pending" ? (
-                          <Clock className="h-3 w-3 text-amber-400" />
+                          <Clock className="h-3 w-3 text-accent" />
                         ) : (
                           <CheckCircle2 className="h-3 w-3" />
                         )}
@@ -921,7 +921,7 @@ export default function Activity24hTab({
                           href={item.metadata.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1 sm:p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white border border-white/[0.08] transition-colors"
+                          className="p-1 sm:p-1.5 rounded-lg bg-ink/10 hover:bg-ink/5 text-ink-muted hover:text-ink border border-edge transition-colors"
                           title="Open item page"
                         >
                           <ArrowUpRight className="h-3.5 w-3.5" />
@@ -930,7 +930,7 @@ export default function Activity24hTab({
                     </div>
 
                     <span
-                      className="text-[11px] sm:text-xs text-slate-400 hover:text-slate-200 cursor-default font-mono shrink-0"
+                      className="text-[11px] sm:text-xs text-ink-muted hover:text-ink cursor-default font-mono shrink-0"
                       title={new Date(item.timestamp).toLocaleString()}
                     >
                       {formatRelativeTime(item.timestamp)}
@@ -944,13 +944,13 @@ export default function Activity24hTab({
       </div>
 
       {/* Footer Info & Permanent Deletion Guide */}
-      <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800/60 text-xs text-slate-400 flex items-start gap-2.5">
-        <Info className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
+      <div className="p-4 rounded-xl bg-surface/40 border border-edge text-xs text-ink-muted flex items-start gap-2.5">
+        <Info className="h-4 w-4 text-accent shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="text-slate-300 font-medium">Temporary Inspection Tab</p>
+          <p className="text-ink-muted font-medium">Temporary Inspection Tab</p>
           <p>
             This 24h updates tab was created for verifying your MyAnimeList & Letterboxd sync flows.
-            You can dismiss it at any time using the <span className="text-red-400 font-semibold">Delete Tab</span> button above, or ask me to delete the code after you finish your tests.
+            You can dismiss it at any time using the <span className="text-danger font-semibold">Delete Tab</span> button above, or ask me to delete the code after you finish your tests.
           </p>
         </div>
       </div>

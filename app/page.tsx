@@ -28,7 +28,7 @@ import {
   Bookmark,
   PlayCircle,
 } from "lucide-react";
-import { TraktLogo, MalLogo, LetterboxdLogo } from "@/components/icons";
+import { TraktLogo, MalLogo, LetterboxdLogo, HarborMark } from "@/components/icons";
 import Activity24hTab from "@/components/Activity24hTab";
 import LetterboxdSessionModal from "@/components/LetterboxdSessionModal";
 import WatchlistTab from "@/components/WatchlistTab";
@@ -262,28 +262,31 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#08090D] text-slate-100 py-6 sm:py-10 px-3 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-canvas text-ink py-6 sm:py-10 px-3 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
-        {/* Header - Haulix Telemetry Console */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-white/[0.08] gap-4">
+        {/* Header — Harbor lockup + telemetry */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-edge gap-4">
           <div>
-            <div className="flex items-center gap-3">
-              <img
-                src="/icon.png"
-                alt="Trakt Sync Engine Logo"
-                className="h-10 w-10 rounded-xl object-contain shadow-lg shadow-red-500/20 border border-white/[0.08] shrink-0"
+            <div className="flex items-center gap-3.5">
+              <HarborMark
+                size={40}
+                className="text-accent animate-harbor-bob shrink-0 drop-shadow-[0_8px_22px_rgb(244_162_92_/_0.28)]"
               />
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                    Trakt Sync Engine
+                  <h1 className="harbor-wordmark text-2xl sm:text-3xl font-semibold tracking-tight text-ink leading-none">
+                    Harbor
                   </h1>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-sm shrink-0">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="hidden sm:inline h-1 w-1 rounded-full bg-ink-subtle" />
+                  <span className="text-xs sm:text-sm font-medium text-ink-muted">
+                    Trakt Sync Engine
+                  </span>
+                  <span className="harbor-chip harbor-chip-success normal-case tracking-normal shrink-0">
+                    <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
                     Live 15-Min Daemon
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                <p className="text-xs text-ink-muted mt-1.5 leading-relaxed">
                   Autonomous 3-way synchronization across Trakt.tv, MyAnimeList, and Letterboxd.
                 </p>
               </div>
@@ -294,12 +297,12 @@ export default function Dashboard() {
             <button
               onClick={handleTriggerSync}
               disabled={syncing || !status?.connected?.trakt}
-              className={`w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs tracking-wider uppercase transition-all shadow-lg ${
+              className={`w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs tracking-wider uppercase transition-all ${
                 syncing
-                  ? "bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700"
+                  ? "bg-elevated text-ink-muted cursor-not-allowed border border-edge"
                   : !status?.connected?.trakt
-                  ? "bg-slate-900 text-slate-500 cursor-not-allowed border border-slate-800"
-                  : "bg-gradient-to-r from-red-600 to-indigo-600 hover:from-red-500 hover:to-indigo-500 text-white shadow-indigo-950/60 border border-white/10"
+                  ? "bg-surface text-ink-subtle cursor-not-allowed border border-edge"
+                  : "bg-accent text-canvas hover:bg-accent/85 border border-accent/40 shadow-lg shadow-accent/20"
               }`}
             >
               <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
@@ -309,17 +312,17 @@ export default function Dashboard() {
         </div>
 
         {/* Navigation Tabs - Haulix Obsidian Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-edge pb-3">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-0.5">
             <button
               onClick={() => setActiveTab("dashboard")}
               className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === "dashboard"
-                  ? "bg-[#0D111A] text-white shadow-sm border border-white/[0.12]"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+                  ? "bg-elevated text-ink border border-accent/40 shadow-sm"
+                  : "text-ink-muted hover:text-ink hover:bg-ink/5"
               }`}
             >
-              <Layers className="h-4 w-4 text-indigo-400" />
+              <Layers className="h-4 w-4 text-accent" />
               <span>Dashboard</span>
             </button>
 
@@ -327,13 +330,13 @@ export default function Dashboard() {
               onClick={() => setActiveTab("watchlist")}
               className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === "watchlist"
-                  ? "bg-[#0D111A] text-white border border-amber-500/40 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+                  ? "bg-elevated text-ink border border-accent/40 shadow-sm"
+                  : "text-ink-muted hover:text-ink hover:bg-ink/5"
               }`}
             >
-              <Bookmark className="h-4 w-4 text-amber-400" />
+              <Bookmark className="h-4 w-4 text-accent" />
               <span>Watchlist</span>
-              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-accent/20 text-accent border border-accent/30">
                 3-Way
               </span>
             </button>
@@ -342,13 +345,13 @@ export default function Dashboard() {
               onClick={() => setActiveTab("continueWatching")}
               className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === "continueWatching"
-                  ? "bg-[#0D111A] text-white border border-emerald-500/40 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+                  ? "bg-elevated text-ink border border-success/40 shadow-sm"
+                  : "text-ink-muted hover:text-ink hover:bg-ink/5"
               }`}
             >
-              <PlayCircle className="h-4 w-4 text-emerald-400" />
+              <PlayCircle className="h-4 w-4 text-success" />
               <span>Continue Watching</span>
-              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-success/20 text-success border border-success/30">
                 Active
               </span>
             </button>
@@ -357,13 +360,13 @@ export default function Dashboard() {
               onClick={() => setActiveTab("actionsDaemon")}
               className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === "actionsDaemon"
-                  ? "bg-[#0D111A] text-white border border-blue-500/40 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+                  ? "bg-elevated text-ink border border-accent/40 shadow-sm"
+                  : "text-ink-muted hover:text-ink hover:bg-ink/5"
               }`}
             >
-              <Bot className="h-4 w-4 text-blue-400" />
+              <Bot className="h-4 w-4 text-accent" />
               <span>Actions Daemon</span>
-              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-accent/20 text-accent border border-accent/30">
                 Live
               </span>
             </button>
@@ -373,13 +376,13 @@ export default function Dashboard() {
                 onClick={() => setActiveTab("activity24h")}
                 className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                   activeTab === "activity24h"
-                    ? "bg-[#0D111A] text-white border border-indigo-500/40 shadow-sm"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+                    ? "bg-elevated text-ink border border-accent/40 shadow-sm"
+                    : "text-ink-muted hover:text-ink hover:bg-ink/5"
                 }`}
               >
-                <Clock className="h-4 w-4 text-red-400" />
+                <Clock className="h-4 w-4 text-danger" />
                 <span>24h Updates <span className="hidden sm:inline">& Posters</span></span>
-                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
+                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-danger/20 text-danger border border-danger/30">
                   Live Log
                 </span>
               </button>
@@ -389,7 +392,7 @@ export default function Dashboard() {
                   setIsActivityTabDeleted(false);
                   setActiveTab("activity24h");
                 }}
-                className="shrink-0 text-xs text-slate-500 hover:text-indigo-400 px-3 py-1.5 flex items-center gap-1.5 transition-colors font-medium"
+                className="shrink-0 text-xs text-ink-subtle hover:text-accent px-3 py-1.5 flex items-center gap-1.5 transition-colors font-medium"
                 title="Restore the 24h activity tab"
               >
                 <span>+ Restore 24h Updates Tab</span>
@@ -404,15 +407,15 @@ export default function Dashboard() {
                   setIsActivityTabDeleted(true);
                   setActiveTab("dashboard");
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.08] hover:border-red-900/60 bg-red-950/20 text-xs text-slate-400 hover:text-red-300 transition-colors font-medium"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-edge hover:border-danger/20 bg-danger/10 text-xs text-ink-muted hover:text-danger transition-colors font-medium"
                 title="Dismiss or delete this inspection tab"
               >
-                <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                <Trash2 className="h-3.5 w-3.5 text-danger" />
                 <span>Delete Tab</span>
               </button>
             )}
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-emerald-950/40 text-emerald-400 border border-emerald-800/40 font-mono">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-success/10 text-success border border-success/30 font-mono">
+              <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
               15-Min Engine Active
             </span>
           </div>
@@ -435,15 +438,15 @@ export default function Dashboard() {
           <>
             {/* Global Error Banner */}
         {errorMsg && (
-          <div className="p-4 rounded-xl bg-red-950/40 border border-red-800/60 text-red-200 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+          <div className="p-4 rounded-xl bg-danger/10 border border-danger/30 text-ink flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-danger shrink-0 mt-0.5" />
             <div className="text-sm flex-1">
               <p className="font-semibold">Notice</p>
-              <p className="text-red-300/90 mt-0.5">{errorMsg}</p>
+              <p className="text-danger/90 mt-0.5">{errorMsg}</p>
             </div>
             <button
               onClick={() => setErrorMsg(null)}
-              className="text-xs text-red-400 hover:text-red-200"
+              className="text-xs text-danger hover:text-ink"
             >
               Dismiss
             </button>
@@ -452,11 +455,11 @@ export default function Dashboard() {
 
         {/* Environment / Credentials Check Alert */}
         {status && (!status.envConfigured.trakt || !status.envConfigured.mal) && (
-          <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-800/50 text-amber-200 flex items-start gap-3">
-            <Settings className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="p-4 rounded-xl bg-accent/10 border border-accent/30 text-ink flex items-start gap-3">
+            <Settings className="h-5 w-5 text-accent shrink-0 mt-0.5" />
             <div className="text-sm">
               <p className="font-semibold">Setup Credentials in .env</p>
-              <p className="text-amber-300/80 mt-0.5">
+              <p className="text-accent/80 mt-0.5">
                 Missing API keys:{" "}
                 {[
                   !status.envConfigured.trakt && "TRAKT_CLIENT_ID / SECRET",
@@ -464,7 +467,7 @@ export default function Dashboard() {
                 ]
                   .filter(Boolean)
                   .join(", ")}
-                . Copy <code className="bg-amber-950/80 px-1 py-0.5 rounded text-amber-300">.env.example</code> to <code className="bg-amber-950/80 px-1 py-0.5 rounded text-amber-300">.env</code> and fill in your developer keys.
+                . Copy <code className="bg-accent/10 px-1 py-0.5 rounded text-accent">.env.example</code> to <code className="bg-accent/10 px-1 py-0.5 rounded text-accent">.env</code> and fill in your developer keys.
               </p>
             </div>
           </div>
@@ -473,38 +476,38 @@ export default function Dashboard() {
         {/* 3 Main Connection Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* 1. Trakt Card */}
-          <div className="p-5 sm:p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#ED1C24] hover:border-slate-700/80 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
+          <div className="p-5 sm:p-6 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-[#ED1C24] hover:border-ink-subtle/40 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-red-600/10 flex items-center justify-center border border-red-500/20">
+                  <div className="h-8 w-8 rounded-lg bg-danger/10 flex items-center justify-center border border-danger/20">
                     <TraktLogo size={18} className="text-[#ED1C24]" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white">Trakt.tv</h3>
-                    <p className="text-xs text-slate-400">Primary Source</p>
+                    <h3 className="font-semibold text-ink">Trakt.tv</h3>
+                    <p className="text-xs text-ink-muted">Primary Source</p>
                   </div>
                 </div>
                 {status?.connected?.trakt ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success border border-success/30">
                     <CheckCircle2 className="h-3 w-3" /> Connected
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-elevated text-ink-muted">
                     Disconnected
                   </span>
                 )}
               </div>
 
               {status?.connected?.trakt && status.profiles.trakt && !showTraktInput ? (
-                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/60 flex items-center gap-3.5">
+                <div className="p-3.5 rounded-xl bg-surface/60 border border-edge flex items-center gap-3.5">
                   <div className="relative shrink-0">
                     {status.profiles.trakt.avatar ? (
                       <img
                         src={`/api/proxy/image?url=${encodeURIComponent(status.profiles.trakt.avatar)}`}
                         alt={status.profiles.trakt.username}
                         referrerPolicy="no-referrer"
-                        className="h-12 w-12 rounded-full border-2 border-red-500/60 object-cover shadow-md"
+                        className="h-12 w-12 rounded-full border-2 border-danger/60 object-cover shadow-md"
                         onError={(e) => {
                           const target = e.currentTarget;
                           if (!target.dataset.fallback) {
@@ -516,26 +519,26 @@ export default function Dashboard() {
                         }}
                       />
                     ) : (
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-red-600 to-red-800 text-white font-bold flex items-center justify-center border-2 border-red-500/50 shadow-md">
+                      <div className="h-12 w-12 rounded-full bg-danger/15 text-ink font-bold flex items-center justify-center border-2 border-danger/50 shadow-md">
                         {status.profiles.trakt.username[0]?.toUpperCase()}
                       </div>
                     )}
-                    <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-[#ED1C24] p-0.5 border-2 border-[#0B0F19] flex items-center justify-center shadow">
-                      <TraktLogo size={10} className="text-white" />
+                    <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-[#ED1C24] p-0.5 border-2 border-canvas flex items-center justify-center shadow">
+                      <TraktLogo size={10} className="text-ink" />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">
+                    <p className="text-sm font-semibold text-ink truncate">
                       {status.profiles.trakt.name || status.profiles.trakt.username}
                     </p>
-                    <p className="text-xs text-slate-400 truncate">
+                    <p className="text-xs text-ink-muted truncate">
                       @{status.profiles.trakt.username}
                     </p>
                     <a
                       href={`https://trakt.tv/users/${status.profiles.trakt.username}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300 font-medium mt-0.5 transition-colors"
+                      className="inline-flex items-center gap-1 text-[11px] text-danger hover:text-danger font-medium mt-0.5 transition-colors"
                     >
                       View Profile
                       <ExternalLink className="h-2.5 w-2.5" />
@@ -545,7 +548,7 @@ export default function Dashboard() {
               ) : (
                 <form onSubmit={handleSaveTraktUsername} className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1">
+                    <label className="block text-xs font-medium text-ink-muted mb-1">
                       Trakt Username
                     </label>
                     <input
@@ -553,14 +556,14 @@ export default function Dashboard() {
                       placeholder="e.g. your_username"
                       value={traktUsernameInput}
                       onChange={(e) => setTraktUsernameInput(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                      className="w-full px-3 py-2 rounded-xl bg-surface border border-edge text-sm text-ink placeholder-ink-subtle focus:outline-none focus:ring-1 focus:ring-danger"
                     />
                   </div>
                   <div className="flex gap-2">
                     <button
                       type="submit"
                       disabled={traktSaving || !traktUsernameInput.trim()}
-                      className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-50"
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold bg-danger hover:bg-danger/85 text-ink transition-colors disabled:opacity-50"
                     >
                       {traktSaving ? "Connecting..." : status?.connected?.trakt ? "Save Changes" : "Connect Trakt"}
                     </button>
@@ -568,7 +571,7 @@ export default function Dashboard() {
                       <button
                         type="button"
                         onClick={() => setShowTraktInput(false)}
-                        className="px-3 py-2.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                        className="px-3 py-2.5 rounded-xl text-xs font-medium bg-elevated hover:bg-raised text-ink-muted transition-colors"
                       >
                         Cancel
                       </button>
@@ -578,7 +581,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="pt-4 border-t border-slate-800/60">
+            <div className="pt-4 border-t border-edge">
               {status?.connected?.trakt ? (
                 <div className="flex items-center justify-between text-xs">
                   <button
@@ -587,23 +590,23 @@ export default function Dashboard() {
                       setTraktUsernameInput(status.profiles.trakt?.username || "");
                       setShowTraktInput(!showTraktInput);
                     }}
-                    className="text-slate-400 hover:text-slate-200 transition-colors"
+                    className="text-ink-muted hover:text-ink transition-colors"
                   >
                     {showTraktInput ? "Close Edit" : "Change Username"}
                   </button>
                   <a
                     href="/api/auth/trakt/authorize"
-                    className="text-slate-500 hover:text-slate-300 transition-colors"
+                    className="text-ink-subtle hover:text-ink-muted transition-colors"
                   >
                     Use OAuth
                   </a>
                 </div>
               ) : (
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <div className="flex items-center justify-between text-[11px] text-ink-muted">
                   <span>Keeps cinejoy connected</span>
                   <a
                     href="/api/auth/trakt/authorize"
-                    className="text-red-400 hover:text-red-300 transition-colors"
+                    className="text-danger hover:text-danger transition-colors"
                   >
                     Use OAuth
                   </a>
@@ -613,38 +616,38 @@ export default function Dashboard() {
           </div>
 
           {/* 2. MyAnimeList Card */}
-          <div className="p-5 sm:p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#3B82F6] hover:border-slate-700/80 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
+          <div className="p-5 sm:p-6 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-accent hover:border-ink-subtle/40 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-blue-600/10 flex items-center justify-center border border-blue-500/20">
+                  <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center border border-accent/20">
                     <MalLogo size={18} className="text-[#2E51A2]" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white">MyAnimeList</h3>
-                    <p className="text-xs text-slate-400">Anime Sync</p>
+                    <h3 className="font-semibold text-ink">MyAnimeList</h3>
+                    <p className="text-xs text-ink-muted">Anime Sync</p>
                   </div>
                 </div>
                 {status?.connected?.mal ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success border border-success/30">
                     <CheckCircle2 className="h-3 w-3" /> Connected
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-elevated text-ink-muted">
                     Disconnected
                   </span>
                 )}
               </div>
 
               {status?.connected?.mal && status.profiles.mal ? (
-                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/60 flex items-center gap-3.5">
+                <div className="p-3.5 rounded-xl bg-surface/60 border border-edge flex items-center gap-3.5">
                   <div className="relative shrink-0">
                     {status.profiles.mal.picture ? (
                       <img
                         src={`/api/proxy/image?url=${encodeURIComponent(status.profiles.mal.picture)}`}
                         alt={status.profiles.mal.name}
                         referrerPolicy="no-referrer"
-                        className="h-12 w-12 rounded-full border-2 border-blue-500/60 object-cover shadow-md"
+                        className="h-12 w-12 rounded-full border-2 border-accent/60 object-cover shadow-md"
                         onError={(e) => {
                           const target = e.currentTarget;
                           if (!target.dataset.fallback) {
@@ -656,26 +659,26 @@ export default function Dashboard() {
                         }}
                       />
                     ) : (
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-blue-700 to-indigo-800 text-white font-bold flex items-center justify-center border-2 border-blue-500/50 shadow-md">
+                      <div className="h-12 w-12 rounded-full bg-accent/15 text-ink font-bold flex items-center justify-center border-2 border-accent/50 shadow-md">
                         {status.profiles.mal.name[0]?.toUpperCase()}
                       </div>
                     )}
-                    <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-[#2E51A2] p-0.5 border-2 border-[#0B0F19] flex items-center justify-center shadow">
-                      <MalLogo size={10} className="text-white" />
+                    <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-[#2E51A2] p-0.5 border-2 border-canvas flex items-center justify-center shadow">
+                      <MalLogo size={10} className="text-ink" />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">
+                    <p className="text-sm font-semibold text-ink truncate">
                       {status.profiles.mal.name}
                     </p>
-                    <p className="text-xs text-slate-400 truncate">
+                    <p className="text-xs text-ink-muted truncate">
                       MAL ID: #{status.profiles.mal.id}
                     </p>
                     <a
                       href={`https://myanimelist.net/profile/${status.profiles.mal.name}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 font-medium mt-0.5 transition-colors"
+                      className="inline-flex items-center gap-1 text-[11px] text-accent hover:text-accent font-medium mt-0.5 transition-colors"
                     >
                       View Profile
                       <ExternalLink className="h-2.5 w-2.5" />
@@ -683,7 +686,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <p className="text-xs text-ink-muted leading-relaxed">
                   Connect your MAL profile via PKCE OAuth. Trakt watched anime progress will automatically update your MAL list.
                 </p>
               )}
@@ -693,7 +696,7 @@ export default function Dashboard() {
               {!status?.connected?.mal ? (
                 <a
                   href="/api/auth/mal/authorize"
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-accent hover:bg-accent/85 text-canvas transition-colors"
                 >
                   Connect MAL
                   <ArrowRight className="h-4 w-4" />
@@ -701,7 +704,7 @@ export default function Dashboard() {
               ) : (
                 <a
                   href="/api/auth/mal/authorize"
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-medium bg-elevated hover:bg-raised text-ink-muted transition-colors"
                 >
                   Reconnect MAL
                 </a>
@@ -710,38 +713,38 @@ export default function Dashboard() {
           </div>
 
           {/* 3. Letterboxd Card */}
-          <div className="md:col-span-2 lg:col-span-1 p-5 sm:p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#00E054] hover:border-slate-700/80 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
+          <div className="md:col-span-2 lg:col-span-1 p-5 sm:p-6 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-[#00E054] hover:border-ink-subtle/40 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-emerald-600/10 flex items-center justify-center border border-emerald-500/20">
+                  <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center border border-success/20">
                     <LetterboxdLogo size={20} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white">Letterboxd</h3>
-                    <p className="text-xs text-slate-400">CSV & RSS Sync</p>
+                    <h3 className="font-semibold text-ink">Letterboxd</h3>
+                    <p className="text-xs text-ink-muted">CSV & RSS Sync</p>
                   </div>
                 </div>
                 {status?.connected?.letterboxd ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success border border-success/30">
                     <CheckCircle2 className="h-3 w-3" /> Linked
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-elevated text-ink-muted">
                     Unlinked
                   </span>
                 )}
               </div>
 
               {status?.connected?.letterboxd && status.profiles.letterboxd && !showLbInput ? (
-                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/60 flex items-center gap-3.5">
+                <div className="p-3.5 rounded-xl bg-surface/60 border border-edge flex items-center gap-3.5">
                   <div className="relative shrink-0">
                     {status.profiles.letterboxd.avatar ? (
                       <img
                         src={`/api/proxy/image?url=${encodeURIComponent(status.profiles.letterboxd.avatar)}`}
                         alt={status.profiles.letterboxd.username}
                         referrerPolicy="no-referrer"
-                        className="h-12 w-12 rounded-full border-2 border-emerald-500/60 object-cover shadow-md"
+                        className="h-12 w-12 rounded-full border-2 border-success/60 object-cover shadow-md"
                         onError={(e) => {
                           const target = e.currentTarget;
                           if (!target.dataset.fallback) {
@@ -755,7 +758,7 @@ export default function Dashboard() {
                     ) : (
                       <div className="h-12 w-12 rounded-full p-[2px] bg-gradient-to-tr from-[#FF8000] via-[#00E054] to-[#40BCF4] shadow-md flex items-center justify-center">
                         <div className="h-full w-full rounded-full bg-[#14181C] flex flex-col items-center justify-center">
-                          <span className="text-white font-bold text-xs leading-none">
+                          <span className="text-ink font-bold text-xs leading-none">
                             {status.profiles.letterboxd.username[0]?.toUpperCase()}
                           </span>
                           <div className="flex gap-0.5 mt-0.5">
@@ -766,22 +769,22 @@ export default function Dashboard() {
                         </div>
                       </div>
                     )}
-                    <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-[#14181C] p-0.5 border-2 border-[#0B0F19] flex items-center justify-center shadow">
+                    <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-[#14181C] p-0.5 border-2 border-canvas flex items-center justify-center shadow">
                       <LetterboxdLogo size={10} />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">
+                    <p className="text-sm font-semibold text-ink truncate">
                       {status.profiles.letterboxd.displayName || status.profiles.letterboxd.username}
                     </p>
-                    <p className="text-xs text-slate-400 truncate">
+                    <p className="text-xs text-ink-muted truncate">
                       @{status.profiles.letterboxd.username}
                     </p>
                     <a
                       href={`https://letterboxd.com/${status.profiles.letterboxd.username}/`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 font-medium mt-0.5 transition-colors"
+                      className="inline-flex items-center gap-1 text-[11px] text-success hover:text-success font-medium mt-0.5 transition-colors"
                     >
                       View Profile
                       <ExternalLink className="h-2.5 w-2.5" />
@@ -791,7 +794,7 @@ export default function Dashboard() {
               ) : (
                 <form onSubmit={handleSaveLetterboxd} className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1">
+                    <label className="block text-xs font-medium text-ink-muted mb-1">
                       Letterboxd Username
                     </label>
                     <input
@@ -799,12 +802,12 @@ export default function Dashboard() {
                       placeholder="e.g. christopher_nolan"
                       value={lbUsername}
                       onChange={(e) => setLbUsername(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="w-full px-3 py-2 rounded-xl bg-surface border border-edge text-sm text-ink placeholder-ink-subtle focus:outline-none focus:ring-1 focus:ring-accent"
                     />
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-medium text-slate-400">
+                      <label className="block text-xs font-medium text-ink-muted">
                         Profile Photo URL (optional)
                       </label>
                       <div className="flex items-center gap-2 text-[10px]">
@@ -812,7 +815,7 @@ export default function Dashboard() {
                           <button
                             type="button"
                             onClick={() => setLbAvatarUrl(status.profiles.trakt!.avatar!)}
-                            className="text-red-400 hover:text-red-300 underline"
+                            className="text-danger hover:text-danger underline"
                           >
                             Use Trakt Photo
                           </button>
@@ -821,7 +824,7 @@ export default function Dashboard() {
                           <button
                             type="button"
                             onClick={() => setLbAvatarUrl(status.profiles.mal!.picture!)}
-                            className="text-blue-400 hover:text-blue-300 underline"
+                            className="text-accent hover:text-accent underline"
                           >
                             Use MAL Photo
                           </button>
@@ -833,14 +836,14 @@ export default function Dashboard() {
                       placeholder="https://... (or right click avatar -> Copy Image Link)"
                       value={lbAvatarUrl}
                       onChange={(e) => setLbAvatarUrl(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="w-full px-3 py-1.5 rounded-xl bg-surface border border-edge text-xs text-ink placeholder-ink-subtle focus:outline-none focus:ring-1 focus:ring-accent"
                     />
                   </div>
                   <div className="flex gap-2">
                     <button
                       type="submit"
                       disabled={lbSaving || !lbUsername.trim()}
-                      className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50"
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-success hover:bg-success/85 text-canvas transition-colors disabled:opacity-50"
                     >
                       {lbSaving ? "Saving..." : status?.connected?.letterboxd ? "Save Changes" : "Save Username"}
                     </button>
@@ -848,7 +851,7 @@ export default function Dashboard() {
                       <button
                         type="button"
                         onClick={() => setShowLbInput(false)}
-                        className="px-3 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                        className="px-3 py-2 rounded-xl text-xs font-medium bg-elevated hover:bg-raised text-ink-muted transition-colors"
                       >
                         Cancel
                       </button>
@@ -858,7 +861,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="pt-4 border-t border-slate-800/60">
+            <div className="pt-4 border-t border-edge">
               <div className="flex items-center justify-between text-xs">
                 {status?.connected?.letterboxd ? (
                   <button
@@ -868,21 +871,21 @@ export default function Dashboard() {
                       setLbAvatarUrl(status.profiles.letterboxd?.avatar || "");
                       setShowLbInput(!showLbInput);
                     }}
-                    className="text-slate-400 hover:text-slate-200 transition-colors"
+                    className="text-ink-muted hover:text-ink transition-colors"
                   >
                     {showLbInput ? "Close Edit" : "Edit Profile"}
                   </button>
                 ) : (
-                  <span className="text-[11px] text-slate-500">Unlinked Profile</span>
+                  <span className="text-[11px] text-ink-subtle">Unlinked Profile</span>
                 )}
 
                 <button
                   type="button"
                   onClick={() => setShowSessionModal(true)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/40 hover:bg-emerald-950/70 border border-emerald-800/50 text-[11px] font-medium text-emerald-300 hover:text-emerald-200 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-success/10 hover:bg-success/10 border border-success/30 text-[11px] font-medium text-success hover:text-ink transition-colors"
                   title="Update Letterboxd session via browser cookie extension"
                 >
-                  <Key className="h-3 w-3 text-emerald-400" />
+                  <Key className="h-3 w-3 text-success" />
                   <span>Session Cookies</span>
                 </button>
               </div>
@@ -891,20 +894,20 @@ export default function Dashboard() {
         </div>
 
         {/* Letterboxd 1-Click CSV Export & Playwright Automation Deck */}
-        <div className="p-4 sm:p-6 rounded-2xl bg-[#0D111A]/95 border border-white/[0.08] space-y-4 sm:space-y-5 shadow-sm">
+        <div className="p-4 sm:p-6 rounded-2xl bg-surface/95 border border-edge space-y-4 sm:space-y-5 shadow-sm">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
                 <LetterboxdLogo size={22} />
-                <h2 className="text-base sm:text-lg font-semibold text-white">
+                <h2 className="text-base sm:text-lg font-semibold text-ink">
                   Letterboxd 1-Click Import Tool
                 </h2>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-success/10 text-success border border-success/30">
                   <Bot className="h-3 w-3" />
                   Playwright Enabled
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-ink-muted mt-1 max-w-2xl leading-relaxed">
                 Because Letterboxd lacks a public open-write API, this engine formats your entire Trakt movie history into standard Letterboxd import CSV files (with verified TMDB & IMDb IDs) and can automate the browser upload via Playwright.
               </p>
             </div>
@@ -917,7 +920,7 @@ export default function Dashboard() {
                   setAutoImportError(null);
                   setAutoImportMessage(null);
                 }}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-teal-500 text-white transition-all shadow-lg shadow-emerald-950/50"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-success hover:bg-success/85 text-canvas transition-all shadow-lg shadow-success/10"
               >
                 <Bot className="h-4 w-4" />
                 {showAutoImportModal ? "Close Automation" : "Auto-Upload (Playwright)"}
@@ -925,17 +928,17 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => setShowSessionModal(true)}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-elevated hover:bg-raised text-ink border border-edge transition-colors"
                 title="Update Letterboxd session via browser cookie extension"
               >
-                <Key className="h-4 w-4 text-emerald-400" />
+                <Key className="h-4 w-4 text-success" />
                 <span>Update Session</span>
               </button>
               <div className="grid grid-cols-2 sm:flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
                 <a
                   href="/api/export/letterboxd?type=watched"
                   download
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors text-center"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-elevated hover:bg-raised text-ink border border-edge transition-colors text-center"
                 >
                   <Download className="h-4 w-4 shrink-0" />
                   <span>Watched CSV</span>
@@ -943,7 +946,7 @@ export default function Dashboard() {
                 <a
                   href="/api/export/letterboxd?type=ratings"
                   download
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors text-center"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-elevated hover:bg-raised text-ink border border-edge transition-colors text-center"
                 >
                   <Download className="h-4 w-4 shrink-0" />
                   <span>Ratings CSV</span>
@@ -953,7 +956,7 @@ export default function Dashboard() {
                 href="https://letterboxd.com/import/"
                 target="_blank"
                 rel="noreferrer"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-ink-muted hover:text-ink transition-colors"
               >
                 <span>Open Importer</span>
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -963,19 +966,19 @@ export default function Dashboard() {
 
           {/* Playwright Automation Interactive Drawer */}
           {showAutoImportModal && (
-            <div className="p-4 sm:p-5 rounded-xl bg-slate-900/90 border border-emerald-900/40 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="p-4 sm:p-5 rounded-xl bg-surface/90 border border-success/20 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-edge">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-800/50">
+                  <div className="p-1.5 rounded-lg bg-success/10 text-success border border-success/30">
                     <Bot className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-white">
+                    <h3 className="text-sm font-semibold text-ink">
                       {isCloudHost
                         ? "15-Minute Background Automation Daemon"
                         : "Automated Browser Import (Playwright)"}
                     </h3>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-ink-muted">
                       {isCloudHost
                         ? "Letterboxd automation runs locally on your computer via headless Playwright."
                         : "Launches a visible Chromium browser to log in, transfer the CSV, and resolve matching titles."}
@@ -985,64 +988,64 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setShowAutoImportModal(false)}
-                  className="text-slate-400 hover:text-slate-200 p-1"
+                  className="text-ink-muted hover:text-ink p-1"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
               {autoImportMessage && (
-                <div className="p-3 rounded-lg bg-emerald-950/60 border border-emerald-800/80 text-emerald-200 text-xs flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-lg bg-success/10 border border-success/30 text-ink text-xs flex items-start gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold">Automation Initiated</p>
-                    <p className="text-emerald-300/90 mt-0.5">{autoImportMessage}</p>
+                    <p className="text-success/90 mt-0.5">{autoImportMessage}</p>
                   </div>
                 </div>
               )}
 
               {autoImportError && (
-                <div className="p-3 rounded-lg bg-red-950/60 border border-red-800/80 text-red-200 text-xs flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-lg bg-danger/10 border border-danger/30 text-ink text-xs flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-danger shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold">Automation Error</p>
-                    <p className="text-red-300/90 mt-0.5">{autoImportError}</p>
+                    <p className="text-danger/90 mt-0.5">{autoImportError}</p>
                   </div>
                 </div>
               )}
 
               {isCloudHost ? (
                 <div className="space-y-4">
-                  <div className="p-4 rounded-xl bg-slate-950/80 border border-emerald-900/50 space-y-3">
+                  <div className="p-4 rounded-xl bg-canvas/80 border border-success/20 space-y-3">
                     <div className="flex items-start gap-3">
-                      <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
+                      <div className="p-2 rounded-lg bg-success/10 border border-success/20 text-success shrink-0">
                         <Terminal className="h-5 w-5" />
                       </div>
                       <div className="space-y-1">
-                        <h4 className="text-sm font-semibold text-white">
+                        <h4 className="text-sm font-semibold text-ink">
                           Run Hands-Free Background Daemon
                         </h4>
-                        <p className="text-xs text-slate-300 leading-relaxed">
+                        <p className="text-xs text-ink-muted leading-relaxed">
                           Because Letterboxd does not provide an official API, syncing movies into your account requires browser automation (Playwright). Cloud serverless platforms (like Vercel) run in isolated containers without a display and cannot control your local desktop browser.
                         </p>
-                        <p className="text-xs text-slate-400 leading-relaxed">
+                        <p className="text-xs text-ink-muted leading-relaxed">
                           To have your movies and anime sync completely automatically every 15 minutes, run this command once on your computer:
                         </p>
                       </div>
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
-                      <div className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-emerald-300">
+                      <div className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-surface border border-edge font-mono text-xs text-success">
                         <code>npm run schedule:letterboxd -- --headless</code>
                       </div>
                       <button
                         type="button"
                         onClick={handleCopyDaemon}
-                        className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-md shadow-emerald-950/50"
+                        className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-success hover:bg-success/85 text-canvas transition-colors shadow-md shadow-success/10"
                       >
                         {copiedDaemon ? (
                           <>
-                            <Check className="h-4 w-4 text-emerald-200" />
+                            <Check className="h-4 w-4 text-ink" />
                             Copied!
                           </>
                         ) : (
@@ -1054,48 +1057,48 @@ export default function Dashboard() {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 text-[11px] text-slate-400">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 text-[11px] text-ink-muted">
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
                         <span>Checks Trakt every 15 minutes</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
                         <span>0% CPU quiet sleep when nothing watched</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
                         <span>Updates MAL anime episodes & completed status</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
                         <span>Auto-imports & confirms movies into Letterboxd</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 space-y-3">
-                    <h4 className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                      <Download className="h-3.5 w-3.5 text-indigo-400" />
+                  <div className="p-4 rounded-xl bg-canvas/50 border border-edge space-y-3">
+                    <h4 className="text-xs font-semibold text-ink-muted flex items-center gap-1.5">
+                      <Download className="h-3.5 w-3.5 text-accent" />
                       Alternative: 1-Click Manual Import from Browser
                     </h4>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-ink-muted">
                       You can also download your real-time verified CSV right now and drop it into Letterboxd:
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
                       <a
                         href="/api/export/letterboxd?type=watched"
                         download
-                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition-colors"
+                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium bg-elevated hover:bg-raised text-ink border border-edge transition-colors"
                       >
-                        <Download className="h-3.5 w-3.5 text-emerald-400" />
+                        <Download className="h-3.5 w-3.5 text-success" />
                         Download Watched CSV
                       </a>
                       <a
                         href="https://letterboxd.com/import/"
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300 border border-indigo-800/40 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium bg-accent/10 hover:bg-accent/10 text-accent border border-accent/30 transition-colors"
                       >
                         Open Letterboxd Importer
                         <ExternalLink className="h-3.5 w-3.5" />
@@ -1108,7 +1111,7 @@ export default function Dashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* CSV Export Type */}
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
+                      <label className="block text-xs font-medium text-ink-muted mb-1">
                         Data to Import
                       </label>
                       <div className="grid grid-cols-2 gap-2">
@@ -1117,33 +1120,33 @@ export default function Dashboard() {
                           onClick={() => setAutoImportType("watched")}
                           className={`px-3 py-2 rounded-xl text-xs font-medium text-left border transition-all ${
                             autoImportType === "watched"
-                              ? "bg-emerald-950/60 border-emerald-500 text-white shadow-sm shadow-emerald-900/40"
-                              : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700"
+                              ? "bg-success/10 border-success text-ink shadow-sm shadow-success/10"
+                              : "bg-surface border-edge text-ink-muted hover:border-ink-subtle/40"
                           }`}
                         >
                           <p className="font-semibold">Watched Movies</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">Watch dates + IDs</p>
+                          <p className="text-[10px] text-ink-subtle mt-0.5">Watch dates + IDs</p>
                         </button>
                         <button
                           type="button"
                           onClick={() => setAutoImportType("ratings")}
                           className={`px-3 py-2 rounded-xl text-xs font-medium text-left border transition-all ${
                             autoImportType === "ratings"
-                              ? "bg-emerald-950/60 border-emerald-500 text-white shadow-sm shadow-emerald-900/40"
-                              : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700"
+                              ? "bg-success/10 border-success text-ink shadow-sm shadow-success/10"
+                              : "bg-surface border-edge text-ink-muted hover:border-ink-subtle/40"
                           }`}
                         >
                           <p className="font-semibold">Movie Ratings</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">0.5 to 5.0 stars</p>
+                          <p className="text-[10px] text-ink-subtle mt-0.5">0.5 to 5.0 stars</p>
                         </button>
                       </div>
                     </div>
 
                     {/* Letterboxd Password */}
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center justify-between">
+                      <label className="block text-xs font-medium text-ink-muted mb-1 flex items-center justify-between">
                         <span>Letterboxd Password</span>
-                        <span className="text-[10px] text-slate-500">
+                        <span className="text-[10px] text-ink-subtle">
                           (or set LETTERBOXD_PASSWORD in .env)
                         </span>
                       </label>
@@ -1153,44 +1156,44 @@ export default function Dashboard() {
                           placeholder="••••••••••••"
                           value={autoImportPassword}
                           onChange={(e) => setAutoImportPassword(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 pr-8"
+                          className="w-full px-3 py-2 rounded-xl bg-surface border border-edge text-xs text-ink placeholder-ink-subtle focus:outline-none focus:ring-1 focus:ring-accent pr-8"
                         />
-                        <Lock className="h-3.5 w-3.5 text-slate-500 absolute right-3 top-2.5" />
+                        <Lock className="h-3.5 w-3.5 text-ink-subtle absolute right-3 top-2.5" />
                       </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* Auto Confirm Checkbox */}
-                    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-canvas/60 border border-edge">
                       <input
                         type="checkbox"
                         id="autoConfirm"
                         checked={autoImportAutoConfirm || autoImportRecurring}
                         disabled={autoImportRecurring}
                         onChange={(e) => setAutoImportAutoConfirm(e.target.checked)}
-                        className="mt-0.5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500"
+                        className="mt-0.5 rounded border-edge bg-surface text-success focus:ring-accent"
                       />
-                      <label htmlFor="autoConfirm" className="text-xs text-slate-300 cursor-pointer">
-                        <span className="font-medium text-white">Auto-click "Import" button</span>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
+                      <label htmlFor="autoConfirm" className="text-xs text-ink-muted cursor-pointer">
+                        <span className="font-medium text-ink">Auto-click "Import" button</span>
+                        <p className="text-[11px] text-ink-muted mt-0.5">
                           Automatically confirms Letterboxd title matching without manual intervention.
                         </p>
                       </label>
                     </div>
 
                     {/* Recurring 15-Minute Sync Checkbox */}
-                    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-emerald-950/20 border border-emerald-800/40">
+                    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-success/10 border border-success/30">
                       <input
                         type="checkbox"
                         id="recurringSync"
                         checked={autoImportRecurring}
                         onChange={(e) => setAutoImportRecurring(e.target.checked)}
-                        className="mt-0.5 rounded border-emerald-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500"
+                        className="mt-0.5 rounded border-success bg-surface text-success focus:ring-accent"
                       />
-                      <label htmlFor="recurringSync" className="text-xs text-emerald-300 cursor-pointer">
-                        <span className="font-medium text-white">Auto-sync every 15 minutes</span>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
+                      <label htmlFor="recurringSync" className="text-xs text-success cursor-pointer">
+                        <span className="font-medium text-ink">Auto-sync every 15 minutes</span>
+                        <p className="text-[11px] text-ink-muted mt-0.5">
                           Monitors Trakt every 15 mins. Remains quiet unless you watch a new movie.
                         </p>
                       </label>
@@ -1198,11 +1201,11 @@ export default function Dashboard() {
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                    <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-2">
+                    <div className="text-[11px] text-ink-muted flex flex-wrap items-center gap-2">
                       <div className="flex items-center gap-1.5">
-                        <Terminal className="h-3.5 w-3.5 text-slate-500" />
+                        <Terminal className="h-3.5 w-3.5 text-ink-subtle" />
                         <span>Daemon: </span>
-                        <code className="text-emerald-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                        <code className="text-success bg-canvas px-2 py-0.5 rounded border border-edge">
                           npm run schedule:letterboxd
                         </code>
                       </div>
@@ -1211,7 +1214,7 @@ export default function Dashboard() {
                     <button
                       type="submit"
                       disabled={autoImportLoading || !status?.connected?.trakt}
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50 shadow-md shadow-emerald-950/50"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-success hover:bg-success/85 text-canvas transition-colors disabled:opacity-50 shadow-md shadow-success/10"
                     >
                       <Play className={`h-3.5 w-3.5 ${autoImportLoading ? "animate-spin" : ""}`} />
                       {autoImportLoading
@@ -1229,13 +1232,13 @@ export default function Dashboard() {
 
         {/* Live Sync Result Panel */}
         {syncResult && (
-          <div className="p-4 sm:p-6 rounded-2xl bg-[#0B0F19] border border-indigo-900/40 space-y-4">
+          <div className="p-4 sm:p-6 rounded-2xl bg-surface border border-accent/20 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+              <h3 className="font-semibold text-ink flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-success" />
                 Sync Execution Report
               </h3>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-ink-muted">
                 {new Date(syncResult.timestamp).toLocaleTimeString()}
               </span>
             </div>
@@ -1243,27 +1246,27 @@ export default function Dashboard() {
             {syncResult.anime && (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                    <p className="text-xs text-slate-400">Trakt Shows Scanned</p>
-                    <p className="text-lg font-bold text-white mt-1">
+                  <div className="p-3 rounded-xl bg-surface border border-edge">
+                    <p className="text-xs text-ink-muted">Trakt Shows Scanned</p>
+                    <p className="text-lg font-bold text-ink mt-1">
                       {syncResult.anime.totalTraktShows}
                     </p>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                    <p className="text-xs text-slate-400">Anime Identified</p>
-                    <p className="text-lg font-bold text-indigo-400 mt-1">
+                  <div className="p-3 rounded-xl bg-surface border border-edge">
+                    <p className="text-xs text-ink-muted">Anime Identified</p>
+                    <p className="text-lg font-bold text-accent mt-1">
                       {syncResult.anime.animeIdentified}
                     </p>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                    <p className="text-xs text-slate-400">MAL ID Matches</p>
-                    <p className="text-lg font-bold text-emerald-400 mt-1">
+                  <div className="p-3 rounded-xl bg-surface border border-edge">
+                    <p className="text-xs text-ink-muted">MAL ID Matches</p>
+                    <p className="text-lg font-bold text-success mt-1">
                       {syncResult.anime.malMatchesFound}
                     </p>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                    <p className="text-xs text-slate-400">MAL Lists Updated</p>
-                    <p className="text-lg font-bold text-white mt-1">
+                  <div className="p-3 rounded-xl bg-surface border border-edge">
+                    <p className="text-xs text-ink-muted">MAL Lists Updated</p>
+                    <p className="text-lg font-bold text-ink mt-1">
                       {syncResult.anime.malUpdatedCount}
                     </p>
                   </div>
@@ -1271,17 +1274,17 @@ export default function Dashboard() {
 
                 {syncResult.anime.updatedTitles.length > 0 && (
                   <div className="mt-4">
-                    <p className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                    <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider mb-2">
                       Updated Titles on MyAnimeList:
                     </p>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
                       {syncResult.anime.updatedTitles.map((t, idx) => (
                         <div
                           key={idx}
-                          className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-900/60 border border-slate-800/60"
+                          className="flex items-center justify-between text-xs p-2 rounded-lg bg-surface/60 border border-edge"
                         >
-                          <span className="font-medium text-slate-200">{t.title}</span>
-                          <span className="text-indigo-400">
+                          <span className="font-medium text-ink">{t.title}</span>
+                          <span className="text-accent">
                             Ep. {t.episodes} ({t.status})
                           </span>
                         </div>
@@ -1295,31 +1298,31 @@ export default function Dashboard() {
         )}
 
         {/* Vercel Deployment Checklist */}
-        <div className="p-4 sm:p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] space-y-4 shadow-sm">
+        <div className="p-4 sm:p-6 rounded-2xl bg-surface/90 border border-edge space-y-4 shadow-sm">
           <div className="flex items-center gap-2">
-            <Database className="h-5 w-5 text-indigo-400" />
-            <h3 className="font-semibold text-white">Vercel Deployment Architecture</h3>
+            <Database className="h-5 w-5 text-accent" />
+            <h3 className="font-semibold text-ink">Vercel Deployment Architecture</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 text-xs text-slate-400">
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/60 space-y-2">
-              <p className="font-medium text-slate-200 flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-emerald-400" /> 1. Vercel Cron
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 text-xs text-ink-muted">
+            <div className="p-4 rounded-xl bg-surface/60 border border-edge space-y-2">
+              <p className="font-medium text-ink flex items-center gap-1.5">
+                <Calendar className="h-4 w-4 text-success" /> 1. Vercel Cron
               </p>
               <p>
-                Automated daily sync triggered at 04:00 UTC via <code className="text-indigo-300">vercel.json</code>.
+                Automated daily sync triggered at 04:00 UTC via <code className="text-accent">vercel.json</code>.
               </p>
             </div>
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/60 space-y-2">
-              <p className="font-medium text-slate-200 flex items-center gap-1.5">
-                <Database className="h-4 w-4 text-indigo-400" /> 2. Serverless Database
+            <div className="p-4 rounded-xl bg-surface/60 border border-edge space-y-2">
+              <p className="font-medium text-ink flex items-center gap-1.5">
+                <Database className="h-4 w-4 text-accent" /> 2. Serverless Database
               </p>
               <p>
                 Powered by Neon Serverless Postgres and Drizzle ORM for zero-cold-start performance.
               </p>
             </div>
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/60 space-y-2">
-              <p className="font-medium text-slate-200 flex items-center gap-1.5">
-                <RefreshCw className="h-4 w-4 text-red-400" /> 3. ID Cross-Mapping
+            <div className="p-4 rounded-xl bg-surface/60 border border-edge space-y-2">
+              <p className="font-medium text-ink flex items-center gap-1.5">
+                <RefreshCw className="h-4 w-4 text-danger" /> 3. ID Cross-Mapping
               </p>
               <p>
                 Resolves TMDB/TVDB ↔ MAL IDs dynamically using community anime databases and fallback search.

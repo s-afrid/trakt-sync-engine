@@ -121,31 +121,31 @@ export default function LetterboxdSessionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-      <div className="relative w-full max-w-2xl rounded-2xl bg-[#0B0F19] border border-slate-800 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-canvas/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <div className="relative w-full max-w-2xl rounded-2xl bg-surface border border-edge shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-800/80 flex items-start sm:items-center justify-between bg-slate-900/40 gap-3">
+        <div className="p-4 sm:p-5 border-b border-edge flex items-start sm:items-center justify-between bg-elevated/60 gap-3">
           <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
-              <Key className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-success/10 border border-success/30 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+              <Key className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                <h3 className="text-sm sm:text-base font-semibold text-white">
+                <h3 className="text-sm sm:text-base font-semibold text-ink">
                   Letterboxd Cookie Session
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 shrink-0">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-success/15 text-success border border-success/25 shrink-0">
                   Cookie-Editor / Extension
                 </span>
               </div>
-              <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 leading-relaxed">
+              <p className="text-[11px] sm:text-xs text-ink-muted mt-0.5 leading-relaxed">
                 Import exported cookies to keep cloud & local background sync authenticated.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+            className="p-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-elevated transition-colors shrink-0"
           >
             <X className="h-4 w-4" />
           </button>
@@ -154,24 +154,24 @@ export default function LetterboxdSessionModal({
         {/* Content Body */}
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto">
           {/* Status Banner */}
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between gap-4">
+          <div className="p-4 rounded-xl bg-surface/60 border border-edge flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div
                 className={`h-3 w-3 rounded-full ${
                   sessionInfo?.hasSession && !sessionInfo.isExpired
-                    ? "bg-emerald-400 animate-pulse"
-                    : "bg-amber-400"
+                    ? "bg-success animate-pulse"
+                    : "bg-accent"
                 }`}
               />
               <div>
-                <p className="text-xs font-semibold text-white">
+                <p className="text-xs font-semibold text-ink">
                   {sessionInfo?.hasSession && !sessionInfo.isExpired
                     ? `Active Session (${sessionInfo.cookieCount} Cookies)`
                     : sessionInfo?.isExpired
                     ? "Session Expired"
                     : "No Session Configured"}
                 </p>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-ink-muted">
                   {sessionInfo?.expiresAt
                     ? `Expires: ${new Date(sessionInfo.expiresAt).toLocaleDateString()} (${new Date(sessionInfo.expiresAt).toLocaleTimeString()})`
                     : "Paste extension cookies below to authenticate."}
@@ -182,7 +182,7 @@ export default function LetterboxdSessionModal({
             <button
               onClick={fetchStatus}
               disabled={fetchingStatus}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors text-xs flex items-center gap-1.5"
+              className="p-2 rounded-lg bg-elevated hover:bg-raised text-ink-muted transition-colors text-xs flex items-center gap-1.5"
               title="Refresh status"
             >
               <RefreshCw className={`h-3 w-3 ${fetchingStatus ? "animate-spin" : ""}`} />
@@ -191,39 +191,39 @@ export default function LetterboxdSessionModal({
 
           {/* Feedback Banners */}
           {errorMsg && (
-            <div className="p-3.5 rounded-xl bg-red-950/60 border border-red-800/80 text-red-200 text-xs flex items-start gap-2.5">
-              <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+            <div className="p-3.5 rounded-xl bg-danger/10 border border-danger/30 text-ink text-xs flex items-start gap-2.5">
+              <AlertCircle className="h-4 w-4 text-danger shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="font-semibold">Import Error</p>
-                <p className="text-red-300/90 mt-0.5">{errorMsg}</p>
+                <p className="text-danger/90 mt-0.5">{errorMsg}</p>
               </div>
             </div>
           )}
 
           {successMsg && (
-            <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-800/80 text-emerald-200 text-xs flex items-start gap-2.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="p-3.5 rounded-xl bg-success/10 border border-success/30 text-ink text-xs flex items-start gap-2.5">
+              <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="font-semibold">Session Synchronized</p>
-                <p className="text-emerald-300/90 mt-0.5">{successMsg}</p>
+                <p className="text-success/90 mt-0.5">{successMsg}</p>
               </div>
             </div>
           )}
 
           {/* Instructions Box */}
-          <div className="p-4 rounded-xl bg-indigo-950/20 border border-indigo-800/30 text-xs text-slate-300 space-y-2">
-            <p className="font-semibold text-indigo-300 flex items-center gap-1.5">
+          <div className="p-4 rounded-xl bg-accent/10 border border-accent/30 text-xs text-ink-muted space-y-2">
+            <p className="font-semibold text-accent flex items-center gap-1.5">
               <Info className="h-3.5 w-3.5" />
               How to export cookies in 30 seconds:
             </p>
-            <ol className="list-decimal list-inside space-y-1 text-slate-400 pl-1 leading-relaxed">
+            <ol className="list-decimal list-inside space-y-1 text-ink-muted pl-1 leading-relaxed">
               <li>
                 Open{" "}
                 <a
                   href="https://letterboxd.com"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-emerald-400 hover:underline inline-flex items-center gap-0.5"
+                  className="text-success hover:underline inline-flex items-center gap-0.5"
                 >
                   letterboxd.com <ExternalLink className="h-2.5 w-2.5" />
                 </a>{" "}
@@ -231,12 +231,12 @@ export default function LetterboxdSessionModal({
               </li>
               <li>
                 Click your cookie extension (e.g.{" "}
-                <span className="text-white font-medium">Cookie-Editor</span> or{" "}
-                <span className="text-white font-medium">EditThisCookie</span>).
+                <span className="text-ink font-medium">Cookie-Editor</span> or{" "}
+                <span className="text-ink font-medium">EditThisCookie</span>).
               </li>
               <li>
-                Click <span className="text-emerald-300 font-semibold">Export</span> ➔{" "}
-                <span className="text-emerald-300 font-semibold">Export as JSON</span>.
+                Click <span className="text-success font-semibold">Export</span> ➔{" "}
+                <span className="text-success font-semibold">Export as JSON</span>.
               </li>
               <li>Paste the copied text in the box below and click Save.</li>
             </ol>
@@ -245,7 +245,7 @@ export default function LetterboxdSessionModal({
           {/* Form */}
           <form onSubmit={handleSave} className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label className="block text-xs font-medium text-ink-muted mb-1.5">
                 Paste Cookie JSON / Export Text:
               </label>
               <textarea
@@ -253,7 +253,7 @@ export default function LetterboxdSessionModal({
                 value={cookieInput}
                 onChange={(e) => setCookieInput(e.target.value)}
                 placeholder='[&#10;  {&#10;    "domain": ".letterboxd.com",&#10;    "name": "letterboxd.user",&#10;    "value": "...",&#10;    "expirationDate": 1822055627&#10;  }&#10;]'
-                className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full p-3 rounded-xl bg-canvas border border-edge font-mono text-xs text-ink placeholder-ink-subtle focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
 
@@ -261,7 +261,7 @@ export default function LetterboxdSessionModal({
               <button
                 type="submit"
                 disabled={loading || !cookieInput.trim()}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50 shadow-md shadow-emerald-950/40"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-success hover:bg-success/85 text-canvas transition-colors disabled:opacity-50 shadow-md shadow-success/10"
               >
                 <CheckCircle2 className="h-4 w-4" />
                 {loading ? "Processing & Saving..." : "Import & Apply Session"}
@@ -270,7 +270,7 @@ export default function LetterboxdSessionModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                className="px-4 py-2.5 rounded-xl text-xs font-medium bg-elevated hover:bg-raised text-ink-muted transition-colors"
               >
                 Close
               </button>
@@ -279,15 +279,15 @@ export default function LetterboxdSessionModal({
 
           {/* 1-Click Copy for GitHub Secret */}
           {secretPayload && (
-            <div className="p-4 rounded-xl bg-slate-900/90 border border-emerald-900/50 space-y-2">
+            <div className="p-4 rounded-xl bg-elevated/60 border border-success/20 space-y-2">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold text-white flex items-center gap-1.5">
-                    <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  <p className="text-xs font-semibold text-ink flex items-center gap-1.5">
+                    <ShieldCheck className="h-4 w-4 text-success" />
                     Cloud Sync Secret (GitHub Actions)
                   </p>
-                  <p className="text-[11px] text-slate-400">
-                    Use this string for <code className="text-emerald-300">LETTERBOXD_SESSION_JSON</code> in your repo secrets.
+                  <p className="text-[11px] text-ink-muted">
+                    Use this string for <code className="text-success">LETTERBOXD_SESSION_JSON</code> in your repo secrets.
                   </p>
                 </div>
 
@@ -296,8 +296,8 @@ export default function LetterboxdSessionModal({
                   onClick={handleCopySecret}
                   className={`w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-medium transition-all ${
                     copiedSecret
-                      ? "bg-emerald-500 text-white shadow-sm"
-                      : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                      ? "bg-success text-canvas shadow-sm"
+                      : "bg-elevated hover:bg-raised text-ink border border-edge"
                   }`}
                 >
                   {copiedSecret ? (

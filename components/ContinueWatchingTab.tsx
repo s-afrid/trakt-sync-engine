@@ -132,19 +132,19 @@ export default function ContinueWatchingTab() {
   return (
     <div className="space-y-6">
       {/* Top Notice Bar */}
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-[#0D111A] border border-blue-800/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-xl">
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-accent/10 via-accent/10 to-surface border border-accent/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-xl">
         <div className="flex items-start gap-3 min-w-0">
-          <div className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0 mt-0.5">
-            <PlayCircle className="h-5 w-5 text-blue-400" />
+          <div className="h-9 w-9 rounded-xl bg-accent/10 border border-accent/30 flex items-center justify-center shrink-0 mt-0.5">
+            <PlayCircle className="h-5 w-5 text-accent" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-              <h2 className="text-sm sm:text-base font-semibold text-white">Continue Watching</h2>
-              <span className="px-2 py-0.5 text-[10px] sm:text-[11px] font-medium rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+              <h2 className="text-sm sm:text-base font-semibold text-ink">Continue Watching</h2>
+              <span className="px-2 py-0.5 text-[10px] sm:text-[11px] font-medium rounded-full bg-accent/20 text-accent border border-accent/30">
                 In Progress
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+            <p className="text-xs text-ink-muted mt-0.5 leading-relaxed">
               Active series you have started. Tracks completed episodes and calculates your next up episode. Moves out automatically upon series completion.
             </p>
           </div>
@@ -153,22 +153,22 @@ export default function ContinueWatchingTab() {
         <button
           onClick={fetchContinueWatching}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-xs font-medium text-slate-300 transition-colors shrink-0"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-elevated/80 hover:bg-raised/80 border border-edge text-xs font-medium text-ink-muted transition-colors shrink-0"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-blue-400" : ""}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-accent" : ""}`} />
           <span>Refresh</span>
         </button>
       </div>
 
       {/* Error Alert */}
       {error && (
-        <div className="p-4 rounded-xl bg-red-950/40 border border-red-800/60 text-red-200 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+        <div className="p-4 rounded-xl bg-danger/10 border border-danger/30 text-ink flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-danger shrink-0 mt-0.5" />
           <div className="text-sm flex-1">
             <p className="font-semibold">Unable to load continue watching list</p>
-            <p className="text-red-300/90 mt-0.5">{error}</p>
+            <p className="text-danger/90 mt-0.5">{error}</p>
           </div>
-          <button onClick={fetchContinueWatching} className="text-xs text-red-400 hover:text-red-200 underline">
+          <button onClick={fetchContinueWatching} className="text-xs text-danger hover:text-ink underline">
             Retry
           </button>
         </div>
@@ -177,81 +177,81 @@ export default function ContinueWatchingTab() {
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total In Progress */}
-        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-blue-500 shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-accent shadow-sm flex items-center justify-between transition-all hover:bg-surface/90">
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Shows In Progress</p>
-            <p className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-muted">Shows In Progress</p>
+            <p className="text-2xl sm:text-3xl font-black text-ink tracking-tight">
               {data ? data.summary.total : "--"}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-blue-400 flex items-center gap-1 font-medium">
+            <p className="text-[10px] sm:text-[11px] text-accent flex items-center gap-1 font-medium">
               <Sparkles className="h-3 w-3" /> Started & uncompleted
             </p>
           </div>
-          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center shrink-0">
-            <PlayCircle className="h-5 w-5 text-blue-400" />
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-accent/10 border border-accent/25 flex items-center justify-center shrink-0">
+            <PlayCircle className="h-5 w-5 text-accent" />
           </div>
         </div>
 
         {/* Anime In Progress */}
-        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#3B82F6] shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-accent shadow-sm flex items-center justify-between transition-all hover:bg-surface/90">
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">MyAnimeList Anime</p>
-            <p className="text-2xl sm:text-3xl font-black text-sky-400 tracking-tight">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-muted">MyAnimeList Anime</p>
+            <p className="text-2xl sm:text-3xl font-black text-accent tracking-tight">
               {data ? data.summary.animeCount : "--"}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-              <Tv className="h-3 w-3 text-sky-400" /> Currently Watching
+            <p className="text-[10px] sm:text-[11px] text-ink-muted flex items-center gap-1 font-medium">
+              <Tv className="h-3 w-3 text-accent" /> Currently Watching
             </p>
           </div>
-          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center shrink-0">
-            <MalLogo size={22} className="text-sky-400" />
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-accent/10 border border-accent/25 flex items-center justify-center shrink-0">
+            <MalLogo size={22} className="text-accent" />
           </div>
         </div>
 
         {/* Trakt Shows In Progress */}
-        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#ED1C24] shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-[#ED1C24] shadow-sm flex items-center justify-between transition-all hover:bg-surface/90">
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Trakt TV Shows</p>
-            <p className="text-2xl sm:text-3xl font-black text-red-400 tracking-tight">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-muted">Trakt TV Shows</p>
+            <p className="text-2xl sm:text-3xl font-black text-danger tracking-tight">
               {data ? data.summary.showCount : "--"}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-              <Tv className="h-3 w-3 text-red-400" /> In-Progress Seasons
+            <p className="text-[10px] sm:text-[11px] text-ink-muted flex items-center gap-1 font-medium">
+              <Tv className="h-3 w-3 text-danger" /> In-Progress Seasons
             </p>
           </div>
-          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-red-500/10 border border-red-500/25 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-danger/10 border border-danger/25 flex items-center justify-center shrink-0">
             <TraktLogo size={20} className="text-[#ED1C24]" />
           </div>
         </div>
 
         {/* Total Episodes Watched */}
-        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-emerald-400 shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-success shadow-sm flex items-center justify-between transition-all hover:bg-surface/90">
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Episodes Logged</p>
-            <p className="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-muted">Episodes Logged</p>
+            <p className="text-2xl sm:text-3xl font-black text-success tracking-tight">
               {data ? data.summary.totalEpisodesWatched : "--"}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-              <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Completed Across Series
+            <p className="text-[10px] sm:text-[11px] text-ink-muted flex items-center gap-1 font-medium">
+              <CheckCircle2 className="h-3 w-3 text-success" /> Completed Across Series
             </p>
           </div>
-          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center shrink-0">
-            <Layers className="h-5 w-5 text-emerald-400" />
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-success/10 border border-success/25 flex items-center justify-center shrink-0">
+            <Layers className="h-5 w-5 text-success" />
           </div>
         </div>
       </div>
 
       {/* Control & Filter Bar */}
-      <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] space-y-3 sm:space-y-4 shadow-sm">
+      <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge space-y-3 sm:space-y-4 shadow-sm">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Platform Pills */}
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/40 border border-white/[0.06] overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-canvas/40 border border-edge overflow-x-auto scrollbar-none">
             <button
               onClick={() => setPlatformFilter("all")}
               className={`shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 platformFilter === "all"
-                  ? "bg-slate-800 text-white shadow-sm border border-slate-700"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-elevated text-ink shadow-sm border border-edge"
+                  : "text-ink-muted hover:text-ink"
               }`}
             >
               All Series ({data?.summary.total || 0})
@@ -260,19 +260,19 @@ export default function ContinueWatchingTab() {
               onClick={() => setPlatformFilter("myanimelist")}
               className={`shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 platformFilter === "myanimelist"
-                  ? "bg-[#2E51A2]/25 text-sky-300 border border-[#2E51A2]/40"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-[#2E51A2]/25 text-accent border border-[#2E51A2]/40"
+                  : "text-ink-muted hover:text-ink"
               }`}
             >
-              <MalLogo size={14} className="text-sky-400" />
+              <MalLogo size={14} className="text-accent" />
               <span>Anime ({data?.summary.animeCount || 0})</span>
             </button>
             <button
               onClick={() => setPlatformFilter("trakt")}
               className={`shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 platformFilter === "trakt"
-                  ? "bg-red-500/20 text-red-300 border border-red-500/40"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-danger/20 text-danger border border-danger/40"
+                  : "text-ink-muted hover:text-ink"
               }`}
             >
               <TraktLogo size={14} className="text-[#ED1C24]" />
@@ -282,18 +282,18 @@ export default function ContinueWatchingTab() {
 
           {/* Search Box */}
           <div className="relative w-full sm:w-64 md:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ink-muted" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search series or next episode..."
-              className="w-full pl-9 pr-8 py-1.5 rounded-xl bg-black/40 border border-white/[0.08] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+              className="w-full pl-9 pr-8 py-1.5 rounded-xl bg-canvas/40 border border-edge text-xs text-ink placeholder-ink-subtle focus:outline-none focus:ring-1 focus:ring-accent transition-all"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink-muted"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -304,23 +304,23 @@ export default function ContinueWatchingTab() {
 
       {/* Series Cards List */}
       <div>
-        <div className="flex items-center justify-between text-xs text-slate-400 px-1 mb-3">
+        <div className="flex items-center justify-between text-xs text-ink-muted px-1 mb-3">
           <span>{filteredItems.length} active in-progress series</span>
-          <span className="text-[11px] text-slate-500">Automatically tracks episode scrobbles</span>
+          <span className="text-[11px] text-ink-subtle">Automatically tracks episode scrobbles</span>
         </div>
 
         {loading ? (
-          <div className="p-12 rounded-2xl bg-[#0B0F19] border border-slate-800/80 text-center space-y-3">
-            <RefreshCw className="h-6 w-6 text-blue-400 animate-spin mx-auto" />
-            <p className="text-sm text-slate-300 font-medium">Loading continue watching progress...</p>
+          <div className="p-12 rounded-2xl bg-surface border border-edge text-center space-y-3">
+            <RefreshCw className="h-6 w-6 text-accent animate-spin mx-auto" />
+            <p className="text-sm text-ink-muted font-medium">Loading continue watching progress...</p>
           </div>
         ) : filteredItems.length === 0 ? (
-          <div className="p-12 rounded-2xl bg-[#0B0F19] border border-slate-800/80 text-center space-y-3">
-            <div className="h-12 w-12 rounded-full bg-slate-800/60 border border-slate-700/60 flex items-center justify-center mx-auto text-slate-400">
+          <div className="p-12 rounded-2xl bg-surface border border-edge text-center space-y-3">
+            <div className="h-12 w-12 rounded-full bg-elevated/60 border border-edge flex items-center justify-center mx-auto text-ink-muted">
               <PlayCircle className="h-6 w-6" />
             </div>
-            <h3 className="text-sm font-semibold text-white">No active in-progress series</h3>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
+            <h3 className="text-sm font-semibold text-ink">No active in-progress series</h3>
+            <p className="text-xs text-ink-muted max-w-md mx-auto">
               You don&apos;t have any shows or anime currently in progress. Start watching an episode on Trakt or MyAnimeList to track your progress here.
             </p>
           </div>
@@ -334,7 +334,7 @@ export default function ContinueWatchingTab() {
               return (
                 <div
                   key={item.id}
-                  className="p-4 sm:p-5 rounded-2xl bg-[#0D111A]/90 hover:bg-[#111726]/95 border border-white/[0.08] hover:border-slate-600/80 transition-all duration-200 shadow-sm space-y-4"
+                  className="p-4 sm:p-5 rounded-2xl bg-surface/90 hover:bg-surface/95 border border-edge hover:border-ink-subtle/40 transition-all duration-200 shadow-sm space-y-4"
                 >
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     {/* Visual Poster & Title Info */}
@@ -345,7 +345,7 @@ export default function ContinueWatchingTab() {
                         year={item.year}
                         platform={item.platform}
                         type="episode"
-                        className="w-14 sm:w-16 md:w-20 rounded-xl shadow-md border border-white/[0.08] shrink-0"
+                        className="w-14 sm:w-16 md:w-20 rounded-xl shadow-md border border-edge shrink-0"
                       />
 
                       <div className="min-w-0 space-y-1 flex-1">
@@ -354,19 +354,19 @@ export default function ContinueWatchingTab() {
                           <span
                             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold border ${
                               isMAL
-                                ? "bg-[#2E51A2]/20 border-[#2E51A2]/35 text-sky-300"
-                                : "bg-red-500/10 border-red-500/30 text-red-300"
+                                ? "bg-[#2E51A2]/20 border-[#2E51A2]/35 text-accent"
+                                : "bg-danger/10 border-danger/30 text-danger"
                             }`}
                           >
                             {isMAL ? "MyAnimeList" : "Trakt TV"}
                           </span>
 
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.08] text-slate-300">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-ink/10 border border-edge text-ink-muted">
                             {item.completedEpisodes} {item.totalEpisodes ? `/ ${item.totalEpisodes}` : ""} Episodes Watched
                           </span>
 
                           {item.lastWatchedAt && (
-                            <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                            <span className="text-[10px] text-ink-subtle flex items-center gap-1">
                               <Clock className="h-2.5 w-2.5" />
                               {formatRelativeTime(item.lastWatchedAt)}
                             </span>
@@ -374,19 +374,19 @@ export default function ContinueWatchingTab() {
                         </div>
 
                         {/* Title */}
-                        <h4 className="text-sm sm:text-base font-bold text-white tracking-tight line-clamp-1">
+                        <h4 className="text-sm sm:text-base font-bold text-ink tracking-tight line-clamp-1">
                           {item.title}
                         </h4>
 
                         {/* Last Watched & Next Up row */}
                         <div className="flex items-center gap-2 text-xs pt-0.5 flex-wrap">
                           {item.lastWatchedEpisode && (
-                            <span className="text-slate-400">
-                              Last completed: <strong className="text-slate-200">{item.lastWatchedEpisode}</strong>
+                            <span className="text-ink-muted">
+                              Last completed: <strong className="text-ink">{item.lastWatchedEpisode}</strong>
                             </span>
                           )}
                           {item.nextEpisode && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/15 border border-blue-500/30 text-blue-300 font-semibold text-[11px]">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent/15 border border-accent/30 text-accent font-semibold text-[11px]">
                               <span>Next:</span>
                               <span>{item.nextEpisode}</span>
                             </span>
@@ -396,23 +396,23 @@ export default function ContinueWatchingTab() {
                     </div>
 
                     {/* Progress Bar & Actions */}
-                    <div className="w-full sm:w-60 md:w-72 shrink-0 space-y-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/[0.06]">
+                    <div className="w-full sm:w-60 md:w-72 shrink-0 space-y-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-edge">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-slate-300">Progress</span>
-                        <span className="font-mono text-emerald-400 font-bold">
+                        <span className="font-semibold text-ink-muted">Progress</span>
+                        <span className="font-mono text-success font-bold">
                           {item.totalEpisodes ? `${pct}%` : `${item.completedEpisodes} eps`}
                         </span>
                       </div>
 
                       {/* Progress Bar */}
-                      <div className="w-full h-2 rounded-full bg-slate-800/80 overflow-hidden border border-white/[0.06]">
+                      <div className="w-full h-2 rounded-full bg-elevated/80 overflow-hidden border border-edge">
                         <div
-                          className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 transition-all duration-500 rounded-full"
+                          className="h-full bg-gradient-to-r from-accent via-accent to-success transition-all duration-500 rounded-full"
                           style={{ width: `${pct || Math.min(item.completedEpisodes * 5, 100)}%` }}
                         />
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                      <div className="flex items-center justify-between text-[11px] text-ink-muted pt-0.5">
                         <span>{item.completedEpisodes} completed</span>
                         {item.totalEpisodes && (
                           <span>{item.totalEpisodes - item.completedEpisodes} remaining</span>
@@ -422,7 +422,7 @@ export default function ContinueWatchingTab() {
                             href={item.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-0.5 text-blue-400 hover:text-blue-300 font-medium"
+                            className="inline-flex items-center gap-0.5 text-accent hover:text-accent font-medium"
                           >
                             <span>Open</span>
                             <ArrowUpRight className="h-3 w-3" />
@@ -434,16 +434,16 @@ export default function ContinueWatchingTab() {
 
                   {/* Completed Episodes Pills Strip (Optional toggle for deep inspection) */}
                   {item.completedEpisodes > 0 && (
-                    <div className="pt-2 border-t border-white/[0.04]">
+                    <div className="pt-2 border-t border-edge">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                        <span className="text-[11px] text-ink-muted flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-success" />
                           Completed episodes tracker:
                         </span>
                         <button
                           type="button"
                           onClick={() => togglePills(item.id)}
-                          className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium"
+                          className="text-[10px] text-accent hover:text-accent flex items-center gap-1 font-medium"
                         >
                           <span>{isExpanded ? "Hide" : "Show"} breakdown ({item.completedEpisodes})</span>
                           <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
@@ -451,13 +451,13 @@ export default function ContinueWatchingTab() {
                       </div>
 
                       {isExpanded && (
-                        <div className="mt-2 p-2.5 rounded-xl bg-black/40 border border-white/[0.06] flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                        <div className="mt-2 p-2.5 rounded-xl bg-canvas/40 border border-edge flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
                           {Array.from({ length: item.completedEpisodes }).map((_, i) => (
                             <span
                               key={i}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-950/50 border border-emerald-800/40 text-[10px] font-mono text-emerald-300"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-success/10 border border-success/30 text-[10px] font-mono text-success"
                             >
-                              <CheckCircle2 className="h-2.5 w-2.5 text-emerald-400" />
+                              <CheckCircle2 className="h-2.5 w-2.5 text-success" />
                               <span>Ep {i + 1}</span>
                             </span>
                           ))}

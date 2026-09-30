@@ -153,10 +153,10 @@ export default function ActionsDaemonTab() {
       <div
         className={`p-4 sm:p-6 rounded-2xl border transition-all duration-300 shadow-xl ${
           isRunning
-            ? "bg-gradient-to-r from-emerald-950/60 via-blue-950/40 to-[#0D111A] border-emerald-500/40 shadow-emerald-950/30"
+            ? "bg-gradient-to-r from-success/10 via-accent/10 to-surface border-success/40 shadow-success/10"
             : isFailed
-            ? "bg-gradient-to-r from-red-950/50 via-slate-900/60 to-[#0D111A] border-red-500/40 shadow-red-950/30"
-            : "bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-[#0D111A] border-blue-500/30 shadow-indigo-950/20"
+            ? "bg-gradient-to-r from-danger/10 via-surface/60 to-surface border-danger/40 shadow-danger/10"
+            : "bg-gradient-to-r from-accent/10 via-accent/10 to-surface border-accent/30 shadow-accent/10"
         }`}
       >
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
@@ -165,42 +165,42 @@ export default function ActionsDaemonTab() {
             <div
               className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 border mt-0.5 ${
                 isRunning
-                  ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
+                  ? "bg-success/15 border-success/40 text-success"
                   : isFailed
-                  ? "bg-red-500/15 border-red-500/40 text-red-400"
-                  : "bg-blue-500/15 border-blue-500/30 text-blue-400"
+                  ? "bg-danger/15 border-danger/40 text-danger"
+                  : "bg-accent/15 border-accent/30 text-accent"
               }`}
             >
               {isRunning ? (
-                <RefreshCw className="h-6 w-6 animate-spin text-emerald-400" />
+                <RefreshCw className="h-6 w-6 animate-spin text-success" />
               ) : isFailed ? (
-                <AlertCircle className="h-6 w-6 text-red-400" />
+                <AlertCircle className="h-6 w-6 text-danger" />
               ) : (
-                <Moon className="h-6 w-6 text-blue-400" />
+                <Moon className="h-6 w-6 text-accent" />
               )}
             </div>
 
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-mono uppercase tracking-wider text-slate-400">
+                <span className="text-xs font-mono uppercase tracking-wider text-ink-muted">
                   GitHub Actions Daemon Status
                 </span>
                 <span
                   className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border shadow-sm ${
                     isRunning
-                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                      ? "bg-success/20 text-success border-success/40"
                       : isFailed
-                      ? "bg-red-500/20 text-red-300 border-red-500/40"
-                      : "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
+                      ? "bg-danger/20 text-danger border-danger/40"
+                      : "bg-accent/20 text-accent border-accent/40"
                   }`}
                 >
                   <span
                     className={`h-2 w-2 rounded-full ${
                       isRunning
-                        ? "bg-emerald-400 animate-ping"
+                        ? "bg-success animate-ping"
                         : isFailed
-                        ? "bg-red-400"
-                        : "bg-indigo-400 animate-pulse"
+                        ? "bg-danger"
+                        : "bg-accent animate-pulse"
                     }`}
                   />
                   {isRunning
@@ -211,7 +211,7 @@ export default function ActionsDaemonTab() {
                 </span>
               </div>
 
-              <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+              <h2 className="text-lg sm:text-xl font-black text-ink tracking-tight">
                 {isRunning
                   ? "GitHub Actions Cloud Runner is Active"
                   : isFailed
@@ -219,7 +219,7 @@ export default function ActionsDaemonTab() {
                   : "Daemon is Sleeping Quietly"}
               </h2>
 
-              <p className="text-xs text-slate-300/90 leading-relaxed max-w-2xl">
+              <p className="text-xs text-ink-muted/90 leading-relaxed max-w-2xl">
                 {data?.daemon?.description ||
                   "Checks Trakt scrobbles every 15 minutes. Automatically updates Letterboxd and MyAnimeList only when new watches occur."}
               </p>
@@ -227,15 +227,15 @@ export default function ActionsDaemonTab() {
           </div>
 
           {/* Real-time Ticker & Actions */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-white/[0.06]">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-edge">
             {/* Live Countdown Box */}
-            <div className="px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] flex items-center justify-between sm:justify-start gap-3">
+            <div className="px-4 py-2.5 rounded-xl bg-canvas/50 border border-edge flex items-center justify-between sm:justify-start gap-3">
               <div className="space-y-0.5">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-ink-muted block">
                   Next 15-Min Check In
                 </span>
-                <span className="text-base sm:text-lg font-mono font-bold text-white flex items-center gap-1.5">
-                  <Clock className="h-4 w-4 text-blue-400 shrink-0" />
+                <span className="text-base sm:text-lg font-mono font-bold text-ink flex items-center gap-1.5">
+                  <Clock className="h-4 w-4 text-accent shrink-0" />
                   {countdownFormatted}
                 </span>
               </div>
@@ -247,16 +247,16 @@ export default function ActionsDaemonTab() {
                 onClick={() => fetchStatus(true)}
                 disabled={refreshing}
                 title="Refresh Real-Time Telemetry"
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition-all shadow-sm"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-elevated/90 hover:bg-raised border border-edge text-xs font-semibold text-ink transition-all shadow-sm"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin text-blue-400" : ""}`} />
+                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin text-accent" : ""}`} />
                 <span className="hidden sm:inline">Refresh</span>
               </button>
 
               <button
                 onClick={handleManualTrigger}
                 disabled={dispatchLoading}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-bold text-white shadow-md border border-white/10 transition-all"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-accent hover:bg-accent/85 text-xs font-bold text-canvas shadow-md border border-edge transition-all"
               >
                 <Play className="h-3.5 w-3.5 fill-current" />
                 <span>Run Job Now</span>
@@ -266,7 +266,7 @@ export default function ActionsDaemonTab() {
         </div>
 
         {dispatchMessage && (
-          <div className="mt-3 p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-xs text-emerald-300">
+          <div className="mt-3 p-2.5 rounded-lg bg-success/10 border border-success/30 text-xs text-success">
             {dispatchMessage}
           </div>
         )}
@@ -274,49 +274,49 @@ export default function ActionsDaemonTab() {
 
       {/* Error Alert */}
       {error && (
-        <div className="p-4 rounded-xl bg-red-950/40 border border-red-800/60 text-red-200 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+        <div className="p-4 rounded-xl bg-danger/10 border border-danger/30 text-ink flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-danger shrink-0 mt-0.5" />
           <div className="text-sm flex-1">
             <p className="font-semibold">GitHub Actions telemetry unavailable</p>
-            <p className="text-red-300/90 mt-0.5">{error}</p>
+            <p className="text-danger/90 mt-0.5">{error}</p>
           </div>
-          <button onClick={() => fetchStatus(true)} className="text-xs text-red-400 hover:text-red-200 underline">
+          <button onClick={() => fetchStatus(true)} className="text-xs text-danger hover:text-ink underline">
             Retry
           </button>
         </div>
       )}
 
       {/* SPOTLIGHT SECTION: Last 2 Movies Updated Every Time App Runs */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06] pb-3">
+      <div className="p-5 sm:p-6 rounded-2xl bg-surface/90 border border-edge shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-edge pb-3">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <Film className="h-4 w-4 text-red-400" />
-              <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
+              <Film className="h-4 w-4 text-danger" />
+              <h3 className="text-sm sm:text-base font-bold text-ink tracking-tight">
                 Last 2 Movies Updated Every Time App Runs
               </h3>
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
+              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-danger/20 text-danger border border-danger/30">
                 Verified Scrobbles
               </span>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-ink-muted">
               The latest 2 movies detected and synchronized between Trakt history and Letterboxd.
             </p>
           </div>
 
-          <span className="text-[11px] font-mono text-slate-500">
+          <span className="text-[11px] font-mono text-ink-subtle">
             Auto-diffed on each 15-min cycle
           </span>
         </div>
 
         {loading ? (
           <div className="p-8 text-center space-y-2">
-            <RefreshCw className="h-6 w-6 text-blue-400 animate-spin mx-auto" />
-            <p className="text-xs text-slate-400">Fetching latest synchronized movies...</p>
+            <RefreshCw className="h-6 w-6 text-accent animate-spin mx-auto" />
+            <p className="text-xs text-ink-muted">Fetching latest synchronized movies...</p>
           </div>
         ) : !data?.lastUpdatedMovies || data.lastUpdatedMovies.length === 0 ? (
-          <div className="p-8 text-center space-y-2 text-slate-400 text-xs">
-            <Film className="h-8 w-8 text-slate-600 mx-auto" />
+          <div className="p-8 text-center space-y-2 text-ink-muted text-xs">
+            <Film className="h-8 w-8 text-ink-subtle mx-auto" />
             <p>No recently watched movies found in Trakt history.</p>
           </div>
         ) : (
@@ -324,10 +324,10 @@ export default function ActionsDaemonTab() {
             {data.lastUpdatedMovies.map((movie, idx) => (
               <div
                 key={`${movie.title}-${idx}`}
-                className="group relative p-4 rounded-xl bg-black/40 hover:bg-[#111726] border border-white/[0.06] hover:border-slate-600/80 transition-all flex gap-4 shadow-sm"
+                className="group relative p-4 rounded-xl bg-canvas/40 hover:bg-surface border border-edge hover:border-ink-subtle/40 transition-all flex gap-4 shadow-sm"
               >
                 {/* Ranking Pill */}
-                <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.08] text-[10px] font-mono text-slate-400 font-bold">
+                <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-ink/10 border border-edge text-[10px] font-mono text-ink-muted font-bold">
                   #{idx + 1} Latest
                 </div>
 
@@ -338,14 +338,14 @@ export default function ActionsDaemonTab() {
                   year={movie.year}
                   platform="letterboxd"
                   type="movie"
-                  className="w-16 sm:w-20 rounded-xl shadow-md border border-white/[0.08] shrink-0"
+                  className="w-16 sm:w-20 rounded-xl shadow-md border border-edge shrink-0"
                 />
 
                 {/* Metadata & Actions */}
                 <div className="min-w-0 flex-1 flex flex-col justify-between space-y-2">
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-500/15 border border-red-500/30 text-red-300">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-danger/15 border border-danger/30 text-danger">
                         <TraktLogo size={11} className="text-[#ED1C24]" />
                         <span>Trakt Logged</span>
                       </span>
@@ -356,27 +356,27 @@ export default function ActionsDaemonTab() {
                           <span>Letterboxd Confirmed</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-500/15 border border-blue-500/30 text-blue-300">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-accent/15 border border-accent/30 text-accent">
                           <Clock className="h-2.5 w-2.5" />
                           <span>Synced in State</span>
                         </span>
                       )}
                     </div>
 
-                    <h4 className="text-sm sm:text-base font-bold text-white group-hover:text-blue-300 transition-colors line-clamp-1">
+                    <h4 className="text-sm sm:text-base font-bold text-ink group-hover:text-accent transition-colors line-clamp-1">
                       {movie.title}
                     </h4>
 
-                    <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
+                    <div className="flex items-center gap-2 text-xs text-ink-muted flex-wrap">
                       {movie.year && <span>{movie.year}</span>}
                       {movie.year && <span>•</span>}
-                      <span className="flex items-center gap-1 text-slate-300">
-                        <Clock className="h-3 w-3 text-slate-400" />
+                      <span className="flex items-center gap-1 text-ink-muted">
+                        <Clock className="h-3 w-3 text-ink-muted" />
                         {formatRelativeTime(movie.watchedAt)}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500 pt-0.5">
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-ink-subtle pt-0.5">
                       {movie.tmdbId && <span>TMDb: {movie.tmdbId}</span>}
                       {movie.tmdbId && movie.imdbId && <span>•</span>}
                       {movie.imdbId && <span>IMDb: {movie.imdbId}</span>}
@@ -384,13 +384,13 @@ export default function ActionsDaemonTab() {
                   </div>
 
                   {/* External Links */}
-                  <div className="flex items-center gap-3 pt-1 border-t border-white/[0.04] text-xs">
+                  <div className="flex items-center gap-3 pt-1 border-t border-edge text-xs">
                     {movie.letterboxdUrl && (
                       <a
                         href={movie.letterboxdUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-semibold"
+                        className="inline-flex items-center gap-1 text-success hover:text-success font-semibold"
                       >
                         <LetterboxdLogo size={12} className="text-[#00E054]" />
                         <span>Letterboxd</span>
@@ -403,7 +403,7 @@ export default function ActionsDaemonTab() {
                         href={movie.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-red-400 hover:text-red-300 font-semibold"
+                        className="inline-flex items-center gap-1 text-danger hover:text-danger font-semibold"
                       >
                         <TraktLogo size={12} className="text-[#ED1C24]" />
                         <span>Trakt.tv</span>
@@ -421,65 +421,65 @@ export default function ActionsDaemonTab() {
       {/* Engine Architecture & Diagnostics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
         {/* Metric 1: Schedule Cycle */}
-        <div className="p-4 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] space-y-1">
-          <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Sync Schedule</p>
-          <p className="text-xl font-black text-white">Every 15 Minutes</p>
-          <p className="text-[11px] text-blue-400 font-mono">cron: &apos;*/15 * * * *&apos;</p>
+        <div className="p-4 rounded-2xl bg-surface/90 border border-edge space-y-1">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-ink-muted">Sync Schedule</p>
+          <p className="text-xl font-black text-ink">Every 15 Minutes</p>
+          <p className="text-[11px] text-accent font-mono">cron: &apos;*/15 * * * *&apos;</p>
         </div>
 
         {/* Metric 2: Last Execution Duration */}
-        <div className="p-4 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] space-y-1">
-          <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Last Run Duration</p>
-          <p className="text-xl font-black text-emerald-400">
+        <div className="p-4 rounded-2xl bg-surface/90 border border-edge space-y-1">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-ink-muted">Last Run Duration</p>
+          <p className="text-xl font-black text-success">
             {formatDuration(data?.daemon?.lastDurationSeconds)}
           </p>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-ink-muted">
             {data?.latestRun ? formatRelativeTime(data.latestRun.updatedAt) : "Never"}
           </p>
         </div>
 
         {/* Metric 3: Total Runs Completed */}
-        <div className="p-4 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] space-y-1">
-          <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Total Cloud Runs</p>
-          <p className="text-xl font-black text-indigo-400">{data?.totalRuns || "--"}</p>
-          <p className="text-[11px] text-slate-400">Recorded on GitHub Actions</p>
+        <div className="p-4 rounded-2xl bg-surface/90 border border-edge space-y-1">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-ink-muted">Total Cloud Runs</p>
+          <p className="text-xl font-black text-accent">{data?.totalRuns || "--"}</p>
+          <p className="text-[11px] text-ink-muted">Recorded on GitHub Actions</p>
         </div>
 
         {/* Metric 4: Auto-Refresh Status */}
-        <div className="p-4 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] space-y-1 flex flex-col justify-between">
-          <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Telemetry Live Polling</p>
+        <div className="p-4 rounded-2xl bg-surface/90 border border-edge space-y-1 flex flex-col justify-between">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-ink-muted">Telemetry Live Polling</p>
           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-white">
+            <span className="text-sm font-bold text-ink">
               {autoRefresh ? "Enabled (15s)" : "Paused"}
             </span>
             <button
               onClick={() => setAutoRefresh(!autoRefresh)}
               className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
                 autoRefresh
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                  : "bg-slate-800 text-slate-400 border border-slate-700"
+                  ? "bg-success/20 text-success border border-success/30"
+                  : "bg-elevated text-ink-muted border border-edge"
               }`}
             >
               {autoRefresh ? "Pause" : "Resume"}
             </button>
           </div>
-          <p className="text-[10px] text-slate-500">Syncs live state with GitHub</p>
+          <p className="text-[10px] text-ink-subtle">Syncs live state with GitHub</p>
         </div>
       </div>
 
       {/* GitHub Workflow Runs History */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+      <div className="p-5 sm:p-6 rounded-2xl bg-surface/90 border border-edge shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-edge pb-3">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <Terminal className="h-4 w-4 text-indigo-400" />
-              <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
+              <Terminal className="h-4 w-4 text-accent" />
+              <h3 className="text-sm sm:text-base font-bold text-ink tracking-tight">
                 Live GitHub Actions Run History
               </h3>
             </div>
-            <p className="text-xs text-slate-400">
-              Workflow: <code className="text-slate-300 font-mono">letterboxd-sync.yml</code> on{" "}
-              <code className="text-slate-300 font-mono">s-afrid/trakt-sync-engine</code>
+            <p className="text-xs text-ink-muted">
+              Workflow: <code className="text-ink-muted font-mono">letterboxd-sync.yml</code> on{" "}
+              <code className="text-ink-muted font-mono">s-afrid/trakt-sync-engine</code>
             </p>
           </div>
 
@@ -487,7 +487,7 @@ export default function ActionsDaemonTab() {
             href="https://github.com/s-afrid/trakt-sync-engine/actions/workflows/letterboxd-sync.yml"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-300 transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-elevated/80 hover:bg-raised border border-edge text-xs font-semibold text-ink-muted transition-colors shrink-0"
           >
             <span>Open in GitHub</span>
             <ExternalLink className="h-3.5 w-3.5" />
@@ -496,16 +496,16 @@ export default function ActionsDaemonTab() {
 
         {loading ? (
           <div className="p-8 text-center space-y-2">
-            <RefreshCw className="h-6 w-6 text-blue-400 animate-spin mx-auto" />
-            <p className="text-xs text-slate-400">Loading GitHub Actions runs...</p>
+            <RefreshCw className="h-6 w-6 text-accent animate-spin mx-auto" />
+            <p className="text-xs text-ink-muted">Loading GitHub Actions runs...</p>
           </div>
         ) : !data?.runs || data.runs.length === 0 ? (
-          <div className="p-8 text-center space-y-2 text-slate-400 text-xs">
-            <Bot className="h-8 w-8 text-slate-600 mx-auto" />
+          <div className="p-8 text-center space-y-2 text-ink-muted text-xs">
+            <Bot className="h-8 w-8 text-ink-subtle mx-auto" />
             <p>No workflow runs recorded yet.</p>
           </div>
         ) : (
-          <div className="divide-y divide-white/[0.04] overflow-x-auto">
+          <div className="divide-y divide-edge overflow-x-auto">
             {data.runs.map((run) => {
               const isRunActive = run.status === "in_progress" || run.status === "queued";
               const isRunSuccess = run.conclusion === "success";
@@ -514,42 +514,42 @@ export default function ActionsDaemonTab() {
               return (
                 <div
                   key={run.id}
-                  className="py-3 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white/[0.02] px-2 rounded-xl transition-colors"
+                  className="py-3 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-ink/5 px-2 rounded-xl transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {/* Status Badge Icon */}
                     <div
                       className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 border ${
                         isRunActive
-                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
+                          ? "bg-success/15 border-success/40 text-success"
                           : isRunSuccess
-                          ? "bg-emerald-950/50 border-emerald-800/40 text-emerald-400"
+                          ? "bg-success/10 border-success/30 text-success"
                           : isRunFailure
-                          ? "bg-red-950/50 border-red-800/40 text-red-400"
-                          : "bg-slate-800 border-slate-700 text-slate-400"
+                          ? "bg-danger/10 border-danger/30 text-danger"
+                          : "bg-elevated border-edge text-ink-muted"
                       }`}
                     >
                       {isRunActive ? (
-                        <RefreshCw className="h-4 w-4 animate-spin text-emerald-400" />
+                        <RefreshCw className="h-4 w-4 animate-spin text-success" />
                       ) : isRunSuccess ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        <CheckCircle2 className="h-4 w-4 text-success" />
                       ) : isRunFailure ? (
-                        <AlertCircle className="h-4 w-4 text-red-400" />
+                        <AlertCircle className="h-4 w-4 text-danger" />
                       ) : (
-                        <Moon className="h-4 w-4 text-slate-400" />
+                        <Moon className="h-4 w-4 text-ink-muted" />
                       )}
                     </div>
 
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-white">
+                        <span className="text-xs font-bold text-ink">
                           Run #{run.runNumber}
                         </span>
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                             run.event === "schedule"
-                              ? "bg-blue-500/15 border-blue-500/30 text-blue-300"
-                              : "bg-purple-500/15 border-purple-500/30 text-purple-300"
+                              ? "bg-accent/15 border-accent/30 text-accent"
+                              : "bg-accent/15 border-accent/30 text-accent"
                           }`}
                         >
                           {run.event === "schedule" ? "Scheduled (15-min)" : "Manual Trigger"}
@@ -557,10 +557,10 @@ export default function ActionsDaemonTab() {
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             isRunActive
-                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 animate-pulse"
+                              ? "bg-success/20 text-success border border-success/30 animate-pulse"
                               : isRunSuccess
-                              ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/30"
-                              : "bg-red-950/60 text-red-400 border border-red-800/30"
+                              ? "bg-success/10 text-success border border-success/30"
+                              : "bg-danger/10 text-danger border border-danger/30"
                           }`}
                         >
                           {isRunActive ? "In Progress" : run.conclusion || run.status}
@@ -568,19 +568,19 @@ export default function ActionsDaemonTab() {
                       </div>
 
                       {run.commitMessage && (
-                        <p className="text-xs text-slate-400 line-clamp-1">
+                        <p className="text-xs text-ink-muted line-clamp-1">
                           {run.commitMessage}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-slate-400 shrink-0 justify-between sm:justify-end">
+                  <div className="flex items-center gap-4 text-xs text-ink-muted shrink-0 justify-between sm:justify-end">
                     <div className="text-right">
-                      <span className="font-mono text-slate-300 block">
+                      <span className="font-mono text-ink-muted block">
                         {formatDuration(run.durationSeconds)}
                       </span>
-                      <span className="text-[11px] text-slate-500">
+                      <span className="text-[11px] text-ink-subtle">
                         {formatRelativeTime(run.createdAt)}
                       </span>
                     </div>
@@ -589,7 +589,7 @@ export default function ActionsDaemonTab() {
                       href={run.htmlUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white transition-colors"
+                      className="p-1.5 rounded-lg bg-ink/10 hover:bg-ink/5 text-ink-muted hover:text-ink transition-colors"
                       title="View Run on GitHub"
                     >
                       <ArrowUpRight className="h-4 w-4" />
@@ -603,34 +603,34 @@ export default function ActionsDaemonTab() {
       </div>
 
       {/* 4-Pillar Architecture Contract Card */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900/60 via-[#0D111A] to-slate-900/60 border border-white/[0.08] space-y-3">
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-surface/60 via-surface to-surface/60 border border-edge space-y-3">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-emerald-400" />
-          <h4 className="text-xs sm:text-sm font-bold text-white tracking-wide uppercase font-mono">
+          <ShieldCheck className="h-4 w-4 text-success" />
+          <h4 className="text-xs sm:text-sm font-bold text-ink tracking-wide uppercase font-mono">
             How GitHub Actions Stays In Sleep (4-Pillar Verification Contract)
           </h4>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs text-slate-400">
-          <div className="p-3 rounded-xl bg-black/40 border border-white/[0.04] space-y-1">
-            <span className="font-bold text-slate-200 block">1. 15-Minute Cycle</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs text-ink-muted">
+          <div className="p-3 rounded-xl bg-canvas/40 border border-edge space-y-1">
+            <span className="font-bold text-ink block">1. 15-Minute Cycle</span>
             <p className="text-[11px] leading-relaxed">
               Cron executes every 15 minutes automatically in GitHub’s cloud with zero infrastructure cost.
             </p>
           </div>
-          <div className="p-3 rounded-xl bg-black/40 border border-white/[0.04] space-y-1">
-            <span className="font-bold text-slate-200 block">2. Quiet Sleep (0% CPU)</span>
+          <div className="p-3 rounded-xl bg-canvas/40 border border-edge space-y-1">
+            <span className="font-bold text-ink block">2. Quiet Sleep (0% CPU)</span>
             <p className="text-[11px] leading-relaxed">
               If no new movies or episodes were watched since last cycle, the runner terminates silently in ~30s.
             </p>
           </div>
-          <div className="p-3 rounded-xl bg-black/40 border border-white/[0.04] space-y-1">
-            <span className="font-bold text-slate-200 block">3. Automated MAL Sync</span>
+          <div className="p-3 rounded-xl bg-canvas/40 border border-edge space-y-1">
+            <span className="font-bold text-ink block">3. Automated MAL Sync</span>
             <p className="text-[11px] leading-relaxed">
               Any episode or finale watched on Trakt automatically increments count and marks series completed on MAL.
             </p>
           </div>
-          <div className="p-3 rounded-xl bg-black/40 border border-white/[0.04] space-y-1">
-            <span className="font-bold text-slate-200 block">4. Letterboxd Auto-Import</span>
+          <div className="p-3 rounded-xl bg-canvas/40 border border-edge space-y-1">
+            <span className="font-bold text-ink block">4. Letterboxd Auto-Import</span>
             <p className="text-[11px] leading-relaxed">
               When a movie is watched, Playwright imports the verified CSV and removes it from your Letterboxd watchlist.
             </p>

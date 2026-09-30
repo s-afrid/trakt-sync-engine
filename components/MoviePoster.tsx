@@ -51,11 +51,11 @@ export default function MoviePoster({
     // Elegant Cinematic Fallback Card (Haulix obsidian aesthetic)
     return (
       <div
-        className={`relative rounded-xl overflow-hidden bg-gradient-to-br from-[#121622] via-[#0E1118] to-[#0A0C10] border border-white/[0.08] flex flex-col items-center justify-between p-2 select-none shadow-md shrink-0 ${aspectClass} ${className}`}
+        className={`relative rounded-xl overflow-hidden bg-gradient-to-br from-elevated via-surface to-canvas border border-edge flex flex-col items-center justify-between p-2 select-none shadow-md shrink-0 ${aspectClass} ${className}`}
         title={`${title} ${year ? `(${year})` : ""}`}
       >
         <div className="w-full flex items-center justify-between opacity-50">
-          <span className="text-[9px] font-mono tracking-wider uppercase text-slate-400">
+          <span className="text-[9px] font-mono tracking-wider uppercase text-ink-muted">
             {platform === "myanimelist"
               ? "MAL"
               : platform === "letterboxd"
@@ -65,33 +65,33 @@ export default function MoviePoster({
               : "SYNC"}
           </span>
           {isEpisode ? (
-            <Tv className="h-3 w-3 text-indigo-400" />
+            <Tv className="h-3 w-3 text-accent" />
           ) : (
-            <Film className="h-3 w-3 text-emerald-400" />
+            <Film className="h-3 w-3 text-success" />
           )}
         </div>
 
         <div className="text-center px-1 my-auto">
-          <p className="text-[11px] font-bold text-slate-200 line-clamp-2 leading-tight">
+          <p className="text-[11px] font-bold text-ink line-clamp-2 leading-tight">
             {title}
           </p>
           {year && (
-            <p className="text-[9px] font-medium text-slate-400 mt-0.5 font-mono">
+            <p className="text-[9px] font-medium text-ink-muted mt-0.5 font-mono">
               {year}
             </p>
           )}
         </div>
 
-        <div className="w-full h-1 rounded-full bg-white/[0.06] overflow-hidden">
+        <div className="w-full h-1 rounded-full bg-ink/10 overflow-hidden">
           <div
             className={`h-full w-2/3 ${
               platform === "myanimelist"
-                ? "bg-indigo-500/40"
+                ? "bg-accent/40"
                 : platform === "letterboxd"
-                ? "bg-emerald-500/40"
+                ? "bg-success/40"
                 : platform === "trakt"
-                ? "bg-red-500/40"
-                : "bg-amber-500/40"
+                ? "bg-danger/40"
+                : "bg-accent/40"
             }`}
           />
         </div>
@@ -101,12 +101,12 @@ export default function MoviePoster({
 
   return (
     <div
-      className={`relative rounded-xl overflow-hidden bg-[#0A0C10] border border-white/[0.08] shadow-md shadow-black/40 group shrink-0 ${aspectClass} ${className}`}
+      className={`relative rounded-xl overflow-hidden bg-canvas border border-edge shadow-md shadow-black/40 group shrink-0 ${aspectClass} ${className}`}
     >
       {/* Skeleton / Shimmer while loading */}
       {!loaded && (
-        <div className="absolute inset-0 bg-slate-900/80 animate-pulse flex items-center justify-center">
-          <Film className="h-4 w-4 text-slate-700" />
+        <div className="absolute inset-0 bg-surface/80 animate-pulse flex items-center justify-center">
+          <Film className="h-4 w-4 text-ink-subtle" />
         </div>
       )}
 
@@ -123,7 +123,7 @@ export default function MoviePoster({
       />
 
       {/* Subtle Bottom Ambient Gradient for text legibility */}
-      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-canvas/80 via-canvas/20 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
     </div>
   );
 }

@@ -48,8 +48,46 @@ Manually logging the same movie on Letterboxd and Trakt, or remembering to incre
 - **Hybrid Storage Modes**:
   - Works in **Cookie Mode** out of the box for quick local testing without any database.
   - Switches to **Neon PostgreSQL Mode** for multi-user support, sync audit logs, and persistent cron execution.
+- **Native Harbor Design System**:
+  - The dashboard shares the exact color tokens, typography, iconography, and logo lockup used by the [Harbor](https://github.com/s-afrid) desktop player, so both surfaces read as one product.
 
 ---
+
+## 🎨 Design System (Harbor)
+
+The UI is a first-party Harbor surface. Tokens live in `app/globals.css` and are exposed to
+Tailwind through `tailwind.config.ts`, so **never hard-code a hex value in a component** —
+use the semantic class instead.
+
+| Token | Class | Value | Harbor source |
+| --- | --- | --- | --- |
+| Page background | `bg-canvas` | `#111213` | `oklch(0.18 0.004 260)` |
+| Cards / panels | `bg-surface` | `#191b1c` | `oklch(0.22 0.004 260)` |
+| Raised rows, hover | `bg-elevated` | `#252628` | `oklch(0.27 0.004 260)` |
+| Buttons, chips | `bg-raised` | `#323335` | `oklch(0.32 0.004 260)` |
+| Primary text | `text-ink` | `#f4f5f7` | `oklch(0.97 0.003 260)` |
+| Secondary text | `text-ink-muted` | `#a3a5a6` | `oklch(0.72 0.003 260)` |
+| Tertiary text | `text-ink-subtle` | `#626365` | `oklch(0.50 0.003 260)` |
+| Borders / dividers | `border-edge` | `#282a2b` | `oklch(0.36 0.004 260 / 55%)` over canvas |
+| Brand accent | `bg-accent` / `text-accent` | `#f4a25c` | `oklch(0.78 0.13 60)` |
+| Positive state | `bg-success` | `#45b164` | `oklch(0.68 0.15 150)` |
+| Negative state | `bg-danger` | `#c53637` | `oklch(0.55 0.18 25)` |
+
+- Tokens are stored as **space-separated sRGB channels**, so Tailwind opacity modifiers work
+  everywhere: `bg-surface/60`, `border-edge/40`, `text-accent/90`.
+- Amber/gold is the single brand accent (matches Harbor's `--color-accent`); green and red are
+  reserved for **status only** — never for decoration.
+- Platform brand colors stay literal: Trakt `#ED1C24`, MyAnimeList `#2E51A2`,
+  Letterboxd `#00E054` / `#FF8000` / `#40BCF4`.
+- Typography mirrors Harbor: **Switzer** for UI, **Sentient** for the wordmark
+  (`.harbor-wordmark`), **JetBrains Mono** for telemetry.
+- Brand assets are mirrored from Harbor: `public/harbor-mark.svg`, `public/harbor-wordmark.svg`,
+  `public/harbor-icon.png`, plus the `<HarborMark />` / `<HarborLogo />` React components in
+  `components/icons.tsx`.
+- Reusable primitives: `.harbor-card`, `.harbor-chip`, `.harbor-chip-accent`,
+  `.harbor-chip-success`, `.harbor-chip-danger`, `.harbor-btn-primary`, `.harbor-btn-ghost`,
+  `.harbor-label`, `.harbor-glow`.
+
 
 ## 🔄 How the Synchronization Engine Works
 

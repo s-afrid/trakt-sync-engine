@@ -113,19 +113,19 @@ export default function WatchlistTab() {
   return (
     <div className="space-y-6">
       {/* Top Notice Bar */}
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-950/30 via-slate-900/60 to-[#0D111A] border border-amber-800/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-xl">
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-accent/10 via-surface/60 to-surface border border-accent/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-xl">
         <div className="flex items-start gap-3 min-w-0">
-          <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5">
-            <Bookmark className="h-5 w-5 text-amber-400" />
+          <div className="h-9 w-9 rounded-xl bg-accent/10 border border-accent/30 flex items-center justify-center shrink-0 mt-0.5">
+            <Bookmark className="h-5 w-5 text-accent" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-              <h2 className="text-sm sm:text-base font-semibold text-white">Unified Watchlist</h2>
-              <span className="px-2 py-0.5 text-[10px] sm:text-[11px] font-medium rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              <h2 className="text-sm sm:text-base font-semibold text-ink">Unified Watchlist</h2>
+              <span className="px-2 py-0.5 text-[10px] sm:text-[11px] font-medium rounded-full bg-accent/15 text-accent border border-accent/30">
                 Auto-Clearing
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+            <p className="text-xs text-ink-muted mt-0.5 leading-relaxed">
               Consolidated titles across Trakt, Letterboxd, and MyAnimeList. Items are automatically removed upon completion.
             </p>
           </div>
@@ -134,22 +134,22 @@ export default function WatchlistTab() {
         <button
           onClick={fetchWatchlist}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-xs font-medium text-slate-300 transition-colors shrink-0"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-elevated/80 hover:bg-raised/80 border border-edge text-xs font-medium text-ink-muted transition-colors shrink-0"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-amber-400" : ""}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-accent" : ""}`} />
           <span>Refresh</span>
         </button>
       </div>
 
       {/* Error Alert */}
       {error && (
-        <div className="p-4 rounded-xl bg-red-950/40 border border-red-800/60 text-red-200 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+        <div className="p-4 rounded-xl bg-danger/10 border border-danger/30 text-ink flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-danger shrink-0 mt-0.5" />
           <div className="text-sm flex-1">
             <p className="font-semibold">Unable to load unified watchlist</p>
-            <p className="text-red-300/90 mt-0.5">{error}</p>
+            <p className="text-danger/90 mt-0.5">{error}</p>
           </div>
-          <button onClick={fetchWatchlist} className="text-xs text-red-400 hover:text-red-200 underline">
+          <button onClick={fetchWatchlist} className="text-xs text-danger hover:text-ink underline">
             Retry
           </button>
         </div>
@@ -158,46 +158,46 @@ export default function WatchlistTab() {
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Watchlist */}
-        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-amber-500 shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-accent shadow-sm flex items-center justify-between transition-all hover:bg-surface/90">
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total In Watchlist</p>
-            <p className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-muted">Total In Watchlist</p>
+            <p className="text-2xl sm:text-3xl font-black text-ink tracking-tight">
               {data ? data.summary.total : "--"}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-amber-400 flex items-center gap-1 font-medium">
+            <p className="text-[10px] sm:text-[11px] text-accent flex items-center gap-1 font-medium">
               <Sparkles className="h-3 w-3" /> All connected platforms
             </p>
           </div>
-          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center shrink-0">
-            <Layers className="h-5 w-5 text-amber-400" />
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-accent/10 border border-accent/25 flex items-center justify-center shrink-0">
+            <Layers className="h-5 w-5 text-accent" />
           </div>
         </div>
 
         {/* Trakt Watchlist */}
-        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#ED1C24] shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-[#ED1C24] shadow-sm flex items-center justify-between transition-all hover:bg-surface/90">
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Trakt Queue</p>
-            <p className="text-2xl sm:text-3xl font-black text-red-400 tracking-tight">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-muted">Trakt Queue</p>
+            <p className="text-2xl sm:text-3xl font-black text-danger tracking-tight">
               {data ? data.summary.traktCount : "--"}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-              <Tv className="h-3 w-3 text-red-400" /> Movies & TV Shows
+            <p className="text-[10px] sm:text-[11px] text-ink-muted flex items-center gap-1 font-medium">
+              <Tv className="h-3 w-3 text-danger" /> Movies & TV Shows
             </p>
           </div>
-          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-red-500/10 border border-red-500/25 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-danger/10 border border-danger/25 flex items-center justify-center shrink-0">
             <TraktLogo size={20} className="text-[#ED1C24]" />
           </div>
         </div>
 
         {/* Letterboxd Watchlist */}
-        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#00E054] shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-[#00E054] shadow-sm flex items-center justify-between transition-all hover:bg-surface/90">
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Letterboxd Cinema</p>
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-muted">Letterboxd Cinema</p>
             <p className="text-2xl sm:text-3xl font-black text-[#00E054] tracking-tight">
               {data ? data.summary.letterboxdCount : "--"}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-              <Film className="h-3 w-3 text-emerald-400" /> Unwatched Movies
+            <p className="text-[10px] sm:text-[11px] text-ink-muted flex items-center gap-1 font-medium">
+              <Film className="h-3 w-3 text-success" /> Unwatched Movies
             </p>
           </div>
           <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-[#00E054]/10 border border-[#00E054]/25 flex items-center justify-center shrink-0">
@@ -206,33 +206,33 @@ export default function WatchlistTab() {
         </div>
 
         {/* MyAnimeList Watchlist */}
-        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] border-t-2 border-t-[#3B82F6] shadow-sm flex items-center justify-between transition-all hover:bg-[#111726]/90">
+        <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge border-t-2 border-t-accent shadow-sm flex items-center justify-between transition-all hover:bg-surface/90">
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">MyAnimeList Plan</p>
-            <p className="text-2xl sm:text-3xl font-black text-sky-400 tracking-tight">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-muted">MyAnimeList Plan</p>
+            <p className="text-2xl sm:text-3xl font-black text-accent tracking-tight">
               {data ? data.summary.malCount : "--"}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-              <Tv className="h-3 w-3 text-sky-400" /> Plan to Watch
+            <p className="text-[10px] sm:text-[11px] text-ink-muted flex items-center gap-1 font-medium">
+              <Tv className="h-3 w-3 text-accent" /> Plan to Watch
             </p>
           </div>
-          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center shrink-0">
-            <MalLogo size={22} className="text-sky-400" />
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-accent/10 border border-accent/25 flex items-center justify-center shrink-0">
+            <MalLogo size={22} className="text-accent" />
           </div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] space-y-3 sm:space-y-4 shadow-sm">
+      <div className="p-3.5 sm:p-4 md:p-5 rounded-2xl bg-surface/90 border border-edge space-y-3 sm:space-y-4 shadow-sm">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 sm:gap-3">
           {/* Platform Pills */}
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/40 border border-white/[0.06] overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-canvas/40 border border-edge overflow-x-auto scrollbar-none">
             <button
               onClick={() => setPlatformFilter("all")}
               className={`shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 platformFilter === "all"
-                  ? "bg-slate-800 text-white shadow-sm border border-slate-700"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-elevated text-ink shadow-sm border border-edge"
+                  : "text-ink-muted hover:text-ink"
               }`}
             >
               All Platforms ({data?.summary.total || 0})
@@ -241,8 +241,8 @@ export default function WatchlistTab() {
               onClick={() => setPlatformFilter("trakt")}
               className={`shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 platformFilter === "trakt"
-                  ? "bg-red-500/20 text-red-300 border border-red-500/40"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-danger/20 text-danger border border-danger/40"
+                  : "text-ink-muted hover:text-ink"
               }`}
             >
               <TraktLogo size={14} className="text-[#ED1C24]" />
@@ -253,7 +253,7 @@ export default function WatchlistTab() {
               className={`shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 platformFilter === "letterboxd"
                   ? "bg-[#00E054]/20 text-[#00E054] border border-[#00E054]/40"
-                  : "text-slate-400 hover:text-white"
+                  : "text-ink-muted hover:text-ink"
               }`}
             >
               <LetterboxdLogo size={14} />
@@ -263,18 +263,18 @@ export default function WatchlistTab() {
               onClick={() => setPlatformFilter("myanimelist")}
               className={`shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 platformFilter === "myanimelist"
-                  ? "bg-[#2E51A2]/25 text-sky-300 border border-[#2E51A2]/40"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-[#2E51A2]/25 text-accent border border-[#2E51A2]/40"
+                  : "text-ink-muted hover:text-ink"
               }`}
             >
-              <MalLogo size={14} className="text-sky-400" />
+              <MalLogo size={14} className="text-accent" />
               <span>MyAnimeList ({data?.summary.malCount || 0})</span>
             </button>
           </div>
 
           {/* Type Filter */}
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none self-start md:self-auto shrink-0">
-            <span className="text-xs text-slate-400 font-semibold flex items-center gap-1 shrink-0">
+            <span className="text-xs text-ink-muted font-semibold flex items-center gap-1 shrink-0">
               <Filter className="h-3.5 w-3.5" /> Type:
             </span>
             {[
@@ -288,8 +288,8 @@ export default function WatchlistTab() {
                 onClick={() => setTypeFilter(opt.id as any)}
                 className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   typeFilter === opt.id
-                    ? "bg-slate-800 text-white border border-slate-700 shadow-sm"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-elevated text-ink border border-edge shadow-sm"
+                    : "text-ink-muted hover:text-ink"
                 }`}
               >
                 {opt.label}
@@ -299,20 +299,20 @@ export default function WatchlistTab() {
         </div>
 
         {/* Live Search */}
-        <div className="pt-2 border-t border-white/[0.06]">
+        <div className="pt-2 border-t border-edge">
           <div className="relative w-full">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-muted" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search watchlist by title, overview, or year..."
-              className="w-full pl-10 pr-9 py-2 rounded-xl bg-black/40 border border-white/[0.08] text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all"
+              className="w-full pl-10 pr-9 py-2 rounded-xl bg-canvas/40 border border-edge text-xs sm:text-sm text-ink placeholder-ink-subtle focus:outline-none focus:ring-1 focus:ring-accent transition-all"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink-muted"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -323,25 +323,25 @@ export default function WatchlistTab() {
 
       {/* Watchlist Items Grid */}
       <div>
-        <div className="flex items-center justify-between text-xs text-slate-400 px-1 mb-3">
+        <div className="flex items-center justify-between text-xs text-ink-muted px-1 mb-3">
           <span>Showing {filteredItems.length} queued title(s)</span>
-          <span className="text-[11px] text-emerald-400/90 font-medium">Completed items automatically cleared</span>
+          <span className="text-[11px] text-success/90 font-medium">Completed items automatically cleared</span>
         </div>
 
         {loading ? (
-          <div className="p-12 rounded-2xl bg-[#0B0F19] border border-slate-800/80 text-center space-y-3">
-            <RefreshCw className="h-6 w-6 text-amber-400 animate-spin mx-auto" />
-            <p className="text-sm text-slate-300 font-medium">
+          <div className="p-12 rounded-2xl bg-surface border border-edge text-center space-y-3">
+            <RefreshCw className="h-6 w-6 text-accent animate-spin mx-auto" />
+            <p className="text-sm text-ink-muted font-medium">
               Aggregating watchlists from Trakt, Letterboxd & MyAnimeList...
             </p>
           </div>
         ) : filteredItems.length === 0 ? (
-          <div className="p-12 rounded-2xl bg-[#0B0F19] border border-slate-800/80 text-center space-y-3">
-            <div className="h-12 w-12 rounded-full bg-slate-800/60 border border-slate-700/60 flex items-center justify-center mx-auto text-slate-400">
+          <div className="p-12 rounded-2xl bg-surface border border-edge text-center space-y-3">
+            <div className="h-12 w-12 rounded-full bg-elevated/60 border border-edge flex items-center justify-center mx-auto text-ink-muted">
               <Bookmark className="h-6 w-6" />
             </div>
-            <h3 className="text-sm font-semibold text-white">No titles in this watchlist filter</h3>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
+            <h3 className="text-sm font-semibold text-ink">No titles in this watchlist filter</h3>
+            <p className="text-xs text-ink-muted max-w-md mx-auto">
               All titles may have been watched or completed, or there are no items matching your filter criteria.
             </p>
           </div>
@@ -355,7 +355,7 @@ export default function WatchlistTab() {
               return (
                 <div
                   key={item.id}
-                  className="group p-3.5 sm:p-4 rounded-2xl bg-[#0D111A]/90 hover:bg-[#111726]/95 border border-white/[0.08] hover:border-slate-600/80 transition-all duration-200 flex gap-3.5 shadow-sm hover:shadow-xl hover:shadow-black/30"
+                  className="group p-3.5 sm:p-4 rounded-2xl bg-surface/90 hover:bg-surface/95 border border-edge hover:border-ink-subtle/40 transition-all duration-200 flex gap-3.5 shadow-sm hover:shadow-xl hover:shadow-black/30"
                 >
                   {/* Poster Thumbnail */}
                   <MoviePoster
@@ -364,7 +364,7 @@ export default function WatchlistTab() {
                     year={item.year}
                     platform={item.platform}
                     type={item.type === "movie" ? "movie" : "episode"}
-                    className="w-16 sm:w-20 rounded-xl shadow-md border border-white/[0.08] shrink-0"
+                    className="w-16 sm:w-20 rounded-xl shadow-md border border-edge shrink-0"
                   />
 
                   {/* Details */}
@@ -377,52 +377,52 @@ export default function WatchlistTab() {
                             isLB
                               ? "bg-[#00E054]/10 border-[#00E054]/30 text-[#00E054]"
                               : isMAL
-                              ? "bg-[#2E51A2]/20 border-[#2E51A2]/35 text-sky-300"
-                              : "bg-red-500/10 border-red-500/30 text-red-300"
+                              ? "bg-[#2E51A2]/20 border-[#2E51A2]/35 text-accent"
+                              : "bg-danger/10 border-danger/30 text-danger"
                           }`}
                         >
                           {isLB ? "Letterboxd" : isMAL ? "MyAnimeList" : "Trakt"}
                         </span>
 
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700/50 uppercase tracking-wider">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-elevated text-ink-muted border border-edge uppercase tracking-wider">
                           {item.type}
                         </span>
 
                         {item.year && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.08] text-slate-300">
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-ink/10 border border-edge text-ink-muted">
                             {item.year}
                           </span>
                         )}
                       </div>
 
                       {/* Title */}
-                      <h4 className="text-sm font-bold text-white tracking-tight group-hover:text-amber-200 transition-colors line-clamp-1 mt-1.5">
+                      <h4 className="text-sm font-bold text-ink tracking-tight group-hover:text-ink transition-colors line-clamp-1 mt-1.5">
                         {item.title}
                       </h4>
 
                       {/* Overview snippet or episode count */}
                       {item.overview ? (
-                        <p className="text-[11px] text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                        <p className="text-[11px] text-ink-muted line-clamp-2 mt-1 leading-relaxed">
                           {item.overview}
                         </p>
                       ) : item.totalEpisodes ? (
-                        <p className="text-[11px] text-slate-400 mt-1">
+                        <p className="text-[11px] text-ink-muted mt-1">
                           {item.totalEpisodes} episodes planned
                         </p>
                       ) : null}
                     </div>
 
                     {/* Bottom Metadata & Link */}
-                    <div className="flex items-center justify-between pt-1 border-t border-white/[0.06] text-[11px]">
+                    <div className="flex items-center justify-between pt-1 border-t border-edge text-[11px]">
                       <div className="flex items-center gap-2">
                         {item.rating && (
-                          <span className="inline-flex items-center gap-1 text-amber-300 font-semibold text-[11px]">
-                            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                          <span className="inline-flex items-center gap-1 text-accent font-semibold text-[11px]">
+                            <Star className="h-3 w-3 fill-accent text-accent" />
                             {item.rating}
                           </span>
                         )}
                         {item.metadata?.imdbId && (
-                          <span className="text-[10px] font-mono text-slate-500">
+                          <span className="text-[10px] font-mono text-ink-subtle">
                             {item.metadata.imdbId}
                           </span>
                         )}
@@ -433,7 +433,7 @@ export default function WatchlistTab() {
                           href={item.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-white transition-colors"
+                          className="inline-flex items-center gap-1 text-[11px] text-ink-muted hover:text-ink transition-colors"
                         >
                           <span>Open</span>
                           <ArrowUpRight className="h-3 w-3" />

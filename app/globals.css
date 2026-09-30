@@ -2,42 +2,179 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Harbor design tokens ────────────────────────────────────────────
+   Mirrors E:\Projects\harbor-0.9.21 (harbor-core `@theme`) so this
+   dashboard reads as a native Harbor surface.
+
+   Values are Harbor's OKLCH tokens converted to sRGB and stored as
+   space separated channels, which keeps Tailwind's opacity modifier
+   working (bg-surface/60, border-edge/40, text-accent/90, ...).
+
+   Harbor source ............... sRGB
+   canvas    oklch(.18 .004 260) #111213
+   surface   oklch(.22 .004 260) #191b1c
+   elevated  oklch(.27 .004 260) #252628
+   raised    oklch(.32 .004 260) #323335
+   ink       oklch(.97 .003 260) #f4f5f7
+   ink-muted oklch(.72 .003 260) #a3a5a6
+   ink-subtle oklch(.50 .003 260)#626365
+   edge      oklch(.36 .004 260/55%) over canvas -> #282a2b
+   edge-soft oklch(.36 .004 260/25%) over canvas -> #1b1c1e
+   accent    oklch(.78 .13 60)   #f4a25c
+   accent-soft accent @18% over canvas -> #392c20
+   danger    oklch(.55 .18 25)   #c53637
+   success   oklch(.68 .15 150)  #45b164
+-------------------------------------------------------------------- */
 :root {
-  --background: 224 71% 4%;
-  --foreground: 213 31% 91%;
-  --card: 224 71% 7%;
-  --card-foreground: 213 31% 91%;
-  --primary: 210 100% 50%;
-  --primary-foreground: 222.2 47.4% 11.2%;
-  --secondary: 222.2 47.4% 11.2%;
-  --secondary-foreground: 210 40% 98%;
-  --border: 216 34% 17%;
-  --input: 216 34% 17%;
-  --ring: 216 34% 17%;
+  --color-canvas:      17 18 19;
+  --color-surface:     25 27 28;
+  --color-elevated:    37 38 40;
+  --color-raised:      50 51 53;
+  --color-ink:         244 245 247;
+  --color-ink-muted:   163 165 166;
+  --color-ink-subtle:  98 99 101;
+  --color-edge:        40 42 43;
+  --color-edge-soft:   27 28 30;
+  --color-accent:      244 162 92;
+  --color-accent-soft: 57 44 32;
+  --color-danger:      197 54 55;
+  --color-success:     69 177 100;
+
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  20px;
+  --radius-2xl: 28px;
+
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 400ms;
+
+  color-scheme: dark;
 }
 
-body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+/* ── Base ────────────────────────────────────────────────────── */
+html, body {
+  background-color: rgb(var(--color-canvas));
+  color: rgb(var(--color-ink));
+  font-family: "Switzer", "Inter", system-ui, -apple-system, sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   min-height: 100vh;
 }
 
-/* Custom scrollbars */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+body {
+  background-image: radial-gradient(
+    120% 55% at 50% -10%,
+    rgb(var(--color-accent) / 0.05),
+    transparent 70%
+  );
+  background-repeat: no-repeat;
 }
 
-::-webkit-scrollbar-track {
-  background: #090d16;
+::selection {
+  background: rgb(var(--color-accent) / 0.28);
+  color: rgb(var(--color-ink));
 }
 
-::-webkit-scrollbar-thumb {
-  background: #1f293d;
-  border-radius: 4px;
+/* ── Scrollbars ──────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgb(var(--color-edge)); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--color-raised)); }
+
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { scrollbar-width: none; }
+
+/* ── Focus ring — Harbor focuses with the amber accent ───────── */
+:focus-visible {
+  outline: 2px solid rgb(var(--color-accent) / 0.65);
+  outline-offset: 2px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #2b3954;
+/* ── Animations ─────────────────────────────────────────────── */
+@keyframes harbor-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
+@keyframes harbor-step-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+@keyframes harbor-pop {
+  0%   { opacity: 0; transform: scale(0.5); }
+  60%  { transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes harbor-modal-in {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes harbor-shimmer {
+  0%,18%  { transform: translateX(-220%); opacity: 0; }
+  28%     { opacity: 1; }
+  62%     { transform: translateX(320%); opacity: 1; }
+  68%,100%{ transform: translateX(320%); opacity: 0; }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+/* Harbor's boot-logo bob, reused for the header mark */
+@keyframes harbor-bob {
+  0%   { transform: translateY(0)    rotate(-2deg) scale(0.98); }
+  25%  { transform: translateY(-3px) rotate(0deg)  scale(1);    }
+  50%  { transform: translateY(0)    rotate(2deg)  scale(1.02); }
+  75%  { transform: translateY(-3px) rotate(0deg)  scale(1);    }
+  100% { transform: translateY(0)    rotate(-2deg) scale(0.98); }
+}
+
+.animate-fade-in    { animation: harbor-fade-in  350ms var(--ease-out) both; }
+.animate-step-in    { animation: harbor-step-in  380ms var(--ease-out) both; }
+.animate-pop        { animation: harbor-pop      340ms cubic-bezier(0.34,1.56,0.64,1) both; }
+.animate-modal-in   { animation: harbor-modal-in 480ms var(--ease-out) both; }
+.animate-shimmer    { animation: harbor-shimmer    5.4s ease-in-out infinite; }
+.animate-pulse-dot  { animation: pulse-dot         2s  ease-in-out infinite; }
+.animate-harbor-bob { animation: harbor-bob      2400ms ease-in-out infinite; }
+
+/* ── Harbor primitives ─────────────────────────────────────────── */
+@layer components {
+  .harbor-card {
+    @apply rounded-2xl border border-edge bg-surface;
+  }
+  .harbor-card-hover {
+    @apply transition-colors duration-200 hover:border-ink-subtle/50 hover:bg-elevated;
+  }
+  .harbor-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-edge bg-elevated
+           px-2.5 py-1 text-[10px] font-semibold tracking-wider text-ink-muted;
+  }
+  .harbor-chip-accent  { @apply border-accent/30 bg-accent/10 text-accent; }
+  .harbor-chip-success { @apply border-success/30 bg-success/10 text-success; }
+  .harbor-chip-danger  { @apply border-danger/30 bg-danger/10 text-danger; }
+  .harbor-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm
+           font-semibold transition-colors duration-200
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .harbor-btn-primary { @apply bg-accent text-canvas hover:bg-accent/85; }
+  .harbor-btn-ghost {
+    @apply border border-edge bg-elevated text-ink-muted hover:bg-raised hover:text-ink;
+  }
+  .harbor-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle;
+  }
+  .harbor-glow {
+    box-shadow: 0 10px 30px rgb(var(--color-accent) / 0.22);
+  }
+  .harbor-wordmark {
+    font-family: "Sentient", "Iowan Old Style", Georgia, serif;
+    letter-spacing: 0.01em;
+  }
+}
+
+
