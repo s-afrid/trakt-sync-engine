@@ -68,6 +68,17 @@ interface SyncRunResult {
     syncedTitles: string[];
     errors: string[];
   };
+  traktToLetterboxd?: {
+    configured?: boolean;
+    message?: string;
+    newMoviesFound?: number;
+    alreadySynced?: number;
+    markedWatched?: number;
+    removedFromWatchlist?: number;
+    skipped?: number;
+    errors?: string[];
+    syncedTitles?: string[];
+  };
   timestamp: string;
 }
 
@@ -1233,11 +1244,17 @@ export default function Dashboard() {
         {/* Live Sync Result Panel */}
         {syncResult && (
           <div className={`p-4 sm:p-6 rounded-2xl bg-surface border space-y-4 ${
-            (syncResult.anime?.errors.length ?? 0) > 0 ? "border-danger/40" : "border-accent/20"
+            (syncResult.anime?.errors.length ?? 0) > 0 ||
+            (syncResult.traktToLetterboxd?.errors?.length ?? 0) > 0 ||
+            syncResult.traktToLetterboxd?.configured === false
+              ? "border-danger/40"
+              : "border-accent/20"
           }`}>
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-ink flex items-center gap-2">
-                {(syncResult.anime?.errors.length ?? 0) > 0 ? (
+                {(syncResult.anime?.errors.length ?? 0) > 0 ||
+                (syncResult.traktToLetterboxd?.errors?.length ?? 0) > 0 ||
+                syncResult.traktToLetterboxd?.configured === false ? (
                   <AlertCircle className="h-5 w-5 text-danger" />
                 ) : (
                   <CheckCircle2 className="h-5 w-5 text-success" />
@@ -1312,6 +1329,60 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+            )}
+          </div>
+        )}
+
+        {syncResult?.traktToLetterboxd && (
+          <div className="p-4 sm:p-6 rounded-2xl bg-surface border border-edge space-y-3">
+            <h3 className="font-semibold text-ink">Trakt to Letterboxd</h3>
+            {syncResult.traktToLetterboxd.configured === false ? (
+              <p className="text-sm text-ink-muted">
+                {syncResult.traktToLetterboxd.message}
+              </p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                  <div className="p-3 rounded-xl bg-surface border border-edge">
+                    <p className="text-xs text-ink-muted">New Trakt Movies</p>
+                    <p className="text-lg font-bold text-ink mt-1">
+                      {syncResult.traktToLetterboxd.newMoviesFound ?? 0}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-surface border border-edge">
+                    <p className="text-xs text-ink-muted">Marked Watched</p>
+                    <p className="text-lg font-bold text-success mt-1">
+                      {syncResult.traktToLetterboxd.markedWatched ?? 0}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-surface border border-edge">
+                    <p className="text-xs text-ink-muted">Removed from Watchlist</p>
+                    <p className="text-lg font-bold text-ink mt-1">
+                      {syncResult.traktToLetterboxd.removedFromWatchlist ?? 0}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-surface border border-edge">
+                    <p className="text-xs text-ink-muted">Already Synced</p>
+                    <p className="text-lg font-bold text-ink mt-1">
+                      {syncResult.traktToLetterboxd.alreadySynced ?? 0}
+                    </p>
+                  </div>
+                </div>
+                {syncResult.traktToLetterboxd.syncedTitles &&
+                  syncResult.traktToLetterboxd.syncedTitles.length > 0 && (
+                    <p className="text-xs text-ink-muted">
+                      Synced: {syncResult.traktToLetterboxd.syncedTitles.join(", ")}
+                    </p>
+                  )}
+                {syncResult.traktToLetterboxd.errors &&
+                  syncResult.traktToLetterboxd.errors.length > 0 && (
+                    <ul className="rounded-xl border border-danger/30 bg-danger/10 p-3 space-y-1 text-xs text-danger">
+                      {syncResult.traktToLetterboxd.errors.map((error, idx) => (
+                        <li key={idx} className="break-words">{error}</li>
+                      ))}
+                    </ul>
+                  )}
+              </>
             )}
           </div>
         )}

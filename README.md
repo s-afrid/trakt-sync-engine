@@ -283,7 +283,13 @@ DATABASE_URL="postgresql://user:password@ep-xyz.us-east-2.aws.neon.tech/neondb?s
 
 # Vercel Cron Secret
 CRON_SECRET="your_custom_cron_token"
+
+# Stremboxd credentials (required for Trakt -> Letterboxd movie sync)
+STREMBOXD_USERNAME="your_stremboxd_username"
+STREMBOXD_PASSWORD="your_stremboxd_password"
 ```
+
+The dashboard's Trigger Sync Engine button runs both Trakt -> MAL and Trakt -> Letterboxd movie syncs. The Letterboxd movie sync requires Stremboxd credentials; LETTERBOXD_USERNAME and LETTERBOXD_PASSWORD can be used as a fallback.
 
 ### 4. Database Setup (Optional for Local, Required for Production)
 
@@ -380,6 +386,7 @@ Open your browser at **[http://localhost:3000](http://localhost:3000)**.
    - `MAL_REDIRECT_URI`: `https://<your-app>.vercel.app/api/auth/mal/callback`
    - `DATABASE_URL`: Your Neon PostgreSQL connection string.
    - `CRON_SECRET`: A secret token for securing Vercel Cron.
+   - `STREMBOXD_USERNAME` and `STREMBOXD_PASSWORD`: Required for Trakt -> Letterboxd movie sync. You may instead set `LETTERBOXD_USERNAME` and `LETTERBOXD_PASSWORD`.
 4. **Update OAuth Redirects**:
    - Update your Trakt application redirect URI to `https://<your-app>.vercel.app/api/auth/trakt/callback`.
    - Update your MAL application redirect URI to `https://<your-app>.vercel.app/api/auth/mal/callback`.
@@ -399,7 +406,7 @@ Open your browser at **[http://localhost:3000](http://localhost:3000)**.
 | `/api/auth/letterboxd/save` | `POST` | Saves Letterboxd username to session/DB. | No |
 | `/api/export/letterboxd` | `GET` | Streams standard Letterboxd `watched.csv` or `ratings.csv`. | Yes (Trakt) |
 | `/api/sync/status` | `GET` | Returns connection states, user profiles, and logs. | No |
-| `/api/sync/trigger` | `POST` | Triggers on-demand synchronization across services. | Yes (Trakt) |
+| `/api/sync/trigger` | `POST` | Triggers Trakt -> MAL, Trakt -> Letterboxd movies, and Letterboxd RSS -> Trakt syncs when configured. | Yes (Trakt) |
 | `/api/cron/sync` | `GET` | Automated daily background sync triggered by Vercel Cron. | Bearer `CRON_SECRET` |
 
 ---

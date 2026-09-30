@@ -199,12 +199,10 @@ export class StremboxdLetterboxdSync {
       return { result, newSyncedIds, newLatestWatchedAt };
     }
 
-    // Update the latest timestamp
     const maxTs = newMovies.reduce(
       (max, m) => Math.max(max, new Date(m.last_watched_at).getTime()),
       0
     );
-    newLatestWatchedAt = new Date(maxTs).toISOString();
 
     for (const m of newMovies) {
       const imdbId = m.movie.ids.imdb;
@@ -280,6 +278,11 @@ export class StremboxdLetterboxdSync {
         console.error(`[Stremboxd] ⚠️ ${err}`);
         result.errors.push(err);
       }
+    }
+
+    // Keep the timestamp unchanged when an item failed so the next run retries it.
+    if (result.errors.length === 0) {
+      newLatestWatchedAt = new Date(maxTs).toISOString();
     }
 
     return { result, newSyncedIds, newLatestWatchedAt };

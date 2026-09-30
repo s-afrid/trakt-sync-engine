@@ -100,6 +100,24 @@ function parseLogDetails(
         };
       }
 
+      // Trakt to Letterboxd movie sync results
+      if ("newMoviesFound" in parsed && "markedWatched" in parsed) {
+        const errors: string[] = Array.isArray(parsed.errors)
+          ? parsed.errors.map((error: unknown) => decodeEntities(String(error)))
+          : [];
+        const markedWatched = Number(parsed.markedWatched) || 0;
+        const removedFromWatchlist = Number(parsed.removedFromWatchlist) || 0;
+        const newMoviesFound = Number(parsed.newMoviesFound) || 0;
+        const subtitle = errors.length > 0
+          ? `Processed ${newMoviesFound} new movie(s): ${markedWatched} marked watched, ${errors.length} error(s)`
+          : `Processed ${newMoviesFound} new movie(s): ${markedWatched} marked watched, ${removedFromWatchlist} removed from Watchlist`;
+
+        return {
+          subtitle,
+          metadata: { errors },
+        };
+      }
+
       // 2. Anime / MyAnimeList Sync results
       if ("totalTraktShows" in parsed || "malUpdatedCount" in parsed || "updatedTitles" in parsed) {
         const shows = parsed.totalTraktShows ?? 0;
