@@ -1,82 +1,16 @@
-name: 15-Minute Trakt Cloud Sync (MAL and Letterboxd)
+# This workflow is RETIRED — sync now runs natively on Vercel via /api/cron/sync
+# (every 15 minutes, vercel.json schedule).
+#
+# Kept here for reference only. To re-enable, uncomment the `on:` block below.
+
+name: "[RETIRED] 15-Minute Trakt Cloud Sync"
 
 on:
-  schedule:
-    # Run every 15 minutes automatically in GitHub's cloud
-    - cron: '*/15 * * * *'
-  workflow_dispatch:
-    # Allows 1-click manual trigger from GitHub web / mobile app anytime
-
-concurrency:
-  group: trakt-sync-${{ github.ref }}
-  cancel-in-progress: false
-
-permissions:
-  contents: read
+  workflow_dispatch: # manual trigger only — not scheduled
 
 jobs:
-  sync:
-    name: Sync Trakt → Letterboxd (via Stremboxd) and MAL
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Restore Sync State
-        uses: actions/cache@v4
-        with:
-          path: |
-            .letterboxd_sync_state.json
-            .stremboxd_session.json
-          key: lb-state-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: |
-            lb-state-${{ runner.os }}-
-
-      - name: Install Python Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Trakt → Letterboxd + MAL Sync
-        env:
-          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID || 'LJ3u_lRoHsyvfFiUbthSJ7Tk45uEgA_kQEQ5Yz57Ci0' }}
-          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET || '3C-UsSsW_BkGARa5bJ8c0HW9M7MzlLtfIqcKgonoXOo' }}
-          TRAKT_USERNAME: ${{ secrets.TRAKT_USERNAME || 'afsindbad' }}
-          LETTERBOXD_USERNAME: ${{ secrets.LETTERBOXD_USERNAME || 'Af_Sindbad' }}
-          LETTERBOXD_PASSWORD: ${{ secrets.LETTERBOXD_PASSWORD || 'Af02052002' }}
-          # Stremboxd uses the same credentials as Letterboxd — no extra secret needed.
-          # STREMBOXD_USERNAME / STREMBOXD_PASSWORD auto-fall-back to the above.
-          NEXT_PUBLIC_APP_URL: "https://trakt-sync-engine.vercel.app"
-          PYTHONUNBUFFERED: "1"
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          # Primary path: Stremboxd API (pure HTTP, no browser)
-          # Fallback 1: browser AJAX via Playwright
-          # Fallback 2: CSV import via Playwright
-          python scripts/automate_letterboxd_upload.py --auto-confirm --headless --keep-open 3
-
-      # ── Playwright fallback steps (only run when Stremboxd path fails) ────────
-      # These are kept as a safety net. They are NOT triggered normally because
-      # the script handles fallback internally. To force them, uncomment and
-      # add an `if: failure()` condition.
-      #
-      # - name: Install Playwright Chromium (fallback only)
-      #   run: playwright install chromium --with-deps
-      #
-      # - name: Letterboxd Auth Refresh (Playwright fallback)
-      #   if: failure()
-      #   env:
-      #     LETTERBOXD_USERNAME: ${{ secrets.LETTERBOXD_USERNAME || 'Af_Sindbad' }}
-      #     LETTERBOXD_PASSWORD: ${{ secrets.LETTERBOXD_PASSWORD || 'Af02052002' }}
-      #     LETTERBOXD_SESSION_JSON: ${{ secrets.LETTERBOXD_SESSION_JSON }}
-      #   run: |
-      #     xvfb-run -a python scripts/automate_letterboxd_upload.py --job login
+      - name: Notice
+        run: echo "This workflow is retired. Sync runs on Vercel cron every 15 minutes."

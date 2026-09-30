@@ -1,0 +1,1 @@
+import requests; import re; html = requests.get('https://letterboxd.com/film/leo-2023-10-19/').text; print('Film ID:', re.findall(r'data-film-id="(\d+)"', html)); print('CSRF:', re.findall(r'name="__csrf" value="(.*?)"', html))

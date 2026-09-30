@@ -31,6 +31,12 @@ export const syncSettings = pgTable("sync_settings", {
   lastTraktSyncAt: timestamp("last_trakt_sync_at"),
   lastMalSyncAt: timestamp("last_mal_sync_at"),
   lastLetterboxdSyncAt: timestamp("last_letterboxd_sync_at"),
+  // Trakt→Letterboxd direct sync state
+  lastSyncedMovieIds: text("last_synced_movie_ids"), // JSON array of imdb IDs already synced
+  latestWatchedAt: text("latest_watched_at"),        // ISO string — last seen Trakt watched_at
+  stremboxdToken: text("stremboxd_token"),            // cached Stremboxd userToken (valid ~24h)
+  stremboxdUserId: text("stremboxd_user_id"),         // cached Stremboxd userId
+  stremboxdTokenAt: timestamp("stremboxd_token_at"),  // when the token was minted
   status: varchar("status", { length: 32 }).default("idle").notNull(),
   lastErrorMessage: text("last_error_message"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
