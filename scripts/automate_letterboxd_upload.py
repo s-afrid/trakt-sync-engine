@@ -1984,8 +1984,16 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
     job = getattr(args, "job", "all")
 
     # ── Primary path: Stremboxd API (no browser, pure HTTP) ─────────────────
-    sb_username = os.getenv("STREMBOXD_USERNAME", "").strip()
-    sb_password = os.getenv("STREMBOXD_PASSWORD", "").strip()
+    # Stremboxd uses the same Letterboxd username/password — auto-reuse if not
+    # separately configured.
+    sb_username = (
+        os.getenv("STREMBOXD_USERNAME", "").strip()
+        or os.getenv("LETTERBOXD_USERNAME", "").strip()
+    )
+    sb_password = (
+        os.getenv("STREMBOXD_PASSWORD", "").strip()
+        or os.getenv("LETTERBOXD_PASSWORD", "").strip()
+    )
 
     if job in ("all", "upload") and sync_movies:
         if sb_username and sb_password:

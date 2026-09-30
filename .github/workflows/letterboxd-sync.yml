@@ -16,10 +16,10 @@ permissions:
 
 jobs:
   sync:
-    name: Sync Trakt to Letterboxd and MAL
+    name: Sync Trakt → Letterboxd (via Stremboxd) and MAL
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -30,19 +30,12 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Cache Playwright Browser Binary
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
-
-      - name: Restore Letterboxd Session & Diff State
+      - name: Restore Sync State
         uses: actions/cache@v4
         with:
           path: |
             .letterboxd_sync_state.json
-            .letterboxd_session.json
+            .stremboxd_session.json
           key: lb-state-${{ runner.os }}-${{ github.run_id }}
           restore-keys: |
             lb-state-${{ runner.os }}-
@@ -52,60 +45,38 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Install Playwright Chromium & OS Dependencies
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: |
-          playwright install chromium --with-deps
-
-      - name: Install Chromium OS System Libraries (if cached)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: |
-          playwright install-deps chromium
-
-      - name: 1. Letterboxd Auth and Session Refresh
+      - name: Trakt → Letterboxd + MAL Sync
         env:
           TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID || 'LJ3u_lRoHsyvfFiUbthSJ7Tk45uEgA_kQEQ5Yz57Ci0' }}
           TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET || '3C-UsSsW_BkGARa5bJ8c0HW9M7MzlLtfIqcKgonoXOo' }}
           TRAKT_USERNAME: ${{ secrets.TRAKT_USERNAME || 'afsindbad' }}
           LETTERBOXD_USERNAME: ${{ secrets.LETTERBOXD_USERNAME || 'Af_Sindbad' }}
           LETTERBOXD_PASSWORD: ${{ secrets.LETTERBOXD_PASSWORD || 'Af02052002' }}
-          LETTERBOXD_SESSION_JSON: ${{ secrets.LETTERBOXD_SESSION_JSON }}
-          LETTERBOXD_PROXY: ${{ secrets.LETTERBOXD_PROXY }}
+          # Stremboxd uses the same credentials as Letterboxd — no extra secret needed.
+          # STREMBOXD_USERNAME / STREMBOXD_PASSWORD auto-fall-back to the above.
           NEXT_PUBLIC_APP_URL: "https://trakt-sync-engine.vercel.app"
           PYTHONUNBUFFERED: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          xvfb-run -a --server-args="-screen 0 1280x1024x24" python scripts/automate_letterboxd_upload.py --job login
+          # Primary path: Stremboxd API (pure HTTP, no browser)
+          # Fallback 1: browser AJAX via Playwright
+          # Fallback 2: CSV import via Playwright
+          python scripts/automate_letterboxd_upload.py --auto-confirm --headless --keep-open 3
 
-      - name: 2. Trakt to Letterboxd Sync and Upload
-        env:
-          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID || 'LJ3u_lRoHsyvfFiUbthSJ7Tk45uEgA_kQEQ5Yz57Ci0' }}
-          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET || '3C-UsSsW_BkGARa5bJ8c0HW9M7MzlLtfIqcKgonoXOo' }}
-          TRAKT_USERNAME: ${{ secrets.TRAKT_USERNAME || 'afsindbad' }}
-          LETTERBOXD_USERNAME: ${{ secrets.LETTERBOXD_USERNAME || 'Af_Sindbad' }}
-          LETTERBOXD_PASSWORD: ${{ secrets.LETTERBOXD_PASSWORD || 'Af02052002' }}
-          LETTERBOXD_SESSION_JSON: ${{ secrets.LETTERBOXD_SESSION_JSON }}
-          LETTERBOXD_PROXY: ${{ secrets.LETTERBOXD_PROXY }}
-          NEXT_PUBLIC_APP_URL: "https://trakt-sync-engine.vercel.app"
-          PYTHONUNBUFFERED: "1"
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          xvfb-run -a --server-args="-screen 0 1280x1024x24" python scripts/automate_letterboxd_upload.py --auto-confirm --keep-open 5 --job upload
-
-      - name: 3. Watchlist Cleanup
-        env:
-          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID || 'LJ3u_lRoHsyvfFiUbthSJ7Tk45uEgA_kQEQ5Yz57Ci0' }}
-          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET || '3C-UsSsW_BkGARa5bJ8c0HW9M7MzlLtfIqcKgonoXOo' }}
-          TRAKT_USERNAME: ${{ secrets.TRAKT_USERNAME || 'afsindbad' }}
-          LETTERBOXD_USERNAME: ${{ secrets.LETTERBOXD_USERNAME || 'Af_Sindbad' }}
-          LETTERBOXD_PASSWORD: ${{ secrets.LETTERBOXD_PASSWORD || 'Af02052002' }}
-          LETTERBOXD_SESSION_JSON: ${{ secrets.LETTERBOXD_SESSION_JSON }}
-          LETTERBOXD_PROXY: ${{ secrets.LETTERBOXD_PROXY }}
-          NEXT_PUBLIC_APP_URL: "https://trakt-sync-engine.vercel.app"
-          PYTHONUNBUFFERED: "1"
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          xvfb-run -a --server-args="-screen 0 1280x1024x24" python scripts/automate_letterboxd_upload.py --job cleanup
+      # ── Playwright fallback steps (only run when Stremboxd path fails) ────────
+      # These are kept as a safety net. They are NOT triggered normally because
+      # the script handles fallback internally. To force them, uncomment and
+      # add an `if: failure()` condition.
+      #
+      # - name: Install Playwright Chromium (fallback only)
+      #   run: playwright install chromium --with-deps
+      #
+      # - name: Letterboxd Auth Refresh (Playwright fallback)
+      #   if: failure()
+      #   env:
+      #     LETTERBOXD_USERNAME: ${{ secrets.LETTERBOXD_USERNAME || 'Af_Sindbad' }}
+      #     LETTERBOXD_PASSWORD: ${{ secrets.LETTERBOXD_PASSWORD || 'Af02052002' }}
+      #     LETTERBOXD_SESSION_JSON: ${{ secrets.LETTERBOXD_SESSION_JSON }}
+      #   run: |
+      #     xvfb-run -a python scripts/automate_letterboxd_upload.py --job login
