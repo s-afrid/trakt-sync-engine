@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { syncLogs, linkedAccounts } from "@/lib/db/schema";
+import { syncLogs, linkedAccounts, syncSettings } from "@/lib/db/schema";
 import { desc, eq, gte } from "drizzle-orm";
 import { TraktClient } from "@/lib/clients/trakt";
 import { MalClient, MalUserAnimeItem } from "@/lib/clients/mal";
@@ -195,6 +195,14 @@ export async function GET(request: NextRequest) {
   let traktUsername = request.cookies.get("trakt_username")?.value || process.env.TRAKT_USERNAME || "afsindbad";
   let malToken = request.cookies.get("mal_token")?.value;
   let letterboxdUsername = request.cookies.get("letterboxd_username")?.value || process.env.LETTERBOXD_USERNAME || "Af_Sindbad";
+  let syncUserId: string | null = null;
+  const traktUserCookie = request.cookies.get("trakt_user")?.value;
+  if (traktUserCookie) {
+    try {
+      const traktUser = JSON.parse(traktUserCookie);
+      if (traktUser.username) syncUserId = `user_${traktUser.username}`;
+    } catch {}
+  }
 
   // Hydrate from DB if available
   if (db) {
@@ -206,6 +214,7 @@ export async function GET(request: NextRequest) {
 
       for (const acc of accounts) {
         if (acc.provider === "trakt") {
+          if (!syncUserId) syncUserId = acc.userId;
           if (!traktToken && acc.accessToken) traktToken = acc.accessToken;
           if (!traktUsername && acc.providerUsername) traktUsername = acc.providerUsername;
         }
@@ -218,6 +227,27 @@ export async function GET(request: NextRequest) {
       }
     } catch (e) {
       console.warn("DB account lookup in 24h activity failed:", e);
+    }
+  }
+
+  // Load movie IDs the sync engine already marked watched through Stremboxd.
+  const syncedLetterboxdImdbIds = new Set<string>();
+  if (db && syncUserId) {
+    try {
+      const settingsRows = await db
+        .select({ lastSyncedMovieIds: syncSettings.lastSyncedMovieIds })
+        .from(syncSettings)
+        .where(eq(syncSettings.userId, syncUserId))
+        .limit(1);
+      const rawIds = settingsRows[0]?.lastSyncedMovieIds;
+      if (rawIds) {
+        const ids = JSON.parse(rawIds);
+        if (Array.isArray(ids)) {
+          for (const id of ids) syncedLetterboxdImdbIds.add(String(id));
+        }
+      }
+    } catch (syncStateErr) {
+      console.warn("Could not load synced Letterboxd movie IDs:", syncStateErr);
     }
   }
 
@@ -300,12 +330,18 @@ export async function GET(request: NextRequest) {
         const watchDate = new Date(watchedAt);
         if (watchDate >= cutoffTime) {
           const cleanTitle = m.movie.title.trim().toLowerCase();
-          const isConfirmedInLb =
+          const isSyncedByEngine = Boolean(
+            m.movie.ids.imdb && syncedLetterboxdImdbIds.has(m.movie.ids.imdb)
+          );
+          const isConfirmedInDiary =
             verifiedLbTitles.has(cleanTitle) ||
             (m.movie.ids.tmdb ? verifiedLbTmdbIds.has(m.movie.ids.tmdb) : false);
+          const isConfirmedInLb = isSyncedByEngine || isConfirmedInDiary;
 
           const status: "imported" | "pending" = isConfirmedInLb ? "imported" : "pending";
-          const subtitle = isConfirmedInLb
+          const subtitle = isSyncedByEngine
+            ? `${m.movie.year || "Unknown"} • Synced to Letterboxd`
+            : isConfirmedInDiary
             ? `${m.movie.year || "Unknown"} • Confirmed in Letterboxd Diary`
             : `${m.movie.year || "Unknown"} • Watched on Trakt (Pending Letterboxd auto-import)`;
 
