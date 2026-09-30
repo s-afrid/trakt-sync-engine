@@ -33,7 +33,6 @@ import Activity24hTab from "@/components/Activity24hTab";
 import LetterboxdSessionModal from "@/components/LetterboxdSessionModal";
 import WatchlistTab from "@/components/WatchlistTab";
 import ContinueWatchingTab from "@/components/ContinueWatchingTab";
-import ActionsDaemonTab from "@/components/ActionsDaemonTab";
 
 interface SyncStatus {
   connected: {
@@ -113,7 +112,7 @@ export default function Dashboard() {
   const [isCloudHost, setIsCloudHost] = useState<boolean>(false);
   const [copiedDaemon, setCopiedDaemon] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "activity24h" | "watchlist" | "continueWatching" | "actionsDaemon"
+    "dashboard" | "activity24h" | "watchlist" | "continueWatching"
   >("dashboard");
   const [isActivityTabDeleted, setIsActivityTabDeleted] = useState<boolean>(false);
   const [showSessionModal, setShowSessionModal] = useState<boolean>(false);
@@ -367,21 +366,6 @@ export default function Dashboard() {
               </span>
             </button>
 
-            <button
-              onClick={() => setActiveTab("actionsDaemon")}
-              className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
-                activeTab === "actionsDaemon"
-                  ? "bg-elevated text-ink border border-accent/40 shadow-sm"
-                  : "text-ink-muted hover:text-ink hover:bg-ink/5"
-              }`}
-            >
-              <Bot className="h-4 w-4 text-accent" />
-              <span>Actions Daemon</span>
-              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-accent/20 text-accent border border-accent/30">
-                Live
-              </span>
-            </button>
-
             {!isActivityTabDeleted ? (
               <button
                 onClick={() => setActiveTab("activity24h")}
@@ -427,7 +411,7 @@ export default function Dashboard() {
             )}
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-success/10 text-success border border-success/30 font-mono">
               <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-              15-Min Engine Active
+              Daily Vercel Sync
             </span>
           </div>
         </div>
@@ -436,8 +420,6 @@ export default function Dashboard() {
           <WatchlistTab />
         ) : activeTab === "continueWatching" ? (
           <ContinueWatchingTab />
-        ) : activeTab === "actionsDaemon" ? (
-          <ActionsDaemonTab />
         ) : activeTab === "activity24h" && !isActivityTabDeleted ? (
           <Activity24hTab
             onDeleteTab={() => {
