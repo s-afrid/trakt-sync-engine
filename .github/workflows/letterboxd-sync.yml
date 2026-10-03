@@ -6,33 +6,37 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: vercel-sync
+  group: trakt-sync-engine
   cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Run Trakt sync engine
-        env:
-          SYNC_APP_URL: ${{ vars.SYNC_APP_URL }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-        run: |
-          if [ -z "$CRON_SECRET" ]; then
-            echo "Missing CRON_SECRET repository Actions secret."
-            exit 1
-          fi
+      - uses: actions/checkout@v4
 
-          BASE_URL="${SYNC_APP_URL:-https://trakt-sync-engine.vercel.app}"
-          echo "Starting sync engine at ${BASE_URL%/}/api/cron/sync"
-          RESPONSE_FILE="$(mktemp)"
-          HTTP_STATUS="$(curl --silent --show-error \
-            -H "Authorization: Bearer ${CRON_SECRET}" \
-            -o "$RESPONSE_FILE" -w "%{http_code}" \
-            "${BASE_URL%/}/api/cron/sync")"
-          echo "Sync engine response (HTTP ${HTTP_STATUS}):"
-          cat "$RESPONSE_FILE"
-          echo
-          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
-            exit 1
-          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Trakt sync engine on GitHub Actions
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+          MAL_CLIENT_ID: ${{ secrets.MAL_CLIENT_ID }}
+          MAL_CLIENT_SECRET: ${{ secrets.MAL_CLIENT_SECRET }}
+          STREMBOXD_USERNAME: ${{ secrets.STREMBOXD_USERNAME }}
+          STREMBOXD_PASSWORD: ${{ secrets.STREMBOXD_PASSWORD }}
+          LETTERBOXD_USERNAME: ${{ secrets.LETTERBOXD_USERNAME }}
+          LETTERBOXD_PASSWORD: ${{ secrets.LETTERBOXD_PASSWORD }}
+        run: |
+          npm run sync:engine

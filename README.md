@@ -311,15 +311,15 @@ npm run dev
 
 > **Keep the `vercel.json` cron daily on a Hobby plan.** Vercel Hobby allows one cron run per day, and may invoke it at any time during the configured hour. The daily Vercel cron remains a safety net.
 
-The repository's GitHub Actions workflow calls `GET /api/cron/sync` every 15 minutes. This provides a free scheduled trigger for the sync; GitHub may delay scheduled runs during heavy load, so it is best-effort rather than an exact 15-minute guarantee.
+The GitHub Actions workflow runs `npm run sync:engine` every 15 minutes and on manual dispatch. The script executes the sync engine inside the Actions runner and connects directly to the configured database; it does not call the Vercel cron endpoint. GitHub may delay scheduled runs during heavy load, so the schedule is best-effort rather than an exact 15-minute guarantee. The Vercel daily cron remains an independent safety net.
 
 Configure these values:
 
-- In Vercel Project Settings > Environment Variables, set `CRON_SECRET` to a long random value.
-- In GitHub repository Settings > Secrets and variables > Actions > Repository secrets, add `CRON_SECRET` with the **same value**.
-- Optionally add the Actions variable `SYNC_APP_URL` if the deployed app uses a different host. The default is `https://trakt-sync-engine.vercel.app`.
+- In GitHub repository Settings > Secrets and variables > Actions > Repository secrets, add `DATABASE_URL`, `TRAKT_CLIENT_ID`, `TRAKT_CLIENT_SECRET`, `MAL_CLIENT_ID`, and `MAL_CLIENT_SECRET`.
+- Add `STREMBOXD_USERNAME` and `STREMBOXD_PASSWORD` to Actions secrets to enable Trakt-to-Letterboxd sync. `LETTERBOXD_USERNAME` and `LETTERBOXD_PASSWORD` are accepted as fallback names.
+- Set `GITHUB_TOKEN` in the deployed app with permission to dispatch Actions workflows so the dashboard button can start the run. The workflow uses the repository's default `GITHUB_TOKEN` to check out the code.
 
-The Vercel endpoint authenticates the bearer token and uses the database and integration credentials configured in Vercel. You can also run the workflow on demand with **Actions > 15-Minute Trakt Cloud Sync > Run workflow**.
+The script stores sync results in the shared database, so they appear in the page's 24h Updates activity log. Each Actions run also prints the JSON result in its own log. To run it manually, use the dashboard button or **Actions > Trakt Sync Engine > Run workflow**.
 
 Open your browser at **[http://localhost:3000](http://localhost:3000)**.
 
