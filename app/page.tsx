@@ -81,11 +81,21 @@ interface SyncRunResult {
   timestamp: string;
 }
 
+interface GitHubRunStatus {
+  status: string;
+  conclusion: string | null;
+  htmlUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function Dashboard() {
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [syncing, setSyncing] = useState<boolean>(false);
   const [syncResult, setSyncResult] = useState<SyncRunResult | null>(null);
+  const [githubRun, setGithubRun] = useState<GitHubRunStatus | null>(null);
+  const [dispatchStartedAt, setDispatchStartedAt] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Letterboxd input
@@ -156,6 +166,32 @@ export default function Dashboard() {
     }
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const refreshRun = async () => {
+      try {
+        const res = await fetch("/api/github/actions", { cache: "no-store" });
+        const data = await res.json();
+        if (active && data.latestRun) {
+          setGithubRun(data.latestRun);
+          if (dispatchStartedAt !== null && new Date(data.latestRun.createdAt).getTime() >= dispatchStartedAt - 10000) {
+            const stillRunning = data.latestRun.status !== "completed";
+            setSyncing(stillRunning);
+            if (!stillRunning) setDispatchStartedAt(null);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load GitHub Actions run:", error);
+      }
+    };
+    refreshRun();
+    const timer = window.setInterval(refreshRun, 15000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [dispatchStartedAt]);
+
   const handleCopyDaemon = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText("npm run schedule:letterboxd -- --headless");
@@ -221,20 +257,26 @@ export default function Dashboard() {
     setSyncing(true);
     setErrorMsg(null);
     setSyncResult(null);
+    setDispatchStartedAt(Date.now());
 
     try {
-      const res = await fetch("/api/sync/trigger", { method: "POST" });
+      const res = await fetch("/api/github/actions", { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
-        setErrorMsg(data.error || "Sync failed");
+        setErrorMsg(data.error || "Failed to dispatch GitHub Actions sync");
+        setSyncing(false);
+        setDispatchStartedAt(null);
       } else {
-        setSyncResult(data.results);
-        await fetchStatus();
+        setErrorMsg(null);
+        await fetch("/api/github/actions", { cache: "no-store" }).then(async (statusRes) => {
+          const statusData = await statusRes.json();
+          if (statusData.latestRun) setGithubRun(statusData.latestRun);
+        });
       }
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : String(err));
-    } finally {
       setSyncing(false);
+      setDispatchStartedAt(null);
     }
   };
 
@@ -320,6 +362,18 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+        {githubRun && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-edge bg-surface px-4 py-3 text-sm">
+            <div className="min-w-0">
+              <p className="font-semibold text-ink">GitHub Actions sync: {githubRun.status === "completed" ? githubRun.conclusion || "completed" : githubRun.status}</p>
+              <p className="text-xs text-ink-muted">Started {new Date(githubRun.createdAt).toLocaleString()} · Detailed sync results appear in the 24h Updates activity log.</p>
+            </div>
+            <a href={githubRun.htmlUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-accent hover:underline shrink-0">
+              View run output <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+        )}
 
         {/* Navigation Tabs - Haulix Obsidian Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-edge pb-3">

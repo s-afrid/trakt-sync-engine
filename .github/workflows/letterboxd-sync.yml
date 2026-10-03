@@ -1,4 +1,4 @@
-name: 15-Minute Trakt Cloud Sync
+name: Trakt Sync Engine
 
 on:
   schedule:
@@ -13,7 +13,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Vercel sync
+      - name: Run Trakt sync engine
         env:
           SYNC_APP_URL: ${{ vars.SYNC_APP_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -24,6 +24,15 @@ jobs:
           fi
 
           BASE_URL="${SYNC_APP_URL:-https://trakt-sync-engine.vercel.app}"
-          curl --fail --silent --show-error \
+          echo "Starting sync engine at ${BASE_URL%/}/api/cron/sync"
+          RESPONSE_FILE="$(mktemp)"
+          HTTP_STATUS="$(curl --silent --show-error \
             -H "Authorization: Bearer ${CRON_SECRET}" \
-            "${BASE_URL%/}/api/cron/sync"
+            -o "$RESPONSE_FILE" -w "%{http_code}" \
+            "${BASE_URL%/}/api/cron/sync")"
+          echo "Sync engine response (HTTP ${HTTP_STATUS}):"
+          cat "$RESPONSE_FILE"
+          echo
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            exit 1
+          fi
