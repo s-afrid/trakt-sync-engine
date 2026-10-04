@@ -15,6 +15,14 @@ export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
+    const authorization = request.headers.get("authorization");
+    if (authorization) {
+      const cronSecret = process.env.CRON_SECRET;
+      if (!cronSecret || authorization !== `Bearer ${cronSecret}`) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+
     let traktToken = request.cookies.get("trakt_token")?.value;
     let traktUsername = request.cookies.get("trakt_username")?.value;
     let malToken = request.cookies.get("mal_token")?.value;
@@ -255,6 +263,7 @@ export async function POST(request: NextRequest) {
       } catch {}
     }
 
+    console.log("Sync trigger completed:", JSON.stringify(results));
     return NextResponse.json({
       success: true,
       message: "Sync completed successfully!",

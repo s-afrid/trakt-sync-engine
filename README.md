@@ -347,7 +347,7 @@ Open your browser at **[http://localhost:3000](http://localhost:3000)**.
    - `MAL_CLIENT_SECRET`: Your MAL client secret.
    - `MAL_REDIRECT_URI`: `https://<your-app>.vercel.app/api/auth/mal/callback`
    - `DATABASE_URL`: Your Neon PostgreSQL connection string.
-   - `CRON_SECRET`: A long random token for securing Vercel Cron. Add the same value as a GitHub Actions repository secret named `CRON_SECRET` to enable the 15-minute workflow.
+   - `CRON_SECRET`: A long random token for securing Vercel Cron and the sync trigger's server-to-server requests. Add the same value as a GitHub Actions repository secret named `CRON_SECRET`; the 15-minute workflow calls the Vercel sync endpoint and prints its JSON results in the Actions log.
    - `STREMBOXD_USERNAME` and `STREMBOXD_PASSWORD`: Required for Trakt -> Letterboxd movie sync. You may instead set `LETTERBOXD_USERNAME` and `LETTERBOXD_PASSWORD`.
 4. **Update OAuth Redirects**:
    - Update your Trakt application redirect URI to `https://<your-app>.vercel.app/api/auth/trakt/callback`.
@@ -368,7 +368,7 @@ Open your browser at **[http://localhost:3000](http://localhost:3000)**.
 | `/api/auth/letterboxd/save` | `POST` | Saves Letterboxd username to session/DB. | No |
 | `/api/export/letterboxd` | `GET` | Streams standard Letterboxd `watched.csv` or `ratings.csv`. | Yes (Trakt) |
 | `/api/sync/status` | `GET` | Returns connection states, user profiles, and logs. | No |
-| `/api/sync/trigger` | `POST` | Triggers Trakt -> MAL, Trakt -> Letterboxd movies, and Letterboxd RSS -> Trakt syncs when configured. | Yes (Trakt) |
+| `/api/sync/trigger` | `POST` | Triggers Trakt -> MAL, Trakt -> Letterboxd movies, and Letterboxd RSS -> Trakt syncs when configured. Browser requests use the connected Trakt session; server-to-server requests can use Bearer `CRON_SECRET`. |
 | `/api/cron/sync` | `GET` | Automated daily background sync triggered by Vercel Cron. | Bearer `CRON_SECRET` |
 
 ---

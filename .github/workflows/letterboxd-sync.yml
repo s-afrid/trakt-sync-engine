@@ -16,27 +16,19 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Trakt sync engine on GitHub Actions
+      - name: Run sync through the Vercel endpoint
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
-          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
-          MAL_CLIENT_ID: ${{ secrets.MAL_CLIENT_ID }}
-          MAL_CLIENT_SECRET: ${{ secrets.MAL_CLIENT_SECRET }}
-          STREMBOXD_USERNAME: ${{ secrets.STREMBOXD_USERNAME }}
-          STREMBOXD_PASSWORD: ${{ secrets.STREMBOXD_PASSWORD }}
-          LETTERBOXD_USERNAME: ${{ secrets.LETTERBOXD_USERNAME }}
-          LETTERBOXD_PASSWORD: ${{ secrets.LETTERBOXD_PASSWORD }}
+          SYNC_ENDPOINT: https://trakt-sync-engine.vercel.app/api/sync/trigger
         run: |
-          npm run sync:engine
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET is not configured in GitHub Actions secrets."
+            exit 1
+          fi
+
+          set -o pipefail
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            --header "Accept: application/json" \
+            "$SYNC_ENDPOINT" | jq .
