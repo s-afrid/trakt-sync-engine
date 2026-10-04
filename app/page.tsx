@@ -95,7 +95,6 @@ export default function Dashboard() {
   const [syncing, setSyncing] = useState<boolean>(false);
   const [syncResult, setSyncResult] = useState<SyncRunResult | null>(null);
   const [githubRun, setGithubRun] = useState<GitHubRunStatus | null>(null);
-  const [dispatchStartedAt, setDispatchStartedAt] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Letterboxd input
@@ -174,11 +173,6 @@ export default function Dashboard() {
         const data = await res.json();
         if (active && data.latestRun) {
           setGithubRun(data.latestRun);
-          if (dispatchStartedAt !== null && new Date(data.latestRun.createdAt).getTime() >= dispatchStartedAt - 10000) {
-            const stillRunning = data.latestRun.status !== "completed";
-            setSyncing(stillRunning);
-            if (!stillRunning) setDispatchStartedAt(null);
-          }
         }
       } catch (error) {
         console.error("Failed to load GitHub Actions run:", error);
@@ -190,7 +184,7 @@ export default function Dashboard() {
       active = false;
       window.clearInterval(timer);
     };
-  }, [dispatchStartedAt]);
+  }, []);
 
   const handleCopyDaemon = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -257,26 +251,23 @@ export default function Dashboard() {
     setSyncing(true);
     setErrorMsg(null);
     setSyncResult(null);
-    setDispatchStartedAt(Date.now());
 
     try {
-      const res = await fetch("/api/github/actions", { method: "POST" });
+      const res = await fetch("/api/sync/trigger", { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
-        setErrorMsg(data.error || "Failed to dispatch GitHub Actions sync");
-        setSyncing(false);
-        setDispatchStartedAt(null);
+        setErrorMsg(data.error || "Failed to run the sync engine");
       } else {
-        setErrorMsg(null);
-        await fetch("/api/github/actions", { cache: "no-store" }).then(async (statusRes) => {
-          const statusData = await statusRes.json();
-          if (statusData.latestRun) setGithubRun(statusData.latestRun);
+        setSyncResult({
+          ...data.results,
+          timestamp: data.results?.timestamp || new Date().toISOString(),
         });
+        await fetchStatus();
       }
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : String(err));
+    } finally {
       setSyncing(false);
-      setDispatchStartedAt(null);
     }
   };
 

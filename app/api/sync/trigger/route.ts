@@ -11,6 +11,8 @@ import { db } from "@/lib/db";
 import { linkedAccounts, syncSettings, syncLogs } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     let traktToken = request.cookies.get("trakt_token")?.value;
