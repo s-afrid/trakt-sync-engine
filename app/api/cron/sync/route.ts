@@ -42,6 +42,22 @@ export async function GET(request: NextRequest) {
       .from(linkedAccounts)
       .where(eq(linkedAccounts.provider, "trakt"));
 
+    // A cron run with no usable Trakt accounts is almost always a database
+    // configuration problem (for example, GitHub Actions points at an empty
+    // database). Report it as a failure instead of a successful no-op.
+    if (!traktAccounts.some((account) => account.accessToken)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "No linked Trakt accounts with access tokens were found. Check that DATABASE_URL points to the app database and that a Trakt account is connected.",
+          processedUsers: 0,
+          summary: [],
+        },
+        { status: 503 }
+      );
+    }
+
     const summary: { userId: string; status: string; result?: unknown }[] = [];
 
     for (const traktAcc of traktAccounts) {
