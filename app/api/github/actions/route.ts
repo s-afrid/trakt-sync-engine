@@ -303,6 +303,7 @@ export async function POST(request: NextRequest) {
       headers: {
         "User-Agent": "TraktSyncEngine/1.0",
         Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ ref: "main" }),

@@ -47,7 +47,9 @@ export interface ActivityItem {
     plays?: number;
     url?: string;
     details?: string;
+    syncedMovies?: number;
     syncedTitles?: string[];
+    syncedImdbIds?: string[];
     itemsFetched?: number;
     moviesSyncedToTrakt?: number;
     updatedTitles?: { title: string; episodes: number; status: string }[];
@@ -239,6 +241,23 @@ export default function Activity24hTab({
     fetchActivity(hours);
     fetchSessionInfo();
     fetchGhRuns();
+  }, [hours]);
+
+  // Refresh completed-run reports from GitHub Actions or external script hosts.
+  useEffect(() => {
+    const timer = window.setInterval(async () => {
+      try {
+        const res = await fetch(`/api/activity/24h?hours=${hours}`, { cache: "no-store" });
+        if (res.ok) {
+          const json: Activity24hResponse = await res.json();
+          setData(json);
+          setLastRefreshed(new Date());
+        }
+      } catch {
+        // Keep showing the most recent activity if a background refresh fails.
+      }
+    }, 30000);
+    return () => window.clearInterval(timer);
   }, [hours]);
 
   // Client-side filtering

@@ -149,6 +149,50 @@ def save_sync_state(state: dict):
         print(f"⚠️ Failed to save sync state: {e}")
 
 
+def report_sync_run(
+    app_url: str,
+    user_id: str,
+    title: str,
+    items_count: int,
+    details: dict,
+    timestamp: str,
+) -> bool:
+    """Report a completed sync cycle to the dashboard, regardless of runner."""
+    report_urls = []
+    if app_url:
+        report_urls.append(f"{app_url.rstrip('/')}/api/sync/report")
+    production_url = "https://trakt-sync-engine.vercel.app/api/sync/report"
+    if production_url not in report_urls:
+        report_urls.append(production_url)
+
+    payload = {
+        "status": "success",
+        "type": "letterboxd_direct_watch",
+        "title": title,
+        "itemsCount": items_count,
+        "userId": user_id,
+        "traktUsername": os.getenv("TRAKT_USERNAME", "afsindbad").strip() or "afsindbad",
+        "details": {
+            **details,
+            "runtime": "github_actions" if os.getenv("GITHUB_ACTIONS") else "external_script",
+            "runId": os.getenv("GITHUB_RUN_ID") or os.getenv("SYNC_RUN_ID") or "local",
+            "timestamp": timestamp,
+        },
+    }
+
+    for report_url in report_urls:
+        try:
+            response = requests.post(report_url, json=payload, timeout=10)
+            if response.ok and response.json().get("success"):
+                print(f"[{timestamp}] 📝 Sync result reported to dashboard.")
+                return True
+        except Exception:
+            continue
+
+    print(f"[{timestamp}] ⚠️ Could not report this sync result to the dashboard.")
+    return False
+
+
 def fetch_from_trakt_direct(trakt_client_id: str, trakt_username: str, access_token: str = None) -> list:
     """
     Directly queries Trakt API, merging /watched and /history (captures real-time scrobbles like Mersal).
@@ -1851,6 +1895,8 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
     """Executes a single check and import cycle."""
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     base_app_url = (args.app_url or os.getenv("NEXT_PUBLIC_APP_URL", "http://localhost:3000")).rstrip("/")
+    trakt_username = os.getenv("TRAKT_USERNAME", "afsindbad").strip() or "afsindbad"
+    sync_user_id = os.getenv("SYNC_USER_ID", "").strip() or f"user_{trakt_username}"
     state = load_sync_state()
     synced_ids = set(state.get("synced_movie_ids", []))
     latest_watched_timestamp = state.get("latest_watched_at")
@@ -1893,6 +1939,15 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
             auto_confirm=args.auto_confirm,
             inspection_seconds=3 if (args.auto_confirm and args.interval) else args.keep_open,
         )
+        if uploaded:
+            report_sync_run(
+                base_app_url,
+                sync_user_id,
+                "Letterboxd sync completed",
+                0,
+                {"message": "CSV import completed; Trakt movie details were unavailable."},
+                now_str,
+            )
         return uploaded
 
     # Check for new movies
@@ -1933,35 +1988,19 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
     if not has_new_watches and not args.force:
         latest_title = movies[0]["movie"]["title"] if movies else "None"
         print(f"[{now_str}] ⏱️ Trakt is up to date (Latest: '{latest_title}'). No new watches since last sync.")
-
-        # Notify app database of the verified quiet sleep check
-        report_urls = []
-        if base_app_url:
-            report_urls.append(f"{base_app_url}/api/sync/report")
-        if "https://trakt-sync-engine.vercel.app/api/sync/report" not in report_urls:
-            report_urls.append("https://trakt-sync-engine.vercel.app/api/sync/report")
-
-        quiet_payload = {
-            "status": "success",
-            "type": "quiet_check",
-            "title": f"Quiet Check: Trakt up to date (Latest: '{latest_title}')",
-            "itemsCount": 0,
-            "details": {
+        report_sync_run(
+            base_app_url,
+            sync_user_id,
+            f"Letterboxd sync checked: no new Trakt movies ({latest_title})",
+            0,
+            {
+                "message": "Sync completed successfully; there were no new Trakt movies to import.",
                 "latestMovie": latest_title,
                 "latestWatchedAt": max_watched_at,
-                "runtime": "github_actions" if os.getenv("GITHUB_ACTIONS") else "local_daemon",
-                "runId": os.getenv("GITHUB_RUN_ID", "local"),
-                "timestamp": now_str,
-                "syncedTitles": [m.get("movie", {}).get("title") for m in movies[:2]],
+                "noChanges": True,
             },
-        }
-        for r_url in report_urls:
-            try:
-                requests.post(r_url, json=quiet_payload, timeout=8)
-                break
-            except Exception:
-                pass
-
+            now_str,
+        )
         return False
 
     # ── Determine which movies to sync ──────────────────────────────────────
@@ -2068,32 +2107,22 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
         save_sync_state(state)
         print(f"[{now_str}] ✅ State saved: {len(current_ids)} movies tracked.")
 
-        # Notify Vercel app of success
-        report_urls = []
-        if base_app_url:
-            report_urls.append(f"{base_app_url}/api/sync/report")
-        if "https://trakt-sync-engine.vercel.app/api/sync/report" not in report_urls:
-            report_urls.append("https://trakt-sync-engine.vercel.app/api/sync/report")
-
-        report_payload = {
-            "status": "success",
-            "type": "letterboxd_direct_watch",
-            "title": f"Synced {len(sync_movies)} movie(s) to Letterboxd",
-            "itemsCount": len(sync_movies),
-            "details": {
+        report_sync_run(
+            base_app_url,
+            sync_user_id,
+            f"Synced {len(sync_movies)} movie(s) to Letterboxd",
+            len(sync_movies),
+            {
                 "syncedMovies": len(sync_movies),
-                "syncedTitles": [m.get("movie", {}).get("title") for m in sync_movies[:10]],
-                "runtime": "github_actions" if os.getenv("GITHUB_ACTIONS") else "local_daemon",
-                "runId": os.getenv("GITHUB_RUN_ID", "local"),
-                "timestamp": now_str,
+                "syncedTitles": [m.get("movie", {}).get("title") for m in sync_movies],
+                "syncedImdbIds": [
+                    m.get("movie", {}).get("ids", {}).get("imdb")
+                    for m in sync_movies
+                    if m.get("movie", {}).get("ids", {}).get("imdb")
+                ],
             },
-        }
-        for r_url in report_urls:
-            try:
-                requests.post(r_url, json=report_payload, timeout=10)
-                break
-            except Exception:
-                pass
+            now_str,
+        )
 
     return success
 

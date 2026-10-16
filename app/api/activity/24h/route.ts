@@ -31,7 +31,9 @@ export interface ActivityItem {
     overview?: string;
     showTitle?: string;
     details?: string;
+    syncedMovies?: number;
     syncedTitles?: string[];
+    syncedImdbIds?: string[];
     itemsFetched?: number;
     moviesSyncedToTrakt?: number;
     updatedTitles?: { title: string; episodes: number; status: string }[];
@@ -76,8 +78,26 @@ function parseLogDetails(
   try {
     const parsed = typeof rawDetails === "object" ? rawDetails : JSON.parse(rawDetails);
     if (typeof parsed === "object" && parsed !== null) {
+      // Script-run results from Playwright/Stremboxd.
+      if ("syncedMovies" in parsed && Array.isArray(parsed.syncedTitles)) {
+        const count = Number(parsed.syncedMovies) || itemsCount;
+        const titles = parsed.syncedTitles.map((t: unknown) => decodeEntities(String(t)));
+        return {
+          subtitle: count > 0
+            ? `Marked ${count} movie(s) watched on Letterboxd: ${titles.slice(0, 3).join(", ")}${titles.length > 3 ? ` +${titles.length - 3} more` : ""}`
+            : decodeEntities(String(parsed.message || "Letterboxd sync completed successfully.")),
+          metadata: {
+            syncedMovies: count,
+            syncedTitles: titles,
+            syncedImdbIds: Array.isArray(parsed.syncedImdbIds)
+              ? parsed.syncedImdbIds.map((id: unknown) => String(id))
+              : [],
+          },
+        };
+      }
+
       // 1. Letterboxd RSS Sync results
-      if ("rssItemsFetched" in parsed || "moviesSyncedToTrakt" in parsed || "syncedTitles" in parsed) {
+      if ("rssItemsFetched" in parsed || "itemsFetched" in parsed || "moviesSyncedToTrakt" in parsed) {
         const fetched = parsed.rssItemsFetched ?? parsed.itemsFetched ?? 0;
         const synced = parsed.moviesSyncedToTrakt ?? 0;
         const rawTitles: string[] = Array.isArray(parsed.syncedTitles) ? parsed.syncedTitles : [];
@@ -260,6 +280,11 @@ export async function GET(request: NextRequest) {
         if (!row.details) continue;
         try {
           const details = JSON.parse(row.details);
+          if (Array.isArray(details.syncedImdbIds)) {
+            for (const imdbId of details.syncedImdbIds) {
+              syncedLetterboxdImdbIds.add(String(imdbId));
+            }
+          }
           if (Array.isArray(details.syncedTitles)) {
             for (const title of details.syncedTitles) {
               syncedLetterboxdTitles.add(String(title).trim().toLowerCase());
