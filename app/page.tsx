@@ -255,21 +255,17 @@ export default function Dashboard() {
     setSyncResult(null);
 
     try {
-      const res = await fetch("/api/github/actions", { method: "POST" });
+      const res = await fetch("/api/sync/trigger", { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
-        setErrorMsg(data.error || "Failed to queue the sync workflow");
+        setErrorMsg(data.error || "Failed to run the Vercel sync engine");
       } else {
-        setSyncNotice("Sync queued on GitHub Actions. The 24h Updates feed will refresh with the results after the script completes.");
-        try {
-          const statusRes = await fetch("/api/github/actions", { cache: "no-store" });
-          if (statusRes.ok) {
-            const statusData = await statusRes.json();
-            if (statusData.latestRun) setGithubRun(statusData.latestRun);
-          }
-        } catch {
-          // The existing periodic status poll will pick up the dispatched run.
-        }
+        setSyncResult({
+          ...data.results,
+          timestamp: data.results?.timestamp || new Date().toISOString(),
+        });
+        setSyncNotice("Vercel sync completed. The 24h Updates feed will refresh with the results.");
+        await fetchStatus();
       }
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : String(err));
@@ -311,8 +307,7 @@ export default function Dashboard() {
     }
   };
 
-  const githubRunActive = githubRun?.status === "queued" || githubRun?.status === "in_progress";
-  const triggerButtonDisabled = syncing || githubRunActive || !status?.connected?.trakt;
+  const triggerButtonDisabled = syncing || !status?.connected?.trakt;
 
   return (
     <div className="min-h-screen bg-canvas text-ink py-6 sm:py-10 px-3 sm:px-6 lg:px-8">
@@ -351,15 +346,15 @@ export default function Dashboard() {
               onClick={handleTriggerSync}
               disabled={triggerButtonDisabled}
               className={`w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs tracking-wider uppercase transition-all ${
-                syncing || githubRunActive
+                syncing
                   ? "bg-elevated text-ink-muted cursor-not-allowed border border-edge"
                   : !status?.connected?.trakt
                   ? "bg-surface text-ink-subtle cursor-not-allowed border border-edge"
                   : "bg-accent text-canvas hover:bg-accent/85 border border-accent/40 shadow-lg shadow-accent/20"
               }`}
             >
-              <RefreshCw className={`h-4 w-4 ${syncing || githubRunActive ? "animate-spin" : ""}`} />
-              {syncing ? "Queueing Sync..." : githubRunActive ? "Sync Running..." : "Trigger Sync Engine"}
+              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Running Sync..." : "Trigger Sync Engine"}
             </button>
           </div>
         </div>
