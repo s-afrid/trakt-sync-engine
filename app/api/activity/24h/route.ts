@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { syncLogs, linkedAccounts, syncSettings } from "@/lib/db/schema";
-import { desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte, or } from "drizzle-orm";
 import { TraktClient } from "@/lib/clients/trakt";
 import { MalClient, MalUserAnimeItem } from "@/lib/clients/mal";
 import { LetterboxdClient } from "@/lib/clients/letterboxd";
@@ -296,6 +296,50 @@ export async function GET(request: NextRequest) {
       }
     } catch (syncStateErr) {
       console.warn("Could not load synced Letterboxd state:", syncStateErr);
+    }
+  }
+
+  // Successful reports are also shown in the global activity feed below. Use
+  // those same reports to confirm movie rows, even if the runner's canonical
+  // user ID differs from the ID derived from this browser's Trakt cookie.
+  if (db) {
+    try {
+      const reportedSyncRows = await db
+        .select({ details: syncLogs.details })
+        .from(syncLogs)
+        .where(
+          and(
+            gte(syncLogs.createdAt, cutoffTime),
+            eq(syncLogs.status, "success"),
+            or(
+              eq(syncLogs.type, "letterboxd_direct_watch"),
+              eq(syncLogs.type, "trakt_to_letterboxd")
+            )
+          )
+        )
+        .orderBy(desc(syncLogs.createdAt))
+        .limit(1000);
+
+      for (const row of reportedSyncRows) {
+        if (!row.details) continue;
+        try {
+          const details = JSON.parse(row.details);
+          if (Array.isArray(details.syncedImdbIds)) {
+            for (const imdbId of details.syncedImdbIds) {
+              syncedLetterboxdImdbIds.add(String(imdbId));
+            }
+          }
+          if (Array.isArray(details.syncedTitles)) {
+            for (const title of details.syncedTitles) {
+              syncedLetterboxdTitles.add(String(title).trim().toLowerCase());
+            }
+          }
+        } catch {
+          // Ignore malformed report details and keep checking other reports.
+        }
+      }
+    } catch (reportErr) {
+      console.warn("Could not load global Letterboxd sync reports:", reportErr);
     }
   }
 
