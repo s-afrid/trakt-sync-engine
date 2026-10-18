@@ -407,6 +407,46 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // MAL PATCH responses are authoritative for updates made by this engine.
+  // The separate list lookup can lag behind those writes, so use recent
+  // successful sync logs when confirming individual episode events.
+  const syncedMalEpisodes = new Map<string, number>();
+  if (db) {
+    try {
+      const malSyncRows = await db
+        .select({ details: syncLogs.details })
+        .from(syncLogs)
+        .where(
+          and(
+            gte(syncLogs.createdAt, cutoffTime),
+            eq(syncLogs.type, "trakt_to_mal"),
+            or(eq(syncLogs.status, "success"), eq(syncLogs.status, "warning"))
+          )
+        )
+        .orderBy(desc(syncLogs.createdAt))
+        .limit(1000);
+
+      for (const row of malSyncRows) {
+        if (!row.details) continue;
+        try {
+          const details = JSON.parse(row.details);
+          if (!Array.isArray(details.updatedTitles)) continue;
+          for (const updated of details.updatedTitles) {
+            const title = String(updated?.title || "").trim().toLowerCase();
+            const episodes = Number(updated?.episodes) || 0;
+            if (title && episodes > (syncedMalEpisodes.get(title) || 0)) {
+              syncedMalEpisodes.set(title, episodes);
+            }
+          }
+        } catch {
+          // Ignore malformed logs and keep checking other sync results.
+        }
+      }
+    } catch (malLogErr) {
+      console.warn("Could not load recent Trakt-to-MAL update results:", malLogErr);
+    }
+  }
+
   const items: ActivityItem[] = [];
 
   // 1. Fetch Trakt Watched Movies (Letterboxd sync source)
@@ -509,14 +549,22 @@ export async function GET(request: NextRequest) {
             );
           });
 
-          const isConfirmedOnMal =
+          const liveMalEpisodes =
             malMatch &&
             malMatch.list_status &&
-            malMatch.list_status.num_episodes_watched >= h.episode.number;
+            malMatch.list_status.num_episodes_watched;
+          const loggedMalEpisodes = syncedMalEpisodes.get(showTitleLower) || 0;
+          const confirmedEpisodes = Math.max(liveMalEpisodes || 0, loggedMalEpisodes);
+          const isConfirmedOnMal = confirmedEpisodes >= h.episode.number;
+          const confirmedBySyncLog =
+            loggedMalEpisodes >= h.episode.number &&
+            (liveMalEpisodes || 0) < h.episode.number;
 
           const status: "synced" | "pending" = isConfirmedOnMal ? "synced" : "pending";
           const subtitle = isConfirmedOnMal
-            ? `Season ${h.episode.season}, Episode ${h.episode.number}${h.episode.title ? `: "${h.episode.title}"` : ""} • Confirmed on MyAnimeList (Ep. ${malMatch.list_status.num_episodes_watched}/${malMatch.node.num_episodes || "?"})`
+            ? confirmedBySyncLog
+              ? `Season ${h.episode.season}, Episode ${h.episode.number}${h.episode.title ? `: "${h.episode.title}"` : ""} • Updated on MyAnimeList by sync (Ep. ${loggedMalEpisodes})`
+              : `Season ${h.episode.season}, Episode ${h.episode.number}${h.episode.title ? `: "${h.episode.title}"` : ""} • Confirmed on MyAnimeList (Ep. ${liveMalEpisodes}/${malMatch?.node.num_episodes || "?"})`
             : `Season ${h.episode.season}, Episode ${h.episode.number}${h.episode.title ? `: "${h.episode.title}"` : ""} • Watched on Trakt (Pending MAL sync)`;
 
           let animePosterUrl: string | undefined = undefined;
