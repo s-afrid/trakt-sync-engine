@@ -8,7 +8,13 @@ export interface AnimeSyncResult {
   malMatchesFound: number;
   malUpdatedCount: number;
   errors: string[];
-  updatedTitles: { title: string; episodes: number; status: string }[];
+  updatedTitles: {
+    title: string;
+    episodes: number;
+    status: string;
+    malId: number;
+    verified: boolean;
+  }[];
 }
 
 export class AnimeSyncService {
@@ -154,8 +160,14 @@ export class AnimeSyncService {
       // Signal D: Trakt plays count
       const traktPlays = item.plays || 0;
 
-      // Resolve MAL ID
-      const malId = await AnimeMapper.resolveMalId({
+      // Prefer the exact title already present on this user's MAL list. This
+      // avoids a stale/shared ID cache sending progress to a different anime.
+      const normalizedTitle = this.normalizeTitle(item.show.title);
+      const existingTitleMatch = malList.find(
+        (malItem) => this.normalizeTitle(malItem.node.title) === normalizedTitle
+      );
+
+      const malId = existingTitleMatch?.node.id ?? await AnimeMapper.resolveMalId({
         title: item.show.title,
         traktId: item.show.ids.trakt,
         tmdbId: item.show.ids.tmdb,
@@ -207,17 +219,27 @@ export class AnimeSyncService {
 
       if (needsEpisodeUpdate || needsScoreUpdate) {
         try {
-          await this.malClient.updateListStatus(malId, {
+          const savedStatus = await this.malClient.updateListStatus(malId, {
             status: newStatus,
             num_watched_episodes: Math.max(targetEpisodes, currentEpisodes),
             score: desiredScore || (currentScore > 0 ? currentScore : undefined),
           });
 
+          const savedEpisodes = savedStatus.num_episodes_watched;
+          const expectedEpisodes = Math.max(targetEpisodes, currentEpisodes);
+          if (savedEpisodes < expectedEpisodes) {
+            throw new Error(
+              `MAL accepted the update but returned ${savedEpisodes} watched episodes; expected ${expectedEpisodes}`
+            );
+          }
+
           result.malUpdatedCount++;
           result.updatedTitles.push({
             title: item.show.title,
-            episodes: targetEpisodes,
-            status: newStatus,
+            episodes: savedEpisodes,
+            status: savedStatus.status,
+            malId,
+            verified: true,
           });
 
           processed++;
@@ -243,5 +265,14 @@ export class AnimeSyncService {
     }
 
     return false;
+  }
+
+  private normalizeTitle(title: string): string {
+    return title
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\(\d{4}\)/g, "")
+      .replace(/[^a-z0-9]/g, "");
   }
 }

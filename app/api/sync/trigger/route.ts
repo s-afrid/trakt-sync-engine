@@ -36,17 +36,35 @@ export async function POST(request: NextRequest) {
       } catch {}
     }
 
-    // Check DB for tokens if cookies missing
+    // Resolve fallback credentials from one linked account owner. Previously
+    // this selected the newest token for each provider independently, which
+    // could pair one user's Trakt account with another user's MAL account.
     if (db && (!traktToken || !malToken || !letterboxdUsername)) {
-      const accounts = await db
+      let userAccounts = await db
         .select()
         .from(linkedAccounts)
+        .where(eq(linkedAccounts.userId, syncUserId))
         .orderBy(desc(linkedAccounts.updatedAt));
-      for (const acc of accounts) {
+
+      if (userAccounts.length === 0 && !traktUserCookie && syncUserId === "default_user") {
+        const traktAccounts = await db
+          .select()
+          .from(linkedAccounts)
+          .where(eq(linkedAccounts.provider, "trakt"))
+          .orderBy(desc(linkedAccounts.updatedAt));
+        const fallbackTrakt = traktAccounts.find((account) => account.accessToken);
+        if (fallbackTrakt) {
+          syncUserId = fallbackTrakt.userId;
+          userAccounts = await db
+            .select()
+            .from(linkedAccounts)
+            .where(eq(linkedAccounts.userId, syncUserId))
+            .orderBy(desc(linkedAccounts.updatedAt));
+        }
+      }
+
+      for (const acc of userAccounts) {
         if (acc.provider === "trakt") {
-          if (!traktUserCookie && syncUserId === "default_user") {
-            syncUserId = acc.userId;
-          }
           if (!traktToken && acc.accessToken) traktToken = acc.accessToken;
           if (!traktUsername && acc.providerUsername) traktUsername = acc.providerUsername;
         }
