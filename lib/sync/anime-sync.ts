@@ -51,30 +51,22 @@ export class AnimeSyncService {
 
     result.totalTraktShows = traktShows.length;
 
-    // Create a map of showTraktId -> { maxEp: number, uniqueEps: Set<number>, maxSeason: number }
-    const showHistoryMap = new Map<
-      number,
-      { maxEp: number; uniqueEps: Set<number>; maxSeason: number }
-    >();
+    // Count unique episodes by season and episode number. Episode numbers
+    // restart at 1 each season, so deduplicating on episode number alone
+    // undercounts multi-season anime (for example S1E5 and S2E5).
+    const showEpisodeMap = new Map<number, Set<string>>();
 
     for (const h of traktEpisodeHistory) {
       const showId = h.show?.ids?.trakt;
       if (!showId || !h.episode) continue;
 
-      let entry = showHistoryMap.get(showId);
-      if (!entry) {
-        entry = { maxEp: 0, uniqueEps: new Set<number>(), maxSeason: 1 };
-        showHistoryMap.set(showId, entry);
+      if (!h.episode.number || h.episode.season <= 0) continue;
+      let episodes = showEpisodeMap.get(showId);
+      if (!episodes) {
+        episodes = new Set<string>();
+        showEpisodeMap.set(showId, episodes);
       }
-      if (h.episode.number) {
-        entry.uniqueEps.add(h.episode.number);
-        if (h.episode.number > entry.maxEp) {
-          entry.maxEp = h.episode.number;
-        }
-      }
-      if (h.episode.season && h.episode.season > entry.maxSeason) {
-        entry.maxSeason = h.episode.season;
-      }
+      episodes.add(`${h.episode.season}:${h.episode.number}`);
     }
 
     // Create a map of MAL anime for quick O(1) comparison: malId -> MalUserAnimeItem
@@ -106,37 +98,29 @@ export class AnimeSyncService {
 
       result.animeIdentified++;
 
-      // 1. Gather all signals for episode progress
-      let maxEpisodeWatched = 0;
-      let uniqueEpisodesWatched = 0;
+      // Merge Trakt's watched-season data and history by season/episode key.
+      const watchedEpisodeKeys = new Set<string>();
 
       // Signal A: Seasons data (present if connected via OAuth)
       if (item.seasons && item.seasons.length > 0) {
         for (const season of item.seasons) {
           if (season.number > 0 && season.episodes) {
-            uniqueEpisodesWatched += season.episodes.length;
             for (const ep of season.episodes) {
-              if (ep.number > maxEpisodeWatched) {
-                maxEpisodeWatched = ep.number;
-              }
+              if (ep.number > 0) watchedEpisodeKeys.add(`${season.number}:${ep.number}`);
             }
           }
         }
       }
 
-      // Signal B: Pre-fetched recent episode history (from Trakt history)
-      const historyInfo = showHistoryMap.get(item.show.ids.trakt);
-      if (historyInfo) {
-        if (historyInfo.maxEp > maxEpisodeWatched) {
-          maxEpisodeWatched = historyInfo.maxEp;
-        }
-        if (historyInfo.uniqueEps.size > uniqueEpisodesWatched) {
-          uniqueEpisodesWatched = historyInfo.uniqueEps.size;
-        }
+      // Add recent history as well; duplicates across the two Trakt sources
+      // collapse to the same key while repeated episode numbers in new seasons do not.
+      for (const key of showEpisodeMap.get(item.show.ids.trakt) ?? []) {
+        watchedEpisodeKeys.add(key);
       }
 
-      // Signal C: If still no episode detail (e.g. watched beyond 500 history items and no seasons)
-      if (maxEpisodeWatched === 0 && !item.seasons) {
+      // Signal B: For shows absent from the watched-season response, fetch
+      // this show's history directly rather than infer progress from show plays.
+      if (watchedEpisodeKeys.size === 0) {
         try {
           const specificHistory = await this.traktClient.getShowEpisodeHistory(
             item.show.ids.trakt,
@@ -144,21 +128,15 @@ export class AnimeSyncService {
           );
           if (specificHistory.length > 0) {
             for (const h of specificHistory) {
-              if (h.episode?.number && h.episode.number > maxEpisodeWatched) {
-                maxEpisodeWatched = h.episode.number;
+              if (h.episode?.number > 0 && h.episode.season > 0) {
+                watchedEpisodeKeys.add(`${h.episode.season}:${h.episode.number}`);
               }
             }
-            uniqueEpisodesWatched = new Set(
-              specificHistory.map((h) => h.episode?.number).filter(Boolean)
-            ).size;
           }
         } catch {
           // Graceful fallback
         }
       }
-
-      // Signal D: Trakt plays count
-      const traktPlays = item.plays || 0;
 
       // Prefer the exact title already present on this user's MAL list. This
       // avoids a stale/shared ID cache sending progress to a different anime.
@@ -188,20 +166,14 @@ export class AnimeSyncService {
       const totalMalEpisodes =
         currentMalEntry?.node.num_episodes || item.show.aired_episodes || 0;
 
-      // Determine completion status:
-      // A user is completed if:
-      // 1. Highest watched episode reached or exceeded total episodes (e.g. Ep 12 of 12)
-      // 2. Or unique episodes watched reached total episodes
-      // 3. Or Trakt plays count reached aired episodes
+      // Completion is based on distinct watched episodes, not the maximum
+      // episode number or show play count. Both are misleading for multiple
+      // seasons, where episode numbering restarts at 1.
       const isCompleted =
         totalMalEpisodes > 0 &&
-        (maxEpisodeWatched >= totalMalEpisodes ||
-          uniqueEpisodesWatched >= totalMalEpisodes);
+        watchedEpisodeKeys.size >= totalMalEpisodes;
 
-      let targetEpisodes = Math.max(maxEpisodeWatched, uniqueEpisodesWatched);
-      if (targetEpisodes === 0 && traktPlays > 0) {
-        targetEpisodes = traktPlays > totalMalEpisodes && totalMalEpisodes > 0 ? totalMalEpisodes : traktPlays;
-      }
+      let targetEpisodes = watchedEpisodeKeys.size;
       if (isCompleted && totalMalEpisodes > 0) {
         targetEpisodes = totalMalEpisodes;
       } else if (totalMalEpisodes > 0 && targetEpisodes > totalMalEpisodes) {
