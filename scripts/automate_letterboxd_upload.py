@@ -193,6 +193,46 @@ def report_sync_run(
     return False
 
 
+def report_anime_sync_issue(
+    app_url: str,
+    user_id: str,
+    status: str,
+    errors: list[str],
+    timestamp: str,
+) -> bool:
+    """Keep failed/partial Trakt-to-MAL runs visible in the dashboard."""
+    report_urls = []
+    if app_url:
+        report_urls.append(f"{app_url.rstrip('/')}/api/sync/report")
+    production_url = "https://trakt-sync-engine.vercel.app/api/sync/report"
+    if production_url not in report_urls:
+        report_urls.append(production_url)
+
+    payload = {
+        "status": status,
+        "type": "trakt_to_mal",
+        "title": "Scheduled Trakt to MAL sync issue",
+        "itemsCount": 0,
+        "userId": user_id,
+        "traktUsername": os.getenv("TRAKT_USERNAME", "afsindbad").strip() or "afsindbad",
+        "details": {
+            "errors": errors,
+            "runtime": "github_actions" if os.getenv("GITHUB_ACTIONS") else "external_script",
+            "runId": os.getenv("GITHUB_RUN_ID") or os.getenv("SYNC_RUN_ID") or "local",
+            "timestamp": timestamp,
+        },
+    }
+
+    for report_url in report_urls:
+        try:
+            response = requests.post(report_url, json=payload, timeout=10)
+            if response.ok and response.json().get("success"):
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def fetch_from_trakt_direct(trakt_client_id: str, trakt_username: str, access_token: str = None) -> list:
     """
     Directly queries Trakt API, merging /watched and /history (captures real-time scrobbles like Mersal).
@@ -1901,29 +1941,54 @@ def run_sync_cycle(args, username: str, password: str, csv_path: Path) -> bool:
     synced_ids = set(state.get("synced_movie_ids", []))
     latest_watched_timestamp = state.get("latest_watched_at")
 
-    # 1. Trigger MAL Anime Sync automatically via sync engine
+    # 1. Trigger the dedicated Trakt-to-MAL route. The general sync endpoint
+    # also runs Letterboxd/Stremboxd work and could exceed this runner's timeout.
     sync_endpoints = []
     if base_app_url:
-        sync_endpoints.append(f"{base_app_url}/api/sync/trigger")
-    prod_endpoint = "https://trakt-sync-engine.vercel.app/api/sync/trigger"
+        sync_endpoints.append(f"{base_app_url}/api/sync/anime")
+    prod_endpoint = "https://trakt-sync-engine.vercel.app/api/sync/anime"
     if prod_endpoint not in sync_endpoints:
         sync_endpoints.append(prod_endpoint)
 
+    anime_sync_completed = False
+    anime_sync_errors = []
     for endpoint in sync_endpoints:
         try:
-            sync_res = requests.post(endpoint, timeout=30)
-            if sync_res.status_code == 200:
-                data = sync_res.json()
-                anime_res = data.get("results", {}).get("anime", {})
-                updated = anime_res.get("malUpdatedCount", 0)
-                if updated > 0:
-                    titles = [t["title"] for t in anime_res.get("updatedTitles", [])]
-                    print(f"[{now_str}] 🌸 Anime Sync: Updated {updated} title(s) on MAL: {', '.join(titles)}")
-                else:
-                    print(f"[{now_str}] 🌸 Anime Sync: MAL is already up to date.")
-                break
-        except Exception:
-            continue
+            sync_res = requests.post(endpoint, timeout=(10, 65))
+            if not sync_res.ok:
+                anime_sync_errors.append(
+                    f"{endpoint} returned HTTP {sync_res.status_code}: {sync_res.text[:500]}"
+                )
+                continue
+
+            data = sync_res.json()
+            anime_res = data.get("results", {}).get("anime")
+            if not isinstance(anime_res, dict):
+                anime_sync_errors.append(f"{endpoint} returned no anime sync result")
+                continue
+
+            anime_sync_completed = True
+            updated = int(anime_res.get("malUpdatedCount", 0) or 0)
+            errors = [str(error) for error in (anime_res.get("errors") or [])]
+            unmatched = [str(title) for title in (anime_res.get("unmatchedTitles") or [])]
+            if errors or unmatched:
+                issues = errors + [f"No MAL mapping found for: {title}" for title in unmatched]
+                print(f"[{now_str}] ⚠️ Anime Sync completed with {len(issues)} issue(s): {'; '.join(issues)}")
+            elif updated > 0:
+                titles = [t["title"] for t in anime_res.get("updatedTitles", [])]
+                print(f"[{now_str}] 🌸 Anime Sync: Updated {updated} title(s) on MAL: {', '.join(titles)}")
+            else:
+                print(
+                    f"[{now_str}] 🌸 Anime Sync: scanned "
+                    f"{anime_res.get('animeIdentified', 0)} anime; MAL is up to date."
+                )
+            break
+        except Exception as error:
+            anime_sync_errors.append(f"{endpoint}: {error}")
+
+    if not anime_sync_completed:
+        print(f"[{now_str}] ❌ Anime Sync failed: {'; '.join(anime_sync_errors)}")
+        report_anime_sync_issue(base_app_url, sync_user_id, "error", anime_sync_errors, now_str)
 
     # 2. Check Trakt movie history for Letterboxd
     print(f"[{now_str}] 🔍 Checking Trakt movie watch history...")

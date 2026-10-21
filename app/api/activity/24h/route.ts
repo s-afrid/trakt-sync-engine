@@ -37,6 +37,7 @@ export interface ActivityItem {
     itemsFetched?: number;
     moviesSyncedToTrakt?: number;
     updatedTitles?: { title: string; episodes: number; status: string }[];
+    unmatchedTitles?: string[];
     errors?: string[];
   };
 }
@@ -146,6 +147,9 @@ function parseLogDetails(
         const errors: string[] = Array.isArray(parsed.errors)
           ? parsed.errors.map((error: unknown) => decodeEntities(String(error)))
           : [];
+        const unmatchedTitles: string[] = Array.isArray(parsed.unmatchedTitles)
+          ? parsed.unmatchedTitles.map((title: unknown) => decodeEntities(String(title)))
+          : [];
         const updatedTitles: UpdatedAnimeTitle[] = rawUpdated.map((u: any) => ({
           title: decodeEntities(String(u?.title || "")),
           episodes: Number(u?.episodes) || 0,
@@ -163,6 +167,9 @@ function parseLogDetails(
         } else {
           subtitle = `Scanned ${shows} shows • MyAnimeList is already up to date`;
         }
+        if (unmatchedTitles.length > 0) {
+          subtitle += ` • ${unmatchedTitles.length} anime could not be matched to MAL`;
+        }
 
         return {
           subtitle,
@@ -170,6 +177,7 @@ function parseLogDetails(
             totalTraktShows: shows,
             malUpdatedCount: updated,
             updatedTitles,
+            unmatchedTitles,
             errors,
           },
         };

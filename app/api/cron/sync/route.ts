@@ -101,6 +101,8 @@ export async function GET(request: NextRequest) {
                 ? ((userRun.anime as { malUpdatedCount?: number }).malUpdatedCount
                     ? "warning"
                     : "error")
+                : (userRun.anime as { unmatchedTitles?: string[] }).unmatchedTitles?.length
+                  ? "warning"
                 : "success",
             title: "Trakt → MAL anime sync",
             details: JSON.stringify(userRun.anime),

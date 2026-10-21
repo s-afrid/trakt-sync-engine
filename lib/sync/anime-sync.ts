@@ -8,6 +8,7 @@ export interface AnimeSyncResult {
   malMatchesFound: number;
   malUpdatedCount: number;
   errors: string[];
+  unmatchedTitles: string[];
   updatedTitles: {
     title: string;
     episodes: number;
@@ -39,6 +40,7 @@ export class AnimeSyncService {
       malMatchesFound: 0,
       malUpdatedCount: 0,
       errors: [],
+      unmatchedTitles: [],
       updatedTitles: [],
     };
 
@@ -154,6 +156,7 @@ export class AnimeSyncService {
       });
 
       if (!malId) {
+        result.unmatchedTitles.push(item.show.title);
         continue;
       }
 

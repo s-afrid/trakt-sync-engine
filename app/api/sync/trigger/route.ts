@@ -112,6 +112,8 @@ export async function POST(request: NextRequest) {
                 ? ((results.anime as { malUpdatedCount?: number }).malUpdatedCount
                     ? "warning"
                     : "error")
+                : (results.anime as { unmatchedTitles?: string[] }).unmatchedTitles?.length
+                  ? "warning"
                 : "success",
             title: "Trakt to MyAnimeList Sync",
             details: JSON.stringify(results.anime),
