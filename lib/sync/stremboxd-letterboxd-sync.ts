@@ -21,6 +21,13 @@ const HEADERS = {
   Accept: "application/json",
 };
 
+class StremboxdRateLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StremboxdRateLimitError";
+  }
+}
+
 export interface StremboxdSession {
   userToken: string;
   userId: string;
@@ -108,7 +115,9 @@ export async function getFilmActions(
   if (res.status === 404) return null;
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Stremboxd stream HTTP ${res.status}: ${body.slice(0, 200)}`);
+    const message = `Stremboxd stream HTTP ${res.status}: ${body.slice(0, 200)}`;
+    if (res.status === 429) throw new StremboxdRateLimitError(message);
+    throw new Error(message);
   }
 
   const body = (await res.json()) as { streams?: Array<{ name?: string; description?: string; externalUrl?: string }> };
@@ -230,23 +239,31 @@ export class StremboxdLetterboxdSync {
           continue;
         }
 
+        let markedAsWatched = false;
+
         // Step 1: Mark as Watched
         if (actions.watched) {
           console.log(`[Stremboxd] ✅ ${title} — already Watched`);
           result.markedWatched++;
           result.syncedTitles.push(title);
-          newSyncedIds.add(imdbId);
+          markedAsWatched = true;
         } else if (actions.watchedUrl) {
           const markUrl = toggleSetParam(actions.watchedUrl, true);
           const wRes = await fetch(markUrl, {
             headers: { ...HEADERS, Authorization: `Bearer ${session.userToken}` },
             redirect: "follow",
           });
+          if (wRes.status === 429) {
+            const body = await wRes.text().catch(() => "");
+            throw new StremboxdRateLimitError(
+              `Watch toggle HTTP 429 for "${title}": ${body.slice(0, 200)}`
+            );
+          }
           if (wRes.ok) {
             console.log(`[Stremboxd] ✅ ${title} — marked as Watched`);
             result.markedWatched++;
             result.syncedTitles.push(title);
-            newSyncedIds.add(imdbId);
+            markedAsWatched = true;
           } else {
             const err = `Watch toggle HTTP ${wRes.status} for "${title}"`;
             console.warn(`[Stremboxd] ⚠️ ${err}`);
@@ -264,6 +281,12 @@ export class StremboxdLetterboxdSync {
             headers: { ...HEADERS, Authorization: `Bearer ${session.userToken}` },
             redirect: "follow",
           });
+          if (wlRes.status === 429) {
+            const body = await wlRes.text().catch(() => "");
+            throw new StremboxdRateLimitError(
+              `Watchlist toggle HTTP 429 for "${title}": ${body.slice(0, 200)}`
+            );
+          }
           if (wlRes.ok) {
             result.removedFromWatchlist++;
             console.log(`[Stremboxd] 🗑️  ${title} — removed from Watchlist`);
@@ -271,12 +294,19 @@ export class StremboxdLetterboxdSync {
           // Non-ok is fine — means it wasn't in the watchlist
         }
 
+        // Persist only after both actions have had a chance to run. If the
+        // watchlist call is rate-limited, the next cycle can retry its cleanup.
+        if (markedAsWatched) newSyncedIds.add(imdbId);
+
         // Small delay between films to be polite to the API
         await new Promise((r) => setTimeout(r, 500));
       } catch (e) {
         const err = `Error syncing "${title}": ${e instanceof Error ? e.message : String(e)}`;
         console.error(`[Stremboxd] ⚠️ ${err}`);
         result.errors.push(err);
+        // Stop immediately when Stremboxd rate-limits the stream lookup.
+        // Continuing only creates one identical 429 per remaining movie.
+        if (e instanceof StremboxdRateLimitError) break;
       }
     }
 
