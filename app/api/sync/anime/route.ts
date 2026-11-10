@@ -34,28 +34,37 @@ export async function POST(request: NextRequest) {
 
   let userAccounts: (typeof linkedAccounts.$inferSelect)[] = [];
   if (db && (!traktToken || !malToken)) {
-    userAccounts = await db
-      .select()
-      .from(linkedAccounts)
-      .where(eq(linkedAccounts.userId, userId))
-      .orderBy(desc(linkedAccounts.updatedAt));
-
-    if (!userAccounts.length && !hasTraktUserCookie && userId === "default_user") {
+    // Scheduled callers (GitHub Actions) have no browser cookies. Resolve
+    // their owner from the Trakt account itself before looking up that same
+    // owner's MAL token. Do not use the presence of unrelated default_user
+    // rows as a reason to skip this fallback.
+    if (!hasTraktUserCookie) {
       const traktAccounts = await db
         .select()
         .from(linkedAccounts)
         .where(eq(linkedAccounts.provider, "trakt"))
         .orderBy(desc(linkedAccounts.updatedAt));
-      const fallbackTrakt = traktAccounts.find((account) => account.accessToken);
+      const configuredUsername = process.env.TRAKT_USERNAME?.trim().toLowerCase();
+      const fallbackTrakt =
+        (configuredUsername
+          ? traktAccounts.find(
+              (account) =>
+                account.accessToken &&
+                account.providerUsername?.trim().toLowerCase() === configuredUsername
+            )
+          : undefined) || traktAccounts.find((account) => account.accessToken);
       if (fallbackTrakt) {
         userId = fallbackTrakt.userId;
-        userAccounts = await db
-          .select()
-          .from(linkedAccounts)
-          .where(eq(linkedAccounts.userId, userId))
-          .orderBy(desc(linkedAccounts.updatedAt));
+        traktToken ||= fallbackTrakt.accessToken || undefined;
+        traktUsername ||= fallbackTrakt.providerUsername || undefined;
       }
     }
+
+    userAccounts = await db
+      .select()
+      .from(linkedAccounts)
+      .where(eq(linkedAccounts.userId, userId))
+      .orderBy(desc(linkedAccounts.updatedAt));
 
     const traktAccount = userAccounts.find((account) => account.provider === "trakt");
     const malAccount = userAccounts.find((account) => account.provider === "myanimelist");
