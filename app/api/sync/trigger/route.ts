@@ -1,297 +1,150 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AnimeSyncService } from "@/lib/sync/anime-sync";
-import { LetterboxdSyncService } from "@/lib/sync/letterboxd-sync";
-import {
-  StremboxdLetterboxdSync,
-  stremboxdLogin,
-  isSessionFresh,
-  type StremboxdSession,
-} from "@/lib/sync/stremboxd-letterboxd-sync";
+import { TraktClient } from "@/lib/clients/trakt";
 import { db } from "@/lib/db";
 import { linkedAccounts, syncSettings, syncLogs } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, ilike } from "drizzle-orm";
+import { StremboxdLetterboxdSync, isSessionFresh, stremboxdLogin, type StremboxdSession } from "@/lib/sync/stremboxd-letterboxd-sync";
 
 export const maxDuration = 60;
 
-export async function POST(request: NextRequest) {
+function getTraktUsername(request: NextRequest): string | null {
   try {
-    const authorization = request.headers.get("authorization");
-    if (authorization) {
-      const cronSecret = process.env.CRON_SECRET;
-      if (!cronSecret || authorization !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-    }
+    const value = request.cookies.get("trakt_user")?.value;
+    const parsed = value ? JSON.parse(value) : null;
+    return typeof parsed?.username === "string" ? parsed.username.trim() : null;
+  } catch { return null; }
+}
 
-    let traktToken = request.cookies.get("trakt_token")?.value;
-    let traktUsername = request.cookies.get("trakt_username")?.value;
-    let malToken = request.cookies.get("mal_token")?.value;
-    let letterboxdUsername = request.cookies.get("letterboxd_username")?.value;
-    let syncUserId = "default_user";
-    const traktUserCookie = request.cookies.get("trakt_user")?.value;
-    if (traktUserCookie) {
-      try {
-        const traktUser = JSON.parse(traktUserCookie);
-        if (traktUser.username) syncUserId = `user_${traktUser.username}`;
-      } catch {}
-    }
+export async function POST(request: NextRequest) {
+  if (!db) {
+    return NextResponse.json({ success: false, error: "DATABASE_URL is required to persist safe sync progress." }, { status: 503 });
+  }
+  const cronSecret = process.env.CRON_SECRET;
+  const schedulerAuthorized = Boolean(cronSecret && request.headers.get("authorization") === `Bearer ${cronSecret}`);
+  const cookieToken = request.cookies.get("trakt_token")?.value;
+  if (!schedulerAuthorized && !cookieToken) {
+    return NextResponse.json({ success: false, error: "Connect Trakt before starting a sync." }, { status: 401 });
+  }
 
-    // Resolve fallback credentials from one linked account owner. Previously
-    // this selected the newest token for each provider independently, which
-    // could pair one user's Trakt account with another user's MAL account.
-    if (db && (!traktToken || !malToken || !letterboxdUsername)) {
-      let userAccounts = await db
-        .select()
-        .from(linkedAccounts)
-        .where(eq(linkedAccounts.userId, syncUserId))
-        .orderBy(desc(linkedAccounts.updatedAt));
+  const cookieUsername = getTraktUsername(request);
+  const username = cookieUsername || process.env.TRAKT_USERNAME?.trim() || null;
+  let userId = username ? `user_${username}` : "default_user";
+  let traktToken = cookieToken || process.env.TRAKT_ACCESS_TOKEN?.trim() || "";
+  let refreshToken: string | null = null;
+  let expiresAt: Date | null = null;
+  let settings: typeof syncSettings.$inferSelect | undefined;
 
-      if (userAccounts.length === 0 && !traktUserCookie && syncUserId === "default_user") {
-        const traktAccounts = await db
-          .select()
-          .from(linkedAccounts)
-          .where(eq(linkedAccounts.provider, "trakt"))
-          .orderBy(desc(linkedAccounts.updatedAt));
-        const fallbackTrakt = traktAccounts.find((account) => account.accessToken);
-        if (fallbackTrakt) {
-          syncUserId = fallbackTrakt.userId;
-          userAccounts = await db
-            .select()
-            .from(linkedAccounts)
-            .where(eq(linkedAccounts.userId, syncUserId))
-            .orderBy(desc(linkedAccounts.updatedAt));
+  try {
+    if (db) {
+      let accounts = await db.select().from(linkedAccounts).where(eq(linkedAccounts.userId, userId));
+      if (accounts.length === 0 && username && !cookieUsername) {
+        const match = await db.select().from(linkedAccounts).where(and(eq(linkedAccounts.provider, "trakt"), ilike(linkedAccounts.providerUsername, username))).limit(2);
+        if (match.length === 1) {
+          userId = match[0].userId;
+          accounts = await db.select().from(linkedAccounts).where(eq(linkedAccounts.userId, userId));
+        } else if (match.length > 1) {
+          throw new Error("TRAKT_USERNAME matches more than one account. Choose a unique Trakt username.");
         }
       }
-
-      for (const acc of userAccounts) {
-        if (acc.provider === "trakt") {
-          if (!traktToken && acc.accessToken) traktToken = acc.accessToken;
-          if (!traktUsername && acc.providerUsername) traktUsername = acc.providerUsername;
-        }
-        if (acc.provider === "myanimelist" && !malToken && acc.accessToken) {
-          malToken = acc.accessToken;
-        }
-        if (acc.provider === "letterboxd" && !letterboxdUsername) {
-          letterboxdUsername = acc.providerUsername;
+      if (!username && accounts.length) {
+        const allTraktAccounts = await db.select().from(linkedAccounts).where(eq(linkedAccounts.provider, "trakt"));
+        const accountIds = [...new Set(allTraktAccounts.map((account) => account.userId))];
+        if (accountIds.length !== 1) throw new Error("More than one Trakt account is connected. Set TRAKT_USERNAME to select the account for scheduled sync.");
+        userId = accountIds[0];
+        accounts = await db.select().from(linkedAccounts).where(eq(linkedAccounts.userId, userId));
+      } else if (!username && accounts.length === 0) {
+        const allTraktAccounts = await db.select().from(linkedAccounts).where(eq(linkedAccounts.provider, "trakt"));
+        const accountIds = [...new Set(allTraktAccounts.map((account) => account.userId))];
+        if (accountIds.length === 1) {
+          userId = accountIds[0];
+          accounts = await db.select().from(linkedAccounts).where(eq(linkedAccounts.userId, userId));
+        } else if (accountIds.length > 1) {
+          throw new Error("More than one Trakt account is connected. Set TRAKT_USERNAME to select the account for scheduled sync.");
         }
       }
+      const traktAccount = accounts.find((account) => account.provider === "trakt");
+      if (traktAccount?.accessToken) {
+        traktToken = traktAccount.accessToken;
+        refreshToken = traktAccount.refreshToken;
+        expiresAt = traktAccount.expiresAt;
+        if (!username) userId = traktAccount.userId;
+      }
+      const rows = await db.select().from(syncSettings).where(eq(syncSettings.userId, userId)).limit(1);
+      settings = rows[0];
     }
 
-    if (!traktToken && !traktUsername) {
-      return NextResponse.json(
-        { error: "Trakt account is not connected. Please connect Trakt first." },
-        { status: 400 }
-      );
-    }
-
-    const results: {
-      anime?: unknown;
-      letterboxd?: unknown;
-      traktToLetterboxd?: unknown;
-      timestamp: string;
-    } = {
-      timestamp: new Date().toISOString(),
-    };
-
-    // 1. Sync Trakt to MyAnimeList
-    if (malToken) {
-      const animeSync = new AnimeSyncService(traktToken, malToken, traktUsername);
-      results.anime = await animeSync.syncTraktToMal({
-        syncRatings: true,
-        batchLimit: 50,
-      });
-
+    if (!traktToken) throw new Error("No Trakt access token is available. Reconnect Trakt or set TRAKT_ACCESS_TOKEN.");
+    if (expiresAt && expiresAt.getTime() <= Date.now() + 60_000) {
+      if (!refreshToken) throw new Error("The Trakt access token expired. Reconnect Trakt to continue.");
+      const origin = request.nextUrl.origin;
+      const redirectUri = process.env.TRAKT_REDIRECT_URI || `${origin}/api/auth/trakt/callback`;
+      const refreshed = await TraktClient.refreshAccessToken(refreshToken, redirectUri);
+      traktToken = refreshed.access_token;
       if (db) {
-        try {
-          await db.insert(syncLogs).values({
-            id: `log_anime_${Date.now()}`,
-            userId: syncUserId,
-            type: "trakt_to_mal",
-            status:
-              (results.anime as { errors?: string[]; malUpdatedCount?: number }).errors?.length
-                ? ((results.anime as { malUpdatedCount?: number }).malUpdatedCount
-                    ? "warning"
-                    : "error")
-                : (results.anime as { unmatchedTitles?: string[] }).unmatchedTitles?.length
-                  ? "warning"
-                : "success",
-            title: "Trakt to MyAnimeList Sync",
-            details: JSON.stringify(results.anime),
-            itemsCount: (results.anime as { malUpdatedCount: number }).malUpdatedCount || 0,
-          });
-        } catch {}
+        await db.update(linkedAccounts).set({ accessToken: refreshed.access_token, refreshToken: refreshed.refresh_token, expiresAt: new Date(Date.now() + refreshed.expires_in * 1000), updatedAt: new Date() })
+          .where(and(eq(linkedAccounts.userId, userId), eq(linkedAccounts.provider, "trakt")));
       }
     }
 
-    // 2. Sync Letterboxd RSS to Trakt if connected
-    if (letterboxdUsername) {
-      const lbSync = new LetterboxdSyncService(traktToken);
-      results.letterboxd = await lbSync.syncRssToTrakt(letterboxdUsername);
+    const traktAccount = db ? (await db.select().from(linkedAccounts).where(eq(linkedAccounts.userId, userId))).find((account) => account.provider === "trakt") : undefined;
+    const traktUsername = username || traktAccount?.providerUsername || process.env.TRAKT_USERNAME?.trim();
+    const stremboxdUsername = process.env.STREMBOXD_USERNAME?.trim() || process.env.LETTERBOXD_USERNAME?.trim() || "";
+    const stremboxdPassword = process.env.STREMBOXD_PASSWORD?.trim() || process.env.LETTERBOXD_PASSWORD?.trim() || "";
+    if (!stremboxdUsername || !stremboxdPassword) throw new Error("Letterboxd automation credentials are missing. Configure STREMBOXD_USERNAME/PASSWORD or LETTERBOXD_USERNAME/PASSWORD on the server.");
 
-      if (db) {
-        try {
-          await db.insert(syncLogs).values({
-            id: `log_lb_${Date.now()}`,
-            userId: syncUserId,
-            type: "letterboxd_rss",
-            status: "success",
-            title: "Letterboxd RSS Sync",
-            details: JSON.stringify(results.letterboxd),
-            itemsCount: (results.letterboxd as { moviesSyncedToTrakt: number }).moviesSyncedToTrakt || 0,
-          });
-        } catch {}
-      }
+    if (db && !settings) {
+      const id = `settings_${userId}`;
+      await db.insert(syncSettings).values({ id, userId }).onConflictDoNothing();
+      settings = (await db.select().from(syncSettings).where(eq(syncSettings.userId, userId)).limit(1))[0];
     }
 
-    // 3. Sync newly watched Trakt movies to Letterboxd through Stremboxd
-    const stremboxdUsername =
-      process.env.STREMBOXD_USERNAME?.trim() ||
-      process.env.LETTERBOXD_USERNAME?.trim() ||
-      "";
-    const stremboxdPassword =
-      process.env.STREMBOXD_PASSWORD?.trim() ||
-      process.env.LETTERBOXD_PASSWORD?.trim() ||
-      "";
+    let session: StremboxdSession | null = null;
+    if (settings?.stremboxdToken && settings.stremboxdUserId && settings.stremboxdTokenAt) {
+      const candidate: StremboxdSession = { userToken: settings.stremboxdToken, userId: settings.stremboxdUserId, username: stremboxdUsername, loginAt: settings.stremboxdTokenAt.getTime() };
+      if (isSessionFresh(candidate)) session = candidate;
+    }
+    if (!session) {
+      session = await stremboxdLogin(stremboxdUsername, stremboxdPassword);
+      if (db) await db.update(syncSettings).set({ stremboxdToken: session.userToken, stremboxdUserId: session.userId, stremboxdTokenAt: new Date(session.loginAt), updatedAt: new Date() }).where(eq(syncSettings.userId, userId));
+    }
 
-    if (stremboxdUsername && stremboxdPassword) {
+    let alreadySynced = new Set<string>();
+    let pendingImdbIds = new Set<string>();
+    if (settings?.lastSyncedMovieIds) {
       try {
-        let config: typeof syncSettings.$inferSelect | undefined;
-        if (db) {
-          const rows = await db
-            .select()
-            .from(syncSettings)
-            .where(eq(syncSettings.userId, syncUserId))
-            .limit(1);
-          config = rows[0];
-        }
-
-        let session: StremboxdSession | null = null;
-        if (config?.stremboxdToken && config.stremboxdUserId && config.stremboxdTokenAt) {
-          const candidate: StremboxdSession = {
-            userToken: config.stremboxdToken,
-            userId: config.stremboxdUserId,
-            username: stremboxdUsername,
-            loginAt: config.stremboxdTokenAt.getTime(),
-          };
-          if (isSessionFresh(candidate)) session = candidate;
-        }
-
-        if (!session) {
-          session = await stremboxdLogin(stremboxdUsername, stremboxdPassword);
-          if (db) {
-            await db
-              .update(syncSettings)
-              .set({
-                stremboxdToken: session.userToken,
-                stremboxdUserId: session.userId,
-                stremboxdTokenAt: new Date(session.loginAt),
-                updatedAt: new Date(),
-              })
-              .where(eq(syncSettings.userId, syncUserId));
+        const parsed = JSON.parse(settings.lastSyncedMovieIds);
+        if (Array.isArray(parsed)) {
+          for (const value of parsed.map(String)) {
+            if (value.startsWith("pending:")) pendingImdbIds.add(value.slice("pending:".length));
+            else alreadySynced.add(value);
           }
         }
+      } catch { console.warn("Ignoring malformed persisted Letterboxd movie ID set."); }
+    }
+    const sync = new StremboxdLetterboxdSync(traktToken, traktUsername);
+    const { result, newSyncedIds, pendingImdbIds: newPendingImdbIds, newLatestWatchedAt } = await sync.syncNewMovies({ session, syncedImdbIds: alreadySynced, pendingImdbIds, lastWatchedAt: settings?.latestWatchedAt ?? null });
+    const status = result.errors.length ? (result.markedWatched ? "warning" : "error") : "success";
 
-        const syncedIds = new Set<string>(
-          config?.lastSyncedMovieIds
-            ? (JSON.parse(config.lastSyncedMovieIds) as string[])
-            : []
-        );
-        const lbSync = new StremboxdLetterboxdSync(traktToken, traktUsername);
-        const { result, newSyncedIds, newLatestWatchedAt } =
-          await lbSync.syncNewMovies({
-            session,
-            syncedImdbIds: syncedIds,
-            lastWatchedAt: config?.latestWatchedAt ?? null,
-          });
-        results.traktToLetterboxd = result;
-
-        if (db && result.newMoviesFound > 0) {
-          await db
-            .update(syncSettings)
-            .set({
-              lastSyncedMovieIds: JSON.stringify([...newSyncedIds]),
-              latestWatchedAt: newLatestWatchedAt,
-              lastLetterboxdSyncAt: new Date(),
-              updatedAt: new Date(),
-            })
-            .where(eq(syncSettings.userId, syncUserId));
-
-          await db.insert(syncLogs).values({
-            id: `log_lb_out_${Date.now()}`,
-            userId: syncUserId,
-            type: "trakt_to_letterboxd",
-            status:
-              result.errors.length > 0 && result.markedWatched === 0
-                ? "error"
-                : result.errors.length > 0
-                ? "warning"
-                : "success",
-            title: `Trakt to Letterboxd: ${result.markedWatched} movie(s) marked watched`,
-            details: JSON.stringify(result),
-            itemsCount: result.markedWatched,
-          });
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        results.traktToLetterboxd = {
-          configured: true,
-          newMoviesFound: 0,
-          markedWatched: 0,
-          removedFromWatchlist: 0,
-          alreadySynced: 0,
-          skipped: 0,
-          errors: [message],
-        };
-        if (db) {
-          try {
-            await db.insert(syncLogs).values({
-              id: `log_lb_out_err_${Date.now()}`,
-              userId: syncUserId,
-              type: "trakt_to_letterboxd",
-              status: "error",
-              title: "Trakt to Letterboxd sync failed",
-              details: message,
-              itemsCount: 0,
-            });
-          } catch {}
-        }
-      }
-    } else {
-      results.traktToLetterboxd = {
-        configured: false,
-        message: "Stremboxd credentials are not configured.",
-      };
+    if (db) {
+      const persistedIds = [...newSyncedIds, ...[...newPendingImdbIds].map((id) => `pending:${id}`)];
+      await db.update(syncSettings).set({ lastSyncedMovieIds: JSON.stringify(persistedIds), latestWatchedAt: newLatestWatchedAt, lastLetterboxdSyncAt: new Date(), lastTraktSyncAt: new Date(), status: "idle", lastErrorMessage: result.errors.length ? result.errors.join("\n").slice(0, 4000) : null, updatedAt: new Date() }).where(eq(syncSettings.userId, userId));
+      await db.insert(syncLogs).values({ id: `log_lb_${Date.now()}`, userId, type: "trakt_to_letterboxd", status, title: `Trakt → Letterboxd: ${result.markedWatched} movie(s) marked watched`, details: JSON.stringify(result), itemsCount: result.markedWatched });
     }
 
-    // Update last synced timestamps in DB
+    const hasErrors = result.errors.length > 0;
+    return NextResponse.json({
+      success: !hasErrors,
+      error: hasErrors ? result.errors.join(" ") : undefined,
+      results: { timestamp: new Date().toISOString(), traktToLetterboxd: result },
+    }, { status: hasErrors ? 502 : 200 });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
     if (db) {
       try {
-        await db
-          .update(syncSettings)
-          .set({
-            lastTraktSyncAt: new Date(),
-            lastMalSyncAt: malToken ? new Date() : undefined,
-            lastLetterboxdSyncAt:
-              letterboxdUsername ||
-              (results.traktToLetterboxd as { configured?: boolean } | undefined)?.configured === true
-                ? new Date()
-                : undefined,
-            status: "idle",
-            updatedAt: new Date(),
-          })
-          .where(eq(syncSettings.userId, syncUserId));
-      } catch {}
+        await db.insert(syncLogs).values({ id: `log_lb_err_${Date.now()}`, userId, type: "trakt_to_letterboxd", status: "error", title: "Trakt → Letterboxd sync failed", details: detail.slice(0, 4000), itemsCount: 0 });
+      } catch (logError) { console.error("Failed to record sync failure:", logError); }
     }
-
-    console.log("Sync trigger completed:", JSON.stringify(results));
-    return NextResponse.json({
-      success: true,
-      message: "Sync completed successfully!",
-      results,
-    });
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error("Sync trigger error:", err);
-    return NextResponse.json({ error: errorMsg }, { status: 500 });
+    console.error("Trakt to Letterboxd sync failed:", error);
+    return NextResponse.json({ success: false, error: detail }, { status: 500 });
   }
 }

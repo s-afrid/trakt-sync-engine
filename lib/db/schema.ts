@@ -32,7 +32,7 @@ export const syncSettings = pgTable("sync_settings", {
   lastMalSyncAt: timestamp("last_mal_sync_at"),
   lastLetterboxdSyncAt: timestamp("last_letterboxd_sync_at"),
   // Trakt→Letterboxd direct sync state
-  lastSyncedMovieIds: text("last_synced_movie_ids"), // JSON array of imdb IDs already synced
+  lastSyncedMovieIds: text("last_synced_movie_ids"), // JSON array of synced IMDb IDs plus pending:<id> retry IDs
   latestWatchedAt: text("latest_watched_at"),        // ISO string — last seen Trakt watched_at
   stremboxdToken: text("stremboxd_token"),            // cached Stremboxd userToken (valid ~24h)
   stremboxdUserId: text("stremboxd_user_id"),         // cached Stremboxd userId

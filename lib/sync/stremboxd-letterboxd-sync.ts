@@ -45,6 +45,7 @@ export interface FilmActions {
 
 export interface LetterboxdSyncResult {
   newMoviesFound: number;
+  pending: number;
   alreadySynced: number;
   markedWatched: number;
   removedFromWatchlist: number;
@@ -172,15 +173,19 @@ export class StremboxdLetterboxdSync {
   async syncNewMovies(opts: {
     session: StremboxdSession;
     syncedImdbIds: Set<string>;     // already synced — skip these
+    pendingImdbIds?: Set<string>;   // failed IDs retry even after cursor movement
     lastWatchedAt: string | null;   // ISO string — only process movies newer than this
   }): Promise<{
     result: LetterboxdSyncResult;
     newSyncedIds: Set<string>;
+    pendingImdbIds: Set<string>;
     newLatestWatchedAt: string | null;
   }> {
     const { session, syncedImdbIds, lastWatchedAt } = opts;
+    const pendingImdbIds = new Set(opts.pendingImdbIds ?? []);
     const result: LetterboxdSyncResult = {
       newMoviesFound: 0,
+      pending: 0,
       alreadySynced: 0,
       markedWatched: 0,
       removedFromWatchlist: 0,
@@ -199,26 +204,36 @@ export class StremboxdLetterboxdSync {
     const lastTs = lastWatchedAt ? new Date(lastWatchedAt).getTime() : 0;
     const newMovies = allMovies.filter((m) => {
       const ts = new Date(m.last_watched_at).getTime();
-      return ts > lastTs;
-    });
+      const imdbId = m.movie?.ids?.imdb;
+      if (imdbId && pendingImdbIds.has(imdbId)) return true;
+      if (imdbId && syncedImdbIds.has(imdbId)) return false;
+      return ts > lastTs || (ts === lastTs && Boolean(imdbId));
+    }).sort((a, b) => new Date(a.last_watched_at).getTime() - new Date(b.last_watched_at).getTime());
 
     result.newMoviesFound = newMovies.length;
 
     if (newMovies.length === 0) {
-      return { result, newSyncedIds, newLatestWatchedAt };
+      result.pending = pendingImdbIds.size;
+      return { result, newSyncedIds, pendingImdbIds, newLatestWatchedAt };
     }
 
-    const maxTs = newMovies.reduce(
-      (max, m) => Math.max(max, new Date(m.last_watched_at).getTime()),
-      0
-    );
+    // Keep each Vercel invocation bounded. Older items run first so advancing
+    // the timestamp cannot skip movies that did not fit into this batch.
+    const batchLimit = 20;
+    const batch = newMovies.slice(0, batchLimit);
+    let lastProcessedTs = lastTs;
+    let attemptedCount = 0;
+    let stoppedForRateLimit = false;
 
-    for (const m of newMovies) {
+    for (const m of batch) {
+      attemptedCount++;
       const imdbId = m.movie.ids.imdb;
       const title = m.movie.title;
+      lastProcessedTs = Math.max(lastProcessedTs, new Date(m.last_watched_at).getTime());
 
       if (!imdbId) {
         result.skipped++;
+        result.errors.push(`Cannot sync "${title}": Trakt did not provide an IMDb ID.`);
         continue;
       }
 
@@ -226,6 +241,7 @@ export class StremboxdLetterboxdSync {
       if (syncedImdbIds.has(imdbId)) {
         result.alreadySynced++;
         newSyncedIds.add(imdbId);
+        pendingImdbIds.delete(imdbId);
         continue;
       }
 
@@ -235,6 +251,8 @@ export class StremboxdLetterboxdSync {
         if (!actions) {
           // Film not in Stremboxd/Letterboxd database
           result.skipped++;
+          result.errors.push(`Film not found on Stremboxd for "${title}" (${imdbId}); it will be retried.`);
+          pendingImdbIds.add(imdbId);
           console.warn(`[Stremboxd] Film not found: ${title} (${imdbId})`);
           continue;
         }
@@ -271,6 +289,7 @@ export class StremboxdLetterboxdSync {
           }
         } else {
           result.skipped++;
+          result.errors.push(`No watched action is available for "${title}" (${imdbId}); it will be retried.`);
           console.warn(`[Stremboxd] No watchedUrl for ${title}`);
         }
 
@@ -296,7 +315,12 @@ export class StremboxdLetterboxdSync {
 
         // Persist only after both actions have had a chance to run. If the
         // watchlist call is rate-limited, the next cycle can retry its cleanup.
-        if (markedAsWatched) newSyncedIds.add(imdbId);
+        if (markedAsWatched) {
+          newSyncedIds.add(imdbId);
+          pendingImdbIds.delete(imdbId);
+        } else {
+          pendingImdbIds.add(imdbId);
+        }
 
         // Small delay between films to be polite to the API
         await new Promise((r) => setTimeout(r, 500));
@@ -304,17 +328,26 @@ export class StremboxdLetterboxdSync {
         const err = `Error syncing "${title}": ${e instanceof Error ? e.message : String(e)}`;
         console.error(`[Stremboxd] ⚠️ ${err}`);
         result.errors.push(err);
+        if (imdbId) pendingImdbIds.add(imdbId);
         // Stop immediately when Stremboxd rate-limits the stream lookup.
         // Continuing only creates one identical 429 per remaining movie.
-        if (e instanceof StremboxdRateLimitError) break;
+        if (e instanceof StremboxdRateLimitError) {
+          stoppedForRateLimit = true;
+          break;
+        }
       }
     }
 
-    // Keep the timestamp unchanged when an item failed so the next run retries it.
-    if (result.errors.length === 0) {
-      newLatestWatchedAt = new Date(maxTs).toISOString();
-    }
+    // Failed movies remain in a separate retry set, so they do not block
+    // cursor progress past newer Trakt watches.
+    if (lastProcessedTs > 0) newLatestWatchedAt = new Date(lastProcessedTs).toISOString();
+    const unprocessed = stoppedForRateLimit
+      ? [...batch.slice(attemptedCount), ...newMovies.slice(batch.length)]
+      : newMovies.slice(batch.length);
+    const unprocessedIds = unprocessed.map((movie) => movie.movie.ids.imdb).filter((id): id is string => Boolean(id));
+    const unprocessedWithoutId = unprocessed.filter((movie) => !movie.movie.ids.imdb).length;
+    result.pending = new Set([...pendingImdbIds, ...unprocessedIds]).size + unprocessedWithoutId;
 
-    return { result, newSyncedIds, newLatestWatchedAt };
+    return { result, newSyncedIds, pendingImdbIds, newLatestWatchedAt };
   }
 }

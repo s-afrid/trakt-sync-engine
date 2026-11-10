@@ -1,175 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { syncLogs, syncSettings, linkedAccounts } from "@/lib/db/schema";
+import { linkedAccounts, syncLogs } from "@/lib/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { TraktClient } from "@/lib/clients/trakt";
-import { MalClient } from "@/lib/clients/mal";
-import { LetterboxdClient } from "@/lib/clients/letterboxd";
+
+function cookieUsername(request: NextRequest): string | null {
+  try {
+    const value = request.cookies.get("trakt_user")?.value;
+    const parsed = value ? JSON.parse(value) : null;
+    return typeof parsed?.username === "string" ? parsed.username : null;
+  } catch { return null; }
+}
 
 export async function GET(request: NextRequest) {
-  // Check cookies
-  const traktToken = request.cookies.get("trakt_token")?.value;
-  const traktUsername = request.cookies.get("trakt_username")?.value;
-  const malToken = request.cookies.get("mal_token")?.value;
-  const traktUserCookie = request.cookies.get("trakt_user")?.value;
-  const malUserCookie = request.cookies.get("mal_user")?.value;
-  const letterboxdUsername = request.cookies.get("letterboxd_username")?.value;
-  const letterboxdUserCookie = request.cookies.get("letterboxd_user")?.value;
-
-  let traktUser: { username: string; name?: string; avatar?: string } | null = null;
-  let malUser: { id: number; name: string; picture?: string } | null = null;
-  let letterboxdUser: { username: string; displayName?: string; avatar?: string } | null = null;
-
-  try {
-    if (traktUserCookie) traktUser = JSON.parse(traktUserCookie);
-  } catch {}
-
-  try {
-    if (malUserCookie) malUser = JSON.parse(malUserCookie);
-  } catch {}
-
-  try {
-    if (letterboxdUserCookie) {
-      letterboxdUser = JSON.parse(letterboxdUserCookie);
-    } else if (letterboxdUsername) {
-      letterboxdUser = { username: letterboxdUsername };
-    }
-  } catch {}
-
-  // Hydrate from DB if available
-  if (db) {
-    try {
-      if ((!traktUser || !traktUser.avatar) && (traktUsername || traktToken)) {
-        const traktAcc = await db
-          .select()
-          .from(linkedAccounts)
-          .where(eq(linkedAccounts.provider, "trakt"))
-          .limit(1);
-        if (traktAcc.length > 0) {
-          traktUser = {
-            username: traktAcc[0].providerUsername,
-            avatar: traktAcc[0].avatarUrl || traktUser?.avatar,
-          };
-        }
-      }
-
-      if ((!malUser || !malUser.picture) && malToken) {
-        const malAcc = await db
-          .select()
-          .from(linkedAccounts)
-          .where(eq(linkedAccounts.provider, "myanimelist"))
-          .limit(1);
-        if (malAcc.length > 0) {
-          malUser = {
-            id: parseInt(malAcc[0].providerUserId || "0", 10),
-            name: malAcc[0].providerUsername,
-            picture: malAcc[0].avatarUrl || malUser?.picture,
-          };
-        }
-      }
-
-      if (letterboxdUsername && (!letterboxdUser || !letterboxdUser.avatar)) {
-        const lbAcc = await db
-          .select()
-          .from(linkedAccounts)
-          .where(eq(linkedAccounts.provider, "letterboxd"))
-          .limit(1);
-        if (lbAcc.length > 0 && lbAcc[0].avatarUrl) {
-          letterboxdUser = {
-            username: letterboxdUsername,
-            displayName: letterboxdUser?.displayName,
-            avatar: lbAcc[0].avatarUrl,
-          };
-        }
-      }
-    } catch (dbErr) {
-      console.warn("DB profile lookup skipped:", dbErr);
-    }
-  }
-
-  // Hydrate Trakt avatar via public client if still missing
-  if ((!traktUser || !traktUser.avatar) && (traktUsername || traktUser?.username) && process.env.TRAKT_CLIENT_ID) {
-    const uname = (traktUsername || traktUser?.username)!.trim();
-    try {
-      const client = new TraktClient(traktToken, uname);
-      const tu = await client.getCurrentUser();
-      traktUser = {
-        username: uname,
-        name: tu.name,
-        avatar: tu.images?.avatar?.full || undefined,
-      };
-    } catch {}
-  } else if (!traktUser && traktUsername) {
-    traktUser = { username: traktUsername };
-  }
-
-  // Hydrate MAL user if token present but profile missing
-  if (!malUser && malToken) {
-    try {
-      const client = new MalClient(malToken);
-      const mu = await client.getCurrentUser();
-      malUser = {
-        id: mu.id,
-        name: mu.name,
-        picture: mu.picture,
-      };
-    } catch {}
-  }
-
-  // Hydrate Letterboxd display name if missing
-  if (letterboxdUsername && (!letterboxdUser || !letterboxdUser.displayName)) {
-    try {
-      const existingAvatar = letterboxdUser?.avatar;
-      letterboxdUser = await LetterboxdClient.fetchUserProfile(letterboxdUsername);
-      if (existingAvatar) {
-        letterboxdUser.avatar = existingAvatar;
-      }
-    } catch {
-      letterboxdUser = { username: letterboxdUsername, avatar: letterboxdUser?.avatar };
-    }
-  }
-
-  // Recent logs
-  let recentLogs: unknown[] = [];
-  let settings = null;
+  const username = cookieUsername(request) || process.env.TRAKT_USERNAME || null;
+  const userId = username ? `user_${username}` : "default_user";
+  let traktProfile: { username: string } | null = username ? { username } : null;
+  let letterboxdProfile: { username: string } | null = request.cookies.get("letterboxd_username")?.value
+    ? { username: request.cookies.get("letterboxd_username")!.value }
+    : process.env.LETTERBOXD_USERNAME ? { username: process.env.LETTERBOXD_USERNAME } : null;
+  let traktConnected = Boolean(request.cookies.get("trakt_token")?.value);
+  let recentRuns: Array<{ id: string; title: string; status: string; itemsCount: number; createdAt: Date; details: string | null }> = [];
 
   if (db) {
     try {
-      recentLogs = await db
-        .select()
-        .from(syncLogs)
-        .orderBy(desc(syncLogs.createdAt))
-        .limit(10);
-
-      const foundSettings = await db
-        .select()
-        .from(syncSettings)
-        .where(eq(syncSettings.userId, "default_user"))
-        .limit(1);
-
-      if (foundSettings.length > 0) {
-        settings = foundSettings[0];
+      let accounts = await db.select().from(linkedAccounts).where(eq(linkedAccounts.userId, userId));
+      if (!username && accounts.length === 0) {
+        // Single-account deployments can use the existing DB connection without a browser cookie.
+        const candidates = await db.select().from(linkedAccounts);
+        const distinctUsers = [...new Set(candidates.filter((a) => a.provider === "trakt").map((a) => a.userId))];
+        if (distinctUsers.length === 1) accounts = candidates.filter((a) => a.userId === distinctUsers[0]);
       }
-    } catch {}
+      for (const account of accounts) {
+        if (account.provider === "trakt" && account.accessToken) {
+          traktConnected = true;
+          traktProfile = { username: account.providerUsername };
+        }
+        if (account.provider === "letterboxd" && account.providerUsername) {
+          letterboxdProfile = { username: account.providerUsername };
+        }
+      }
+      const logUserId = accounts[0]?.userId || userId;
+      recentRuns = await db.select({ id: syncLogs.id, title: syncLogs.title, status: syncLogs.status, itemsCount: syncLogs.itemsCount, createdAt: syncLogs.createdAt, details: syncLogs.details })
+        .from(syncLogs).where(eq(syncLogs.userId, logUserId)).orderBy(desc(syncLogs.createdAt)).limit(10);
+    } catch (error) { console.error("Could not load sync dashboard status:", error); }
   }
 
   return NextResponse.json({
-    connected: {
-      trakt: !!traktToken || !!traktUsername,
-      mal: !!malToken,
-      letterboxd: !!letterboxdUsername,
+    connected: { trakt: traktConnected, letterboxd: Boolean(letterboxdProfile) },
+    profiles: { trakt: traktProfile, letterboxd: letterboxdProfile },
+    setup: {
+      traktClientConfigured: Boolean(process.env.TRAKT_CLIENT_ID && process.env.TRAKT_CLIENT_SECRET),
+      letterboxdAutomationConfigured: Boolean((process.env.STREMBOXD_USERNAME || process.env.LETTERBOXD_USERNAME) && (process.env.STREMBOXD_PASSWORD || process.env.LETTERBOXD_PASSWORD)),
+      databaseConfigured: Boolean(db),
     },
-    profiles: {
-      trakt: traktUser,
-      mal: malUser,
-      letterboxd: letterboxdUser,
-    },
-    envConfigured: {
-      trakt: !!(process.env.TRAKT_CLIENT_ID && process.env.TRAKT_CLIENT_SECRET),
-      mal: !!(process.env.MAL_CLIENT_ID && process.env.MAL_CLIENT_SECRET),
-      database: !!process.env.DATABASE_URL,
-    },
-    settings,
-    recentLogs,
-  });
+    recentRuns,
+  }, { headers: { "Cache-Control": "no-store" } });
 }

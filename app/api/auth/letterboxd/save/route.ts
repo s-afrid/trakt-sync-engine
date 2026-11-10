@@ -6,7 +6,10 @@ import { eq, and } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, avatarUrl } = await request.json();
+    if (!request.cookies.get("trakt_token")?.value) {
+      return NextResponse.json({ error: "Connect Trakt before linking Letterboxd." }, { status: 401 });
+    }
+    const { username } = await request.json();
 
     if (!username || typeof username !== "string" || !username.trim()) {
       return NextResponse.json(
@@ -16,16 +19,10 @@ export async function POST(request: NextRequest) {
     }
 
     const cleanUsername = username.trim().toLowerCase();
-    const cleanAvatar = avatarUrl && typeof avatarUrl === "string" && avatarUrl.trim().startsWith("http")
-      ? avatarUrl.trim()
-      : null;
-
-    // Verify user profile / RSS feed works
-    try {
-      await LetterboxdClient.fetchUserRss(cleanUsername);
-    } catch {
-      // Don't fail completely if user has no RSS entries yet, but log it
+    if (!/^[a-z0-9_-]{1,32}$/.test(cleanUsername)) {
+      return NextResponse.json({ error: "Enter a valid Letterboxd username." }, { status: 400 });
     }
+    const lbProfile = await LetterboxdClient.fetchUserProfile(cleanUsername);
 
     const traktUserCookie = request.cookies.get("trakt_user")?.value;
     let userId = "default_user";
@@ -54,7 +51,7 @@ export async function POST(request: NextRequest) {
             .update(linkedAccounts)
             .set({
               providerUsername: cleanUsername,
-              avatarUrl: cleanAvatar !== null ? cleanAvatar : existing[0].avatarUrl,
+              avatarUrl: lbProfile.avatar || existing[0].avatarUrl,
               updatedAt: new Date(),
             })
             .where(eq(linkedAccounts.id, existing[0].id));
@@ -64,19 +61,12 @@ export async function POST(request: NextRequest) {
             userId,
             provider: "letterboxd",
             providerUsername: cleanUsername,
-            avatarUrl: cleanAvatar,
+            avatarUrl: lbProfile.avatar || null,
           });
         }
       } catch (dbErr) {
         console.warn("DB save skipped for letterboxd:", dbErr);
       }
-    }
-
-    const lbProfile: { username: string; displayName?: string; avatar?: string } =
-      await LetterboxdClient.fetchUserProfile(cleanUsername);
-
-    if (cleanAvatar) {
-      lbProfile.avatar = cleanAvatar;
     }
 
     const response = NextResponse.json({

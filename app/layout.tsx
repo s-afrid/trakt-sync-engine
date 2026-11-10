@@ -2,10 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Harbor · Trakt Sync Engine",
-  description:
-    "Unified sync engine bridging your watch history across Trakt.tv, Letterboxd, and MyAnimeList. Built for Vercel Serverless.",
-  applicationName: "Harbor",
+  title: "Trakt → Letterboxd",
+  description: "Sync newly watched movies from Trakt to Letterboxd.",
+  applicationName: "Trakt → Letterboxd",
   icons: {
     icon: [
       { url: "/harbor-icon.png", type: "image/png", sizes: "any" },

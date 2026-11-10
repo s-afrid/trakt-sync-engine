@@ -9,6 +9,14 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
   const error = searchParams.get("error");
+  const expectedState = request.cookies.get("trakt_oauth_state")?.value;
+  const returnedState = searchParams.get("state");
+
+  if (!expectedState || !returnedState || returnedState !== expectedState) {
+    const response = NextResponse.redirect(`${origin}/?error=${encodeURIComponent("Trakt authorization expired or could not be verified. Please connect again.")}`);
+    response.cookies.delete("trakt_oauth_state");
+    return response;
+  }
 
   if (error || !code) {
     return NextResponse.redirect(
@@ -89,6 +97,7 @@ export async function GET(request: NextRequest) {
     }
 
     const response = NextResponse.redirect(`${origin}/?success=trakt_connected`);
+    response.cookies.delete("trakt_oauth_state");
 
     // Store in cookie for session resilience on Vercel
     response.cookies.set("trakt_token", tokenData.access_token, {
@@ -115,8 +124,10 @@ export async function GET(request: NextRequest) {
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.error("Trakt OAuth callback error:", err);
-    return NextResponse.redirect(
+    const response = NextResponse.redirect(
       `${origin}/?error=${encodeURIComponent(errorMsg)}`
     );
+    response.cookies.delete("trakt_oauth_state");
+    return response;
   }
 }
