@@ -93,6 +93,7 @@ export default function Home() {
   }
 
   const traktConnected = data?.connected.trakt;
+  const traktPublicMode = data?.traktPublicMode;
   const lbConnected = data?.connected.letterboxd;
   const ready = Boolean(traktConnected && lbConnected && data?.setup.letterboxdAutomationConfigured && data?.setup.databaseConfigured);
   const scheduledReady = Boolean((traktConnected || traktPublicMode) && lbConnected && data?.setup.letterboxdAutomationConfigured && data?.setup.databaseConfigured && data?.setup.traktClientConfigured);
