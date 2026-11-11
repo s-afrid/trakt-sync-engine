@@ -318,8 +318,9 @@ export class StremboxdLetterboxdSync {
           result.syncedMovies.push({ title, imdbId, posterDataUrl: await cacheMoviePoster(m.movie) });
         }
 
-        // Step 2: Remove from Watchlist (unconditional — safe if not in list)
-        if (actions.watchlistUrl) {
+        // Step 2: Remove from Watchlist only after the watched state is confirmed.
+        let watchlistRemovalConfirmed = !actions.inWatchlist;
+        if (markedAsWatched && actions.watchlistUrl) {
           const wlUrl = toggleSetParam(actions.watchlistUrl, false);
           const wlRes = await fetch(wlUrl, {
             headers: { ...HEADERS, Authorization: `Bearer ${session.userToken}` },
@@ -333,14 +334,25 @@ export class StremboxdLetterboxdSync {
           }
           if (wlRes.ok) {
             result.removedFromWatchlist++;
+            watchlistRemovalConfirmed = true;
             console.log(`[Stremboxd] 🗑️  ${title} — removed from Watchlist`);
+          } else if (wlRes.status === 404 && !actions.inWatchlist) {
+            // The action may be absent because this film was already off the list.
+            watchlistRemovalConfirmed = true;
+          } else {
+            const body = await wlRes.text().catch(() => "");
+            const err = `Watchlist removal HTTP ${wlRes.status} for "${title}": ${body.slice(0, 200)}`;
+            result.errors.push(err);
+            watchlistRemovalConfirmed = false;
+            console.warn(`[Stremboxd] ⚠️ ${err}`);
           }
-          // Non-ok is fine — means it wasn't in the watchlist
+        } else if (markedAsWatched && actions.inWatchlist) {
+          result.errors.push(`Cannot remove "${title}" from the Letterboxd watchlist: no removal action was provided.`);
+          watchlistRemovalConfirmed = false;
         }
 
-        // Persist only after both actions have had a chance to run. If the
-        // watchlist call is rate-limited, the next cycle can retry its cleanup.
-        if (markedAsWatched) {
+        // Keep the movie retryable until both watched and watchlist states are confirmed.
+        if (markedAsWatched && watchlistRemovalConfirmed) {
           newSyncedIds.add(imdbId);
           pendingImdbIds.delete(imdbId);
         } else {
