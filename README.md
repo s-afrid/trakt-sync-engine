@@ -24,12 +24,15 @@ Set these in Vercel (or the environment running the Next.js app):
 | `DATABASE_URL` | PostgreSQL connection string; keeps account tokens, sync cursor, and run history |
 | `STREMBOXD_USERNAME` | Stremboxd/Letterboxd automation login (or use `LETTERBOXD_USERNAME`) |
 | `STREMBOXD_PASSWORD` | Stremboxd/Letterboxd automation password (or use `LETTERBOXD_PASSWORD`) |
+| `CREDENTIAL_ENCRYPTION_KEY` | A 32-byte base64 or 64-character hex key used to encrypt credentials saved from the dashboard |
 | `CRON_SECRET` | Protects scheduled sync requests |
 | `TRAKT_USERNAME` | Trakt username for scheduled runs. OAuth is optional when this profile's watched history is public; with multiple linked accounts, it selects which account to use |
 
 In the Trakt developer settings, set the redirect URL to the same callback URL configured above. In Vercel, keep the production URL in `TRAKT_REDIRECT_URI` if you use a custom domain.
 
 For GitHub Actions, add a repository secret named `CRON_SECRET` with the same value configured in Vercel. The workflow calls the deployed app, so Trakt and Letterboxd credentials stay on the server. A missing secret makes the workflow fail closed.
+
+To save Letterboxd automation credentials in the dashboard, generate a key with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` and add it as `CREDENTIAL_ENCRYPTION_KEY` in Vercel. Trakt is linked with OAuth; the app does not ask for or store a Trakt password. Existing environment-based Letterboxd credentials continue to work.
 
 ## Run locally
 

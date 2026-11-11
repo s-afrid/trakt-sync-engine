@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { linkedAccounts, syncLogs } from "@/lib/db/schema";
 import { desc, eq } from "drizzle-orm";
+import { isCredentialEncryptionConfigured } from "@/lib/security/credential-vault";
 
 function cookieUsername(request: NextRequest): string | null {
   try {
@@ -12,6 +13,7 @@ function cookieUsername(request: NextRequest): string | null {
 }
 
 export async function GET(request: NextRequest) {
+  const credentialEncryptionConfigured = isCredentialEncryptionConfigured();
   const username = cookieUsername(request) || process.env.TRAKT_USERNAME || null;
   const userId = username ? `user_${username}` : "default_user";
   let traktProfile: { username: string } | null = username ? { username } : null;
@@ -19,6 +21,7 @@ export async function GET(request: NextRequest) {
     ? { username: request.cookies.get("letterboxd_username")!.value }
     : process.env.LETTERBOXD_USERNAME ? { username: process.env.LETTERBOXD_USERNAME } : null;
   let traktConnected = Boolean(request.cookies.get("trakt_token")?.value);
+  let automationCredentialsStored = false;
   let recentRuns: Array<{ id: string; title: string; status: string; itemsCount: number; createdAt: Date; details: string | null }> = [];
 
   if (db) {
@@ -37,6 +40,10 @@ export async function GET(request: NextRequest) {
         }
         if (account.provider === "letterboxd" && account.providerUsername) {
           letterboxdProfile = { username: account.providerUsername };
+          try {
+            const metadata = JSON.parse(account.metadata || "{}") as { encryptedAutomationCredentials?: unknown };
+            automationCredentialsStored = Boolean(metadata.encryptedAutomationCredentials);
+          } catch { automationCredentialsStored = false; }
         }
       }
       const logUserId = accounts[0]?.userId || userId;
@@ -51,7 +58,14 @@ export async function GET(request: NextRequest) {
     profiles: { trakt: traktProfile, letterboxd: letterboxdProfile },
     setup: {
       traktClientConfigured: Boolean(process.env.TRAKT_CLIENT_ID && process.env.TRAKT_CLIENT_SECRET),
-      letterboxdAutomationConfigured: Boolean((process.env.STREMBOXD_USERNAME || process.env.LETTERBOXD_USERNAME) && (process.env.STREMBOXD_PASSWORD || process.env.LETTERBOXD_PASSWORD)),
+      traktRedirectUri: process.env.TRAKT_REDIRECT_URI || `${request.nextUrl.origin}/api/auth/trakt/callback`,
+      letterboxdAutomationConfigured: Boolean(
+        (process.env.STREMBOXD_USERNAME && process.env.STREMBOXD_PASSWORD) ||
+        (process.env.LETTERBOXD_USERNAME && process.env.LETTERBOXD_PASSWORD) ||
+        (automationCredentialsStored && credentialEncryptionConfigured)
+      ),
+      automationCredentialsStored,
+      credentialEncryptionConfigured,
       databaseConfigured: Boolean(db),
     },
     recentRuns,

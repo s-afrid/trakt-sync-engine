@@ -3,13 +3,18 @@ import { LetterboxdClient } from "@/lib/clients/letterboxd";
 import { db } from "@/lib/db";
 import { linkedAccounts } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { encryptCredentials } from "@/lib/security/credential-vault";
+import { stremboxdLogin } from "@/lib/sync/stremboxd-letterboxd-sync";
 
 export async function POST(request: NextRequest) {
   try {
     if (!request.cookies.get("trakt_token")?.value) {
       return NextResponse.json({ error: "Connect Trakt before linking Letterboxd." }, { status: 401 });
     }
-    const { username } = await request.json();
+    const body = await request.json();
+    const username = body?.username;
+    const automationUsername = body?.automationUsername;
+    const password = body?.password;
 
     if (!username || typeof username !== "string" || !username.trim()) {
       return NextResponse.json(
@@ -22,7 +27,20 @@ export async function POST(request: NextRequest) {
     if (!/^[a-z0-9_-]{1,32}$/.test(cleanUsername)) {
       return NextResponse.json({ error: "Enter a valid Letterboxd username." }, { status: 400 });
     }
+    if (password !== undefined && (typeof password !== "string" || password.length > 512)) {
+      return NextResponse.json({ error: "Password must be 512 characters or fewer." }, { status: 400 });
+    }
+    if (automationUsername !== undefined && (typeof automationUsername !== "string" || automationUsername.length > 128)) {
+      return NextResponse.json({ error: "Automation login username must be 128 characters or fewer." }, { status: 400 });
+    }
     const lbProfile = await LetterboxdClient.fetchUserProfile(cleanUsername);
+    const cleanAutomationUsername = typeof automationUsername === "string" && automationUsername.trim()
+      ? automationUsername.trim()
+      : cleanUsername;
+    const encryptedCredentials = typeof password === "string" && password.length > 0
+      ? encryptCredentials({ username: cleanAutomationUsername, password })
+      : null;
+    if (encryptedCredentials) await stremboxdLogin(cleanAutomationUsername, password as string);
 
     const traktUserCookie = request.cookies.get("trakt_user")?.value;
     let userId = "default_user";
@@ -33,40 +51,36 @@ export async function POST(request: NextRequest) {
       } catch {}
     }
 
-    if (db) {
-      try {
-        const existing = await db
-          .select()
-          .from(linkedAccounts)
-          .where(
-            and(
-              eq(linkedAccounts.userId, userId),
-              eq(linkedAccounts.provider, "letterboxd")
-            )
-          )
-          .limit(1);
+    if (!db) return NextResponse.json({ error: "DATABASE_URL is required to store account settings." }, { status: 503 });
+    const existing = await db
+      .select()
+      .from(linkedAccounts)
+      .where(and(eq(linkedAccounts.userId, userId), eq(linkedAccounts.provider, "letterboxd")))
+      .limit(1);
+    const oldMetadata = (() => {
+      try { return JSON.parse(existing[0]?.metadata || "{}"); }
+      catch { return {}; }
+    })() as Record<string, unknown>;
+    const nextMetadata = encryptedCredentials
+      ? JSON.stringify({ ...oldMetadata, encryptedAutomationCredentials: encryptedCredentials })
+      : existing[0]?.metadata || null;
 
-        if (existing.length > 0) {
-          await db
-            .update(linkedAccounts)
-            .set({
-              providerUsername: cleanUsername,
-              avatarUrl: lbProfile.avatar || existing[0].avatarUrl,
-              updatedAt: new Date(),
-            })
-            .where(eq(linkedAccounts.id, existing[0].id));
-        } else {
-          await db.insert(linkedAccounts).values({
-            id: `acc_lb_${Date.now()}`,
-            userId,
-            provider: "letterboxd",
-            providerUsername: cleanUsername,
-            avatarUrl: lbProfile.avatar || null,
-          });
-        }
-      } catch (dbErr) {
-        console.warn("DB save skipped for letterboxd:", dbErr);
-      }
+    if (existing.length > 0) {
+      await db.update(linkedAccounts).set({
+        providerUsername: cleanUsername,
+        avatarUrl: lbProfile.avatar || existing[0].avatarUrl,
+        metadata: nextMetadata,
+        updatedAt: new Date(),
+      }).where(eq(linkedAccounts.id, existing[0].id));
+    } else {
+      await db.insert(linkedAccounts).values({
+        id: `acc_lb_${Date.now()}`,
+        userId,
+        provider: "letterboxd",
+        providerUsername: cleanUsername,
+        avatarUrl: lbProfile.avatar || null,
+        metadata: nextMetadata,
+      });
     }
 
     const response = NextResponse.json({
@@ -74,6 +88,7 @@ export async function POST(request: NextRequest) {
       username: cleanUsername,
       displayName: lbProfile.displayName,
       avatar: lbProfile.avatar,
+      automationCredentialsStored: Boolean(encryptedCredentials || oldMetadata.encryptedAutomationCredentials),
     });
 
     response.cookies.set("letterboxd_username", cleanUsername, {

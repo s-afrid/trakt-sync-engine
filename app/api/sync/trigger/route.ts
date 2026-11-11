@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { linkedAccounts, syncSettings, syncLogs } from "@/lib/db/schema";
 import { and, eq, ilike } from "drizzle-orm";
 import { StremboxdLetterboxdSync, isSessionFresh, stremboxdLogin, type StremboxdSession } from "@/lib/sync/stremboxd-letterboxd-sync";
+import { decryptCredentials } from "@/lib/security/credential-vault";
 
 export const maxDuration = 60;
 
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
   let userId = username ? `user_${username}` : "default_user";
   let traktToken = cookieToken || process.env.TRAKT_ACCESS_TOKEN?.trim() || "";
   let linkedTraktUsername: string | null = null;
+  let savedLetterboxdCredentials: { username: string; password: string } | null = null;
   let refreshToken: string | null = null;
   let expiresAt: Date | null = null;
   let settings: typeof syncSettings.$inferSelect | undefined;
@@ -65,6 +67,15 @@ export async function POST(request: NextRequest) {
       }
       const traktAccount = accounts.find((account) => account.provider === "trakt");
       linkedTraktUsername = traktAccount?.providerUsername || null;
+      const letterboxdAccount = accounts.find((account) => account.provider === "letterboxd");
+      if (letterboxdAccount?.metadata) {
+        try {
+          const metadata = JSON.parse(letterboxdAccount.metadata) as { encryptedAutomationCredentials?: unknown };
+          savedLetterboxdCredentials = decryptCredentials(metadata.encryptedAutomationCredentials);
+        } catch (error) {
+          throw new Error(`Could not decrypt saved Letterboxd credentials: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
       if (traktAccount?.accessToken) {
         traktToken = traktAccount.accessToken;
         refreshToken = traktAccount.refreshToken;
@@ -90,8 +101,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const stremboxdUsername = process.env.STREMBOXD_USERNAME?.trim() || process.env.LETTERBOXD_USERNAME?.trim() || "";
-    const stremboxdPassword = process.env.STREMBOXD_PASSWORD?.trim() || process.env.LETTERBOXD_PASSWORD?.trim() || "";
+    const envStremboxdUsername = process.env.STREMBOXD_USERNAME?.trim() || "";
+    const envStremboxdPassword = process.env.STREMBOXD_PASSWORD?.trim() || "";
+    const envLetterboxdUsername = process.env.LETTERBOXD_USERNAME?.trim() || "";
+    const envLetterboxdPassword = process.env.LETTERBOXD_PASSWORD?.trim() || "";
+    const storedComplete = Boolean(savedLetterboxdCredentials?.username && savedLetterboxdCredentials.password);
+    const envStremboxdComplete = Boolean(envStremboxdUsername && envStremboxdPassword);
+    const envLetterboxdComplete = Boolean(envLetterboxdUsername && envLetterboxdPassword);
+    const automationCredentials = storedComplete
+      ? savedLetterboxdCredentials!
+      : envStremboxdComplete
+        ? { username: envStremboxdUsername, password: envStremboxdPassword }
+        : envLetterboxdComplete
+          ? { username: envLetterboxdUsername, password: envLetterboxdPassword }
+          : null;
+    const stremboxdUsername = automationCredentials?.username || "";
+    const stremboxdPassword = automationCredentials?.password || "";
     if (!stremboxdUsername || !stremboxdPassword) throw new Error("Letterboxd automation credentials are missing. Configure STREMBOXD_USERNAME/PASSWORD or LETTERBOXD_USERNAME/PASSWORD on the server.");
 
     if (db && !settings) {

@@ -8,7 +8,7 @@ type DashboardData = {
   connected: { trakt: boolean; letterboxd: boolean };
   traktPublicMode: boolean;
   profiles: { trakt: { username: string } | null; letterboxd: { username: string } | null };
-  setup: { traktClientConfigured: boolean; letterboxdAutomationConfigured: boolean; databaseConfigured: boolean };
+  setup: { traktClientConfigured: boolean; traktRedirectUri: string; letterboxdAutomationConfigured: boolean; automationCredentialsStored: boolean; credentialEncryptionConfigured: boolean; databaseConfigured: boolean };
   recentRuns: Log[];
 };
 
@@ -18,6 +18,8 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [letterboxdUsername, setLetterboxdUsername] = useState("");
+  const [automationUsername, setAutomationUsername] = useState("");
+  const [letterboxdPassword, setLetterboxdPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [showRuns, setShowRuns] = useState(false);
 
@@ -50,11 +52,12 @@ export default function Home() {
     try {
       const response = await fetch("/api/auth/letterboxd/save", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: letterboxdUsername }),
+        body: JSON.stringify({ username: letterboxdUsername, automationUsername, password: letterboxdPassword }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not save Letterboxd username.");
-      setMessage("Letterboxd account saved."); await refresh();
+      setLetterboxdPassword("");
+      setMessage(result.automationCredentialsStored ? "Letterboxd account and encrypted automation credentials saved." : "Letterboxd account saved."); await refresh();
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setSaving(false); }
   }
@@ -106,15 +109,23 @@ export default function Home() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-edge bg-elevated p-5">
               <div className="mb-4 flex items-center justify-between"><span className="harbor-label">SOURCE</span><span className={`harbor-chip ${traktConnected ? "harbor-chip-success" : traktPublicMode ? "harbor-chip-accent" : ""}`}>{traktConnected ? "OAuth connected" : traktPublicMode ? "Public history" : "Not connected"}</span></div>
-              <h2 className="text-xl font-semibold">Trakt</h2><p className="mt-1 min-h-6 text-sm text-ink-muted">{data?.profiles.trakt?.username ? `@${data.profiles.trakt.username}` : "Connect your account or set TRAKT_USERNAME for public history."}</p>
+              <h2 className="text-xl font-semibold">Trakt</h2><p className="mt-1 min-h-6 text-sm text-ink-muted">{data?.profiles.trakt?.username ? `@${data.profiles.trakt.username}` : "Connect your account to authorize watch-history access."}</p>
               {traktPublicMode && <p className="mt-2 text-xs leading-relaxed text-ink-muted">Scheduled sync can read this public profile. Connect with OAuth to enable the dashboard’s manual sync button or sync a private profile.</p>}
+              <p className="mt-2 text-xs text-ink-subtle">Trakt is linked with OAuth. The app never asks for your Trakt password.</p>
+              {!traktConnected && data?.setup.traktClientConfigured && <p className="mt-2 break-all text-xs text-ink-subtle">OAuth callback: <code>{data.setup.traktRedirectUri}</code></p>}
               <a className="harbor-btn-primary mt-5 inline-flex items-center gap-2" href="/api/auth/trakt/authorize">{traktConnected ? "Reconnect Trakt" : traktPublicMode ? "Connect for manual sync" : "Connect Trakt"}<ArrowUpRight size={15} /></a>
             </div>
             <div className="rounded-2xl border border-edge bg-elevated p-5">
               <div className="mb-4 flex items-center justify-between"><span className="harbor-label">DESTINATION</span><span className={`harbor-chip ${lbConnected ? "harbor-chip-success" : ""}`}>{lbConnected ? "Connected" : "Not connected"}</span></div>
-              <h2 className="text-xl font-semibold">Letterboxd</h2><p className="mt-1 text-sm text-ink-muted">Add the username for the account you want to update.</p>
-              <div className="mt-4 flex gap-2"><input aria-label="Letterboxd username" className="min-w-0 flex-1 rounded-xl border border-edge bg-surface px-3 py-2 text-sm outline-none focus:border-accent" value={letterboxdUsername} onChange={(e) => setLetterboxdUsername(e.target.value)} placeholder="username" /><button className="harbor-btn-ghost" disabled={saving || !letterboxdUsername.trim()} onClick={connectLetterboxd}>{saving ? <LoaderCircle className="animate-spin" size={16} /> : "Save"}</button></div>
-              <p className="mt-3 text-xs text-ink-subtle">The server uses your configured Stremboxd/Letterboxd automation credentials to apply watched status.</p>
+              <h2 className="text-xl font-semibold">Letterboxd</h2><p className="mt-1 text-sm text-ink-muted">Set the destination account and the login used for watched actions.</p>
+              <div className="mt-4 space-y-2">
+                <input aria-label="Letterboxd username" autoComplete="username" className="w-full rounded-xl border border-edge bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent" value={letterboxdUsername} onChange={(e) => setLetterboxdUsername(e.target.value)} placeholder="Letterboxd username" />
+                <input aria-label="Stremboxd automation login username" autoComplete="username" className="w-full rounded-xl border border-edge bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent" value={automationUsername} onChange={(e) => setAutomationUsername(e.target.value)} placeholder="Automation login username (defaults to Letterboxd username)" />
+                <input aria-label="Letterboxd or Stremboxd password" type="password" autoComplete="new-password" className="w-full rounded-xl border border-edge bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent" value={letterboxdPassword} onChange={(e) => setLetterboxdPassword(e.target.value)} placeholder={data?.setup.automationCredentialsStored ? "Password saved · leave blank to keep it" : "Letterboxd/Stremboxd password"} />
+                <button className="harbor-btn-primary w-full" disabled={saving || !letterboxdUsername.trim()} onClick={connectLetterboxd}>{saving ? <><LoaderCircle className="animate-spin" size={16} />Saving securely…</> : "Save Letterboxd account"}</button>
+              </div>
+              <p className="mt-3 text-xs text-ink-subtle">{data?.setup.automationCredentialsStored ? "Password is stored encrypted and never sent back to this page." : "The automation login may differ from your public Letterboxd username. Credentials are encrypted before storage."}</p>
+              {!data?.setup.credentialEncryptionConfigured && <p className="mt-2 text-xs text-ink-subtle">Set <code>CREDENTIAL_ENCRYPTION_KEY</code> in Vercel to save a password. Generate one with <code>node -e &quot;console.log(require('crypto').randomBytes(32).toString('base64'))&quot;</code>.</p>}
             </div>
           </div>
 
@@ -144,7 +155,7 @@ export default function Home() {
           <button className="flex w-full items-center justify-between text-left" onClick={() => setShowRuns((value) => !value)} aria-expanded={showRuns}><span><span className="block font-semibold">Recent sync runs</span><span className="mt-1 block text-sm text-ink-muted">Successful, partial, and failed attempts for this account.</span></span>{showRuns ? <ArrowUpRight size={18} /> : <ArrowDown size={18} />}</button>
           {showRuns && <div className="mt-5 divide-y divide-edge">{data?.recentRuns.length ? data.recentRuns.map((run) => <div key={run.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><p className="font-medium">{run.title}</p><p className="mt-1 flex items-center gap-1.5 text-xs text-ink-muted"><Clock3 size={13} />{new Date(run.createdAt).toLocaleString()}</p></div><span className={`harbor-chip ${run.status === "success" ? "harbor-chip-success" : "harbor-chip-accent"}`}>{run.status} · {run.itemsCount} marked</span></div>) : <p className="py-4 text-sm text-ink-muted">No sync runs recorded yet.</p>}</div>}
         </section>
-        <footer className="px-2 py-6 text-center text-xs text-ink-subtle">Trakt is the source of truth · Sync direction: Trakt → Letterboxd</footer>
+        <footer className="px-2 py-6 text-center text-xs text-ink-subtle">Trakt is the source of truth · Sync direction: Trakt → Letterboxd · Uses Trakt, not endorsed or certified by Trakt</footer>
       </div>
     </main>
   );
