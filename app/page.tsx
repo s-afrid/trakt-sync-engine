@@ -77,6 +77,14 @@ export default function Home() {
   const lbConnected = data?.connected.letterboxd;
   const ready = Boolean(traktConnected && lbConnected && data?.setup.letterboxdAutomationConfigured && data?.setup.databaseConfigured);
   const scheduledReady = Boolean((traktConnected || traktPublicMode) && lbConnected && data?.setup.letterboxdAutomationConfigured && data?.setup.databaseConfigured && data?.setup.traktClientConfigured);
+  const manualSyncHint = !data
+    ? "Checking your connections…"
+    : !traktConnected
+      ? traktPublicMode ? "Connect Trakt with OAuth to run manually. Your public profile remains available to scheduled runs." : "Connect Trakt with OAuth to enable manual syncing."
+      : !lbConnected ? "Add your Letterboxd username to choose the destination."
+        : !data.setup.letterboxdAutomationConfigured ? "Add the Letterboxd automation credentials in Vercel project settings."
+          : !data.setup.databaseConfigured ? "Add DATABASE_URL so sync progress can be saved."
+            : "Checks new watches and retries unresolved movies.";
 
   return (
     <main className="min-h-screen bg-canvas px-5 py-10 text-ink sm:px-8">
@@ -110,9 +118,21 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col items-start justify-between gap-4 rounded-2xl border border-edge bg-surface p-5 sm:flex-row sm:items-center">
-            <div><div className="flex items-center gap-2 font-medium"><RefreshCw size={16} className="text-accent" />Sync Trakt movies now</div><p className="mt-1 text-sm text-ink-muted">Checks your watched history and retries movies that previously failed.</p><p className="mt-2 text-xs text-ink-subtle">GitHub Actions checks for new movies every 15 minutes{scheduledReady ? " · active" : " · finish setup to activate"}.</p></div>
-            <button disabled={!ready || busy} onClick={runSync} className="harbor-btn-primary inline-flex min-w-36 items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-45">{busy ? <><LoaderCircle className="animate-spin" size={16} />Syncing…</> : <><RefreshCw size={16} />Sync now</>}</button>
+          <div className="relative mt-6 overflow-hidden rounded-2xl border border-accent/25 bg-gradient-to-br from-accent/10 via-surface to-surface p-5 sm:p-6">
+            <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-20 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
+            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-4">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/25 bg-accent/10 text-accent"><RefreshCw size={19} /></span>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold">Run a sync</h2><span className={`harbor-chip ${scheduledReady ? "harbor-chip-success" : ""}`}><span className={`h-1.5 w-1.5 rounded-full ${scheduledReady ? "bg-success" : "bg-ink-subtle"}`} />GitHub · every 15 min</span></div>
+                  <p className="mt-1.5 max-w-xl text-sm text-ink-muted">{manualSyncHint}</p>
+                  <p className={`mt-2 text-xs ${scheduledReady ? "text-success" : "text-ink-subtle"}`}>{scheduledReady ? "Scheduled sync is active" : "Scheduled sync needs setup"}</p>
+                </div>
+              </div>
+              <button aria-label={busy ? "Syncing Trakt movies to Letterboxd" : "Sync Trakt movies to Letterboxd now"} aria-busy={busy} disabled={!ready || busy} onClick={runSync} className="harbor-btn-primary group min-h-12 w-full min-w-40 px-5 shadow-lg shadow-accent/15 sm:w-auto disabled:translate-y-0 disabled:bg-raised disabled:text-ink-subtle disabled:shadow-none">
+                {busy ? <><LoaderCircle className="animate-spin" size={17} />Syncing…</> : <><RefreshCw className="transition-transform duration-500 group-hover:rotate-45" size={17} />Sync now</>}
+              </button>
+            </div>
           </div>
 
           {(message || error) && <div role="status" className={`mt-4 flex items-start gap-2 rounded-xl p-3 text-sm ${error ? "bg-danger/10 text-red-300" : "bg-success/10 text-green-300"}`}>{error ? <CircleAlert size={17} className="mt-0.5 shrink-0" /> : <Check size={17} className="mt-0.5 shrink-0" />}{error || message}</div>}

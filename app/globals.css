@@ -161,9 +161,20 @@ body {
            font-semibold transition-colors duration-200
            disabled:cursor-not-allowed disabled:opacity-50;
   }
-  .harbor-btn-primary { @apply bg-accent text-canvas hover:bg-accent/85; }
+  .harbor-btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm
+           font-semibold transition-all duration-200 disabled:cursor-not-allowed
+           disabled:opacity-50 bg-accent text-canvas hover:-translate-y-0.5
+           hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2
+           focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-canvas;
+  }
   .harbor-btn-ghost {
-    @apply border border-edge bg-elevated text-ink-muted hover:bg-raised hover:text-ink;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-edge
+           bg-elevated px-4 py-2 text-sm font-semibold text-ink-muted transition-all
+           duration-200 hover:border-ink-subtle/50 hover:bg-raised hover:text-ink
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent
+           focus-visible:ring-offset-2 focus-visible:ring-offset-canvas
+           disabled:cursor-not-allowed disabled:opacity-50;
   }
   .harbor-label {
     @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle;
