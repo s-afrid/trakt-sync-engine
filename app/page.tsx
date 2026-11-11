@@ -7,7 +7,7 @@ type Log = { id: string; title: string; status: string; itemsCount: number; crea
 type DashboardData = {
   connected: { trakt: boolean; letterboxd: boolean };
   traktPublicMode: boolean;
-  profiles: { trakt: { username: string } | null; letterboxd: { username: string } | null };
+  profiles: { trakt: { username: string; avatar?: string | null } | null; letterboxd: { username: string; avatar?: string | null } | null };
   setup: { traktClientConfigured: boolean; traktRedirectUri: string; letterboxdAutomationConfigured: boolean; automationCredentialsStored: boolean; credentialEncryptionConfigured: boolean; databaseConfigured: boolean };
   recentRuns: Log[];
 };
@@ -18,6 +18,7 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [letterboxdUsername, setLetterboxdUsername] = useState("");
+  const [traktUsername, setTraktUsername] = useState("");
   const [automationUsername, setAutomationUsername] = useState("");
   const [letterboxdPassword, setLetterboxdPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -28,8 +29,24 @@ export default function Home() {
     if (!response.ok) throw new Error("Could not load sync status.");
     const next = (await response.json()) as DashboardData;
     setData(next);
+    setTraktUsername((current) => current || next.profiles.trakt?.username || "");
     setLetterboxdUsername((current) => current || next.profiles.letterboxd?.username || "");
   }, []);
+
+  async function connectTrakt() {
+    setSaving(true); setError(""); setMessage("");
+    try {
+      const response = await fetch("/api/auth/trakt/public", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: traktUsername }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not connect this Trakt profile.");
+      setMessage("Public Trakt profile connected. OAuth token exchange is not used.");
+      await refresh();
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setSaving(false); }
+  }
 
   useEffect(() => {
     refresh().catch((e) => setError(e.message));
@@ -76,14 +93,13 @@ export default function Home() {
   }
 
   const traktConnected = data?.connected.trakt;
-  const traktPublicMode = data?.traktPublicMode;
   const lbConnected = data?.connected.letterboxd;
   const ready = Boolean(traktConnected && lbConnected && data?.setup.letterboxdAutomationConfigured && data?.setup.databaseConfigured);
   const scheduledReady = Boolean((traktConnected || traktPublicMode) && lbConnected && data?.setup.letterboxdAutomationConfigured && data?.setup.databaseConfigured && data?.setup.traktClientConfigured);
   const manualSyncHint = !data
     ? "Checking your connections…"
     : !traktConnected
-      ? traktPublicMode ? "Connect Trakt with OAuth to run manually. Your public profile remains available to scheduled runs." : "Connect Trakt with OAuth to enable manual syncing."
+      ? "Connect a public Trakt profile to enable syncing. Private profiles require Trakt OAuth."
       : !lbConnected ? "Add your Letterboxd username to choose the destination."
         : !data.setup.letterboxdAutomationConfigured ? "Add the Letterboxd automation credentials in Vercel project settings."
           : !data.setup.databaseConfigured ? "Add DATABASE_URL so sync progress can be saved."
@@ -108,16 +124,20 @@ export default function Home() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-edge bg-elevated p-5">
-              <div className="mb-4 flex items-center justify-between"><span className="harbor-label">SOURCE</span><span className={`harbor-chip ${traktConnected ? "harbor-chip-success" : traktPublicMode ? "harbor-chip-accent" : ""}`}>{traktConnected ? "OAuth connected" : traktPublicMode ? "Public history" : "Not connected"}</span></div>
-              <h2 className="text-xl font-semibold">Trakt</h2><p className="mt-1 min-h-6 text-sm text-ink-muted">{data?.profiles.trakt?.username ? `@${data.profiles.trakt.username}` : "Connect your account to authorize watch-history access."}</p>
-              {traktPublicMode && <p className="mt-2 text-xs leading-relaxed text-ink-muted">Scheduled sync can read this public profile. Connect with OAuth to enable the dashboard’s manual sync button or sync a private profile.</p>}
-              <p className="mt-2 text-xs text-ink-subtle">Trakt is linked with OAuth. The app never asks for your Trakt password.</p>
-              {!traktConnected && data?.setup.traktClientConfigured && <p className="mt-2 break-all text-xs text-ink-subtle">OAuth callback: <code>{data.setup.traktRedirectUri}</code></p>}
-              <a className="harbor-btn-primary mt-5 inline-flex items-center gap-2" href="/api/auth/trakt/authorize">{traktConnected ? "Reconnect Trakt" : traktPublicMode ? "Connect for manual sync" : "Connect Trakt"}<ArrowUpRight size={15} /></a>
+              <div className="mb-4 flex items-center justify-between"><span className="harbor-label">SOURCE</span><span className={`harbor-chip ${traktConnected ? "harbor-chip-success" : ""}`}>{traktConnected ? "Public profile" : "Not connected"}</span></div>
+              <h2 className="text-xl font-semibold">Trakt</h2>
+              {data?.profiles.trakt && <div className="mt-3 flex items-center gap-3"><ProfileAvatar src={data.profiles.trakt.avatar} name={data.profiles.trakt.username} /><span className="text-sm text-ink-muted">@{data.profiles.trakt.username}</span></div>}
+              <p className="mt-2 text-sm text-ink-muted">Connect by username to skip the OAuth token exchange.</p>
+              <div className="mt-4 flex gap-2">
+                <input aria-label="Trakt username" autoComplete="username" className="min-w-0 flex-1 rounded-xl border border-edge bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent" value={traktUsername} onChange={(e) => setTraktUsername(e.target.value)} placeholder="Public Trakt username" />
+                <button className="harbor-btn-primary" disabled={saving || !traktUsername.trim()} onClick={connectTrakt}>{saving ? <LoaderCircle className="animate-spin" size={16} /> : "Connect"}</button>
+              </div>
+              <p className="mt-3 text-xs text-ink-subtle">Only public profiles work in username mode. It avoids OAuth tokens but still reads public history through Trakt’s API and needs <code>TRAKT_CLIENT_ID</code>.</p>
             </div>
             <div className="rounded-2xl border border-edge bg-elevated p-5">
               <div className="mb-4 flex items-center justify-between"><span className="harbor-label">DESTINATION</span><span className={`harbor-chip ${lbConnected ? "harbor-chip-success" : ""}`}>{lbConnected ? "Connected" : "Not connected"}</span></div>
               <h2 className="text-xl font-semibold">Letterboxd</h2><p className="mt-1 text-sm text-ink-muted">Set the destination account and the login used for watched actions.</p>
+              {data?.profiles.letterboxd && <div className="mt-3 flex items-center gap-3"><ProfileAvatar src={data.profiles.letterboxd.avatar} name={data.profiles.letterboxd.username} /><span className="text-sm text-ink-muted">@{data.profiles.letterboxd.username}</span></div>}
               <div className="mt-4 space-y-2">
                 <input aria-label="Letterboxd username" autoComplete="username" className="w-full rounded-xl border border-edge bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent" value={letterboxdUsername} onChange={(e) => setLetterboxdUsername(e.target.value)} placeholder="Letterboxd username" />
                 <input aria-label="Stremboxd automation login username" autoComplete="username" className="w-full rounded-xl border border-edge bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent" value={automationUsername} onChange={(e) => setAutomationUsername(e.target.value)} placeholder="Automation login username (defaults to Letterboxd username)" />
@@ -147,7 +167,7 @@ export default function Home() {
           </div>
 
           {(message || error) && <div role="status" className={`mt-4 flex items-start gap-2 rounded-xl p-3 text-sm ${error ? "bg-danger/10 text-red-300" : "bg-success/10 text-green-300"}`}>{error ? <CircleAlert size={17} className="mt-0.5 shrink-0" /> : <Check size={17} className="mt-0.5 shrink-0" />}{error || message}</div>}
-          {!ready && <div className="mt-4 text-sm text-ink-muted">{!data?.setup.traktClientConfigured && <p>Set <code>TRAKT_CLIENT_ID</code> and <code>TRAKT_CLIENT_SECRET</code> in the deployment environment.</p>}{traktConnected && !data?.setup.letterboxdAutomationConfigured && <p>Set <code>STREMBOXD_USERNAME</code> and <code>STREMBOXD_PASSWORD</code> (or the corresponding Letterboxd credentials) in the server environment.</p>}</div>}
+          {!ready && <div className="mt-4 text-sm text-ink-muted">{!data?.setup.traktClientConfigured && <p>Set <code>TRAKT_CLIENT_ID</code> in the deployment environment.</p>}{traktConnected && !data?.setup.letterboxdAutomationConfigured && <p>Set <code>STREMBOXD_USERNAME</code> and <code>STREMBOXD_PASSWORD</code> (or the corresponding Letterboxd credentials) in the server environment.</p>}</div>}
           {!data?.setup.databaseConfigured && <p className="mt-2 text-sm text-ink-muted">Configure <code>DATABASE_URL</code> so sync progress and run results persist between deployments.</p>}
         </section>
 
@@ -159,4 +179,10 @@ export default function Home() {
       </div>
     </main>
   );
+}
+
+function ProfileAvatar({ src, name }: { src?: string | null; name: string }) {
+  return src
+    ? <img src={src} alt={`${name} profile`} className="h-10 w-10 rounded-full border border-edge object-cover" />
+    : <span aria-hidden="true" className="grid h-10 w-10 place-items-center rounded-full border border-edge bg-surface text-sm font-semibold text-accent">{name.slice(0, 1).toUpperCase()}</span>;
 }

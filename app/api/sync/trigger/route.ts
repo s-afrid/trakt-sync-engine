@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const schedulerAuthorized = Boolean(cronSecret && request.headers.get("authorization") === `Bearer ${cronSecret}`);
   const cookieToken = request.cookies.get("trakt_token")?.value;
-  if (!schedulerAuthorized && !cookieToken) {
-    return NextResponse.json({ success: false, error: "Connect Trakt before starting a sync." }, { status: 401 });
+  if (!schedulerAuthorized && !cookieToken && !getTraktUsername(request)) {
+    return NextResponse.json({ success: false, error: "Connect a Trakt username before starting a sync." }, { status: 401 });
   }
 
   const cookieUsername = getTraktUsername(request);

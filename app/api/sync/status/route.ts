@@ -16,9 +16,12 @@ export async function GET(request: NextRequest) {
   const credentialEncryptionConfigured = isCredentialEncryptionConfigured();
   const username = cookieUsername(request) || process.env.TRAKT_USERNAME || null;
   const userId = username ? `user_${username}` : "default_user";
-  let traktProfile: { username: string } | null = username ? { username } : null;
-  let letterboxdProfile: { username: string } | null = request.cookies.get("letterboxd_username")?.value
-    ? { username: request.cookies.get("letterboxd_username")!.value }
+  let traktProfile: { username: string; avatar?: string | null } | null = username ? { username } : null;
+  let letterboxdProfile: { username: string; avatar?: string | null } | null = request.cookies.get("letterboxd_username")?.value
+    ? { username: request.cookies.get("letterboxd_username")!.value, avatar: (() => {
+        try { return JSON.parse(request.cookies.get("letterboxd_user")?.value || "{}").avatar || null; }
+        catch { return null; }
+      })() }
     : process.env.LETTERBOXD_USERNAME ? { username: process.env.LETTERBOXD_USERNAME } : null;
   let traktConnected = Boolean(request.cookies.get("trakt_token")?.value);
   let automationCredentialsStored = false;
@@ -36,10 +39,12 @@ export async function GET(request: NextRequest) {
       for (const account of accounts) {
         if (account.provider === "trakt" && account.accessToken) {
           traktConnected = true;
-          traktProfile = { username: account.providerUsername };
+          traktProfile = { username: account.providerUsername, avatar: account.avatarUrl };
+        } else if (account.provider === "trakt" && account.providerUsername) {
+          traktProfile = { username: account.providerUsername, avatar: account.avatarUrl };
         }
         if (account.provider === "letterboxd" && account.providerUsername) {
-          letterboxdProfile = { username: account.providerUsername };
+          letterboxdProfile = { username: account.providerUsername, avatar: account.avatarUrl };
           try {
             const metadata = JSON.parse(account.metadata || "{}") as { encryptedAutomationCredentials?: unknown };
             automationCredentialsStored = Boolean(metadata.encryptedAutomationCredentials);
@@ -53,11 +58,11 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
-    connected: { trakt: traktConnected, letterboxd: Boolean(letterboxdProfile) },
+    connected: { trakt: Boolean(traktProfile?.username), letterboxd: Boolean(letterboxdProfile) },
     traktPublicMode: Boolean(traktProfile?.username && !traktConnected),
     profiles: { trakt: traktProfile, letterboxd: letterboxdProfile },
     setup: {
-      traktClientConfigured: Boolean(process.env.TRAKT_CLIENT_ID && process.env.TRAKT_CLIENT_SECRET),
+      traktClientConfigured: Boolean(process.env.TRAKT_CLIENT_ID),
       traktRedirectUri: process.env.TRAKT_REDIRECT_URI || `${request.nextUrl.origin}/api/auth/trakt/callback`,
       letterboxdAutomationConfigured: Boolean(
         (process.env.STREMBOXD_USERNAME && process.env.STREMBOXD_PASSWORD) ||

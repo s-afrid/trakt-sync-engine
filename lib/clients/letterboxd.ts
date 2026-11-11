@@ -11,10 +11,12 @@ export class LetterboxdClient {
     if (!response.ok) throw new Error(`Could not verify Letterboxd username (HTTP ${response.status}).`);
     const parser = new XMLParser({ ignoreAttributes: false });
     const parsed = parser.parse(await response.text());
-    const title = parsed?.rss?.channel?.title;
+    const channel = parsed?.rss?.channel;
+    const title = channel?.title;
     const displayName = typeof title === "string" && title.startsWith("Letterboxd - ")
       ? title.replace(/^Letterboxd\s*-\s*/, "").trim()
       : cleanUsername;
-    return { username: cleanUsername, displayName };
+    const avatar = typeof channel?.image?.url === "string" ? channel.image.url : undefined;
+    return { username: cleanUsername, displayName, avatar };
   }
 }

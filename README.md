@@ -4,7 +4,7 @@ A focused web app that copies newly watched movies from one Trakt account to one
 
 ## What it does
 
-- Connects Trakt with OAuth and reads watched movie history.
+- Connects to a public Trakt profile by username and reads watched movie history without exchanging an OAuth token.
 - Finds films by IMDb ID and marks them watched on Letterboxd through the Stremboxd action API.
 - Removes a film from the Letterboxd watchlist after marking it watched.
 - Stores a cursor, completed IMDb IDs, and recent run results in PostgreSQL so scheduled runs can resume and retry.
@@ -18,21 +18,21 @@ Set these in Vercel (or the environment running the Next.js app):
 
 | Variable | Purpose |
 | --- | --- |
-| `TRAKT_CLIENT_ID` | Trakt OAuth application ID |
-| `TRAKT_CLIENT_SECRET` | Trakt OAuth application secret |
-| `TRAKT_REDIRECT_URI` | Optional; defaults to `https://<your-domain>/api/auth/trakt/callback` |
+| `TRAKT_CLIENT_ID` | Trakt API client ID used to look up public profiles and watch history |
+| `TRAKT_CLIENT_SECRET` | Only needed by the legacy OAuth flow; username mode does not exchange tokens |
+| `TRAKT_REDIRECT_URI` | Optional; callback used only by the legacy OAuth flow |
 | `DATABASE_URL` | PostgreSQL connection string; keeps account tokens, sync cursor, and run history |
 | `STREMBOXD_USERNAME` | Stremboxd/Letterboxd automation login (or use `LETTERBOXD_USERNAME`) |
 | `STREMBOXD_PASSWORD` | Stremboxd/Letterboxd automation password (or use `LETTERBOXD_PASSWORD`) |
 | `CREDENTIAL_ENCRYPTION_KEY` | A 32-byte base64 or 64-character hex key used to encrypt credentials saved from the dashboard |
 | `CRON_SECRET` | Protects scheduled sync requests |
-| `TRAKT_USERNAME` | Trakt username for scheduled runs. OAuth is optional when this profile's watched history is public; with multiple linked accounts, it selects which account to use |
+| `TRAKT_USERNAME` | Optional Trakt username for scheduled runs when its watched history is public; with multiple linked accounts, selects which account to use |
 
-In the Trakt developer settings, set the redirect URL to the same callback URL configured above. In Vercel, keep the production URL in `TRAKT_REDIRECT_URI` if you use a custom domain.
+Username mode only works with public Trakt profiles. It skips OAuth token exchange, but still calls Trakt's API using `TRAKT_CLIENT_ID`; it does not provide an API-free connection. Private histories still require OAuth.
 
 For GitHub Actions, add a repository secret named `CRON_SECRET` with the same value configured in Vercel. The workflow calls the deployed app, so Trakt and Letterboxd credentials stay on the server. A missing secret makes the workflow fail closed.
 
-To save Letterboxd automation credentials in the dashboard, generate a key with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` and add it as `CREDENTIAL_ENCRYPTION_KEY` in Vercel. Trakt is linked with OAuth; the app does not ask for or store a Trakt password. Existing environment-based Letterboxd credentials continue to work.
+To save Letterboxd automation credentials in the dashboard, generate a key with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` and add it as `CREDENTIAL_ENCRYPTION_KEY` in Vercel. The app does not ask for or store a Trakt password. Existing environment-based Letterboxd credentials continue to work.
 
 ## Run locally
 
@@ -41,7 +41,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`, connect Trakt, enter the Letterboxd username, then use **Sync now**. OAuth is needed for the dashboard's manual button and for private Trakt histories. A public Trakt profile can be read by scheduled runs using `TRAKT_USERNAME`. Configure PostgreSQL before syncing so history and cursors persist.
+Open `http://localhost:3000`, connect a public Trakt username, enter the Letterboxd username, then use **Sync now**. Configure PostgreSQL before syncing so history and cursors persist. Private Trakt histories require OAuth.
 
 ## Deploy
 

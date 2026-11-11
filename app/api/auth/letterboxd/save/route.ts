@@ -8,8 +8,8 @@ import { stremboxdLogin } from "@/lib/sync/stremboxd-letterboxd-sync";
 
 export async function POST(request: NextRequest) {
   try {
-    if (!request.cookies.get("trakt_token")?.value) {
-      return NextResponse.json({ error: "Connect Trakt before linking Letterboxd." }, { status: 401 });
+    if (!request.cookies.get("trakt_user")?.value) {
+      return NextResponse.json({ error: "Connect a Trakt username before linking Letterboxd." }, { status: 401 });
     }
     const body = await request.json();
     const username = body?.username;
