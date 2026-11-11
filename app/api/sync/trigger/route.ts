@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
   const username = cookieUsername || process.env.TRAKT_USERNAME?.trim() || null;
   let userId = username ? `user_${username}` : "default_user";
   let traktToken = cookieToken || process.env.TRAKT_ACCESS_TOKEN?.trim() || "";
+  let linkedTraktUsername: string | null = null;
   let refreshToken: string | null = null;
   let expiresAt: Date | null = null;
   let settings: typeof syncSettings.$inferSelect | undefined;
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
         }
       }
       const traktAccount = accounts.find((account) => account.provider === "trakt");
+      linkedTraktUsername = traktAccount?.providerUsername || null;
       if (traktAccount?.accessToken) {
         traktToken = traktAccount.accessToken;
         refreshToken = traktAccount.refreshToken;
@@ -73,8 +75,10 @@ export async function POST(request: NextRequest) {
       settings = rows[0];
     }
 
-    if (!traktToken) throw new Error("No Trakt access token is available. Reconnect Trakt or set TRAKT_ACCESS_TOKEN.");
-    if (expiresAt && expiresAt.getTime() <= Date.now() + 60_000) {
+    const traktUsername = username || linkedTraktUsername || process.env.TRAKT_USERNAME?.trim() || undefined;
+    if (!traktToken && !traktUsername) throw new Error("No Trakt account is configured. Connect Trakt or set TRAKT_USERNAME for a public profile.");
+    if (!process.env.TRAKT_CLIENT_ID?.trim()) throw new Error("TRAKT_CLIENT_ID is required to read Trakt history.");
+    if (traktToken && expiresAt && expiresAt.getTime() <= Date.now() + 60_000) {
       if (!refreshToken) throw new Error("The Trakt access token expired. Reconnect Trakt to continue.");
       const origin = request.nextUrl.origin;
       const redirectUri = process.env.TRAKT_REDIRECT_URI || `${origin}/api/auth/trakt/callback`;
@@ -86,8 +90,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const traktAccount = db ? (await db.select().from(linkedAccounts).where(eq(linkedAccounts.userId, userId))).find((account) => account.provider === "trakt") : undefined;
-    const traktUsername = username || traktAccount?.providerUsername || process.env.TRAKT_USERNAME?.trim();
     const stremboxdUsername = process.env.STREMBOXD_USERNAME?.trim() || process.env.LETTERBOXD_USERNAME?.trim() || "";
     const stremboxdPassword = process.env.STREMBOXD_PASSWORD?.trim() || process.env.LETTERBOXD_PASSWORD?.trim() || "";
     if (!stremboxdUsername || !stremboxdPassword) throw new Error("Letterboxd automation credentials are missing. Configure STREMBOXD_USERNAME/PASSWORD or LETTERBOXD_USERNAME/PASSWORD on the server.");

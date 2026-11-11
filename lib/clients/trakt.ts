@@ -108,7 +108,12 @@ export class TraktClient {
       fetch(endpoint, { headers: this.getHeaders(), cache: "no-store" }),
       fetch(historyEndpoint, { headers: this.getHeaders(), cache: "no-store" }).catch(() => null),
     ]);
-    if (!watchedResponse.ok) throw new Error(`Failed to fetch Trakt watched movies (${watchedResponse.status}).`);
+    if (!watchedResponse.ok) {
+      const authHint = watchedResponse.status === 401 || watchedResponse.status === 403
+        ? " The profile may be private; connect it with Trakt OAuth."
+        : "";
+      throw new Error(`Failed to fetch Trakt watched movies (${watchedResponse.status}).${authHint}`);
+    }
 
     const watched = await watchedResponse.json() as TraktMovieWatched[];
     const history = historyResponse?.ok

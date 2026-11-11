@@ -25,7 +25,7 @@ Set these in Vercel (or the environment running the Next.js app):
 | `STREMBOXD_USERNAME` | Stremboxd/Letterboxd automation login (or use `LETTERBOXD_USERNAME`) |
 | `STREMBOXD_PASSWORD` | Stremboxd/Letterboxd automation password (or use `LETTERBOXD_PASSWORD`) |
 | `CRON_SECRET` | Protects scheduled sync requests |
-| `TRAKT_USERNAME` | Optional username to select the account for scheduled runs when more than one Trakt account is stored |
+| `TRAKT_USERNAME` | Trakt username for scheduled runs. OAuth is optional when this profile's watched history is public; with multiple linked accounts, it selects which account to use |
 
 In the Trakt developer settings, set the redirect URL to the same callback URL configured above. In Vercel, keep the production URL in `TRAKT_REDIRECT_URI` if you use a custom domain.
 
@@ -38,7 +38,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`, connect Trakt, enter the Letterboxd username, then use **Sync now**. Configure a PostgreSQL database before syncing if you want the history and cursor to persist.
+Open `http://localhost:3000`, connect Trakt, enter the Letterboxd username, then use **Sync now**. OAuth is needed for the dashboard's manual button and for private Trakt histories. A public Trakt profile can be read by scheduled runs using `TRAKT_USERNAME`. Configure PostgreSQL before syncing so history and cursors persist.
 
 ## Deploy
 

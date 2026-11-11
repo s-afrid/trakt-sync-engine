@@ -6,7 +6,7 @@ This app synchronizes watched movies in one direction: Trakt to Letterboxd. It d
 
 ## Manual run
 
-The dashboard's **Sync now** action calls `POST /api/sync/trigger`. The route requires an authenticated Trakt session, reads the linked account's watched movies, and applies Letterboxd watch actions via Stremboxd. It records the result in `sync_logs` and persists the successful IMDb IDs and watched timestamp in `sync_settings`.
+The dashboard's **Sync now** action calls `POST /api/sync/trigger` and requires an authenticated Trakt session. Scheduled runs may instead read a public Trakt profile by `TRAKT_USERNAME` when no OAuth token is linked. Both paths apply Letterboxd watch actions via Stremboxd, record the result in `sync_logs`, and persist successful IMDb IDs and retry state in `sync_settings`.
 
 ## Scheduled run
 

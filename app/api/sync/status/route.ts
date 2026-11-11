@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     connected: { trakt: traktConnected, letterboxd: Boolean(letterboxdProfile) },
+    traktPublicMode: Boolean(traktProfile?.username && !traktConnected),
     profiles: { trakt: traktProfile, letterboxd: letterboxdProfile },
     setup: {
       traktClientConfigured: Boolean(process.env.TRAKT_CLIENT_ID && process.env.TRAKT_CLIENT_SECRET),

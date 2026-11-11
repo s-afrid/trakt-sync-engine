@@ -6,6 +6,7 @@ import { ArrowDown, ArrowUpRight, Check, CircleAlert, Clock3, Film, LoaderCircle
 type Log = { id: string; title: string; status: string; itemsCount: number; createdAt: string; details?: string | null };
 type DashboardData = {
   connected: { trakt: boolean; letterboxd: boolean };
+  traktPublicMode: boolean;
   profiles: { trakt: { username: string } | null; letterboxd: { username: string } | null };
   setup: { traktClientConfigured: boolean; letterboxdAutomationConfigured: boolean; databaseConfigured: boolean };
   recentRuns: Log[];
@@ -30,6 +31,16 @@ export default function Home() {
 
   useEffect(() => {
     refresh().catch((e) => setError(e.message));
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get("error");
+    if (authError) {
+      setError(authError === "invalid_request"
+        ? "Trakt rejected the OAuth request. Check the Trakt client ID and that the callback URL matches your Trakt app settings."
+        : authError.replaceAll("+", " "));
+    } else if (params.get("success") === "trakt_connected") {
+      setMessage("Trakt is connected. Manual syncing is ready.");
+    }
+    if (authError || params.has("success")) window.history.replaceState({}, "", window.location.pathname);
     const timer = window.setInterval(() => refresh().catch((e) => setError(e.message)), 60_000);
     return () => window.clearInterval(timer);
   }, [refresh]);
@@ -62,8 +73,10 @@ export default function Home() {
   }
 
   const traktConnected = data?.connected.trakt;
+  const traktPublicMode = data?.traktPublicMode;
   const lbConnected = data?.connected.letterboxd;
   const ready = Boolean(traktConnected && lbConnected && data?.setup.letterboxdAutomationConfigured && data?.setup.databaseConfigured);
+  const scheduledReady = Boolean((traktConnected || traktPublicMode) && lbConnected && data?.setup.letterboxdAutomationConfigured && data?.setup.databaseConfigured && data?.setup.traktClientConfigured);
 
   return (
     <main className="min-h-screen bg-canvas px-5 py-10 text-ink sm:px-8">
@@ -79,14 +92,15 @@ export default function Home() {
         <section className="harbor-card overflow-hidden p-6 sm:p-9">
           <div className="mb-8 flex flex-wrap items-start justify-between gap-5">
             <div><p className="harbor-label mb-2">PERSONAL SYNC</p><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">One direction. Your movies.</h1><p className="mt-3 max-w-xl text-ink-muted">Newly watched movies on Trakt are marked watched on Letterboxd. Existing watchlist entries are removed after a successful sync.</p></div>
-            <span className={`harbor-chip ${ready ? "harbor-chip-success" : "harbor-chip-accent"}`}><span className="mr-2 inline-block h-2 w-2 rounded-full bg-current" />{ready ? "Ready to sync" : "Setup needed"}</span>
+            <span className={`harbor-chip ${ready || scheduledReady ? "harbor-chip-success" : "harbor-chip-accent"}`}><span className="mr-2 inline-block h-2 w-2 rounded-full bg-current" />{ready ? "Manual sync ready" : scheduledReady ? "Scheduled sync ready" : "Setup needed"}</span>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-edge bg-elevated p-5">
-              <div className="mb-4 flex items-center justify-between"><span className="harbor-label">SOURCE</span><span className={`harbor-chip ${traktConnected ? "harbor-chip-success" : ""}`}>{traktConnected ? "Connected" : "Not connected"}</span></div>
-              <h2 className="text-xl font-semibold">Trakt</h2><p className="mt-1 min-h-6 text-sm text-ink-muted">{data?.profiles.trakt?.username ? `@${data.profiles.trakt.username}` : "Authorize your Trakt account to read movie history."}</p>
-              <a className="harbor-btn-primary mt-5 inline-flex items-center gap-2" href="/api/auth/trakt/authorize">{traktConnected ? "Reconnect Trakt" : "Connect Trakt"}<ArrowUpRight size={15} /></a>
+              <div className="mb-4 flex items-center justify-between"><span className="harbor-label">SOURCE</span><span className={`harbor-chip ${traktConnected ? "harbor-chip-success" : traktPublicMode ? "harbor-chip-accent" : ""}`}>{traktConnected ? "OAuth connected" : traktPublicMode ? "Public history" : "Not connected"}</span></div>
+              <h2 className="text-xl font-semibold">Trakt</h2><p className="mt-1 min-h-6 text-sm text-ink-muted">{data?.profiles.trakt?.username ? `@${data.profiles.trakt.username}` : "Connect your account or set TRAKT_USERNAME for public history."}</p>
+              {traktPublicMode && <p className="mt-2 text-xs leading-relaxed text-ink-muted">Scheduled sync can read this public profile. Connect with OAuth to enable the dashboard’s manual sync button or sync a private profile.</p>}
+              <a className="harbor-btn-primary mt-5 inline-flex items-center gap-2" href="/api/auth/trakt/authorize">{traktConnected ? "Reconnect Trakt" : traktPublicMode ? "Connect for manual sync" : "Connect Trakt"}<ArrowUpRight size={15} /></a>
             </div>
             <div className="rounded-2xl border border-edge bg-elevated p-5">
               <div className="mb-4 flex items-center justify-between"><span className="harbor-label">DESTINATION</span><span className={`harbor-chip ${lbConnected ? "harbor-chip-success" : ""}`}>{lbConnected ? "Connected" : "Not connected"}</span></div>
@@ -97,7 +111,7 @@ export default function Home() {
           </div>
 
           <div className="mt-6 flex flex-col items-start justify-between gap-4 rounded-2xl border border-edge bg-surface p-5 sm:flex-row sm:items-center">
-            <div><div className="flex items-center gap-2 font-medium"><RefreshCw size={16} className="text-accent" />Sync Trakt movies now</div><p className="mt-1 text-sm text-ink-muted">Checks your watched history and retries movies that previously failed.</p></div>
+            <div><div className="flex items-center gap-2 font-medium"><RefreshCw size={16} className="text-accent" />Sync Trakt movies now</div><p className="mt-1 text-sm text-ink-muted">Checks your watched history and retries movies that previously failed.</p><p className="mt-2 text-xs text-ink-subtle">GitHub Actions checks for new movies every 15 minutes{scheduledReady ? " · active" : " · finish setup to activate"}.</p></div>
             <button disabled={!ready || busy} onClick={runSync} className="harbor-btn-primary inline-flex min-w-36 items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-45">{busy ? <><LoaderCircle className="animate-spin" size={16} />Syncing…</> : <><RefreshCw size={16} />Sync now</>}</button>
           </div>
 
