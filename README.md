@@ -1,10 +1,11 @@
 # Trakt → Letterboxd
 
-A focused web app that copies newly watched movies from one Trakt account to one Letterboxd account. It can run a sync from the dashboard and on a 15-minute GitHub Actions schedule.
+A focused web app that copies the five most recently watched movies from one Trakt account to one Letterboxd account. It can run a sync from the dashboard and on a 15-minute GitHub Actions schedule.
 
 ## What it does
 
 - Connects to a public Trakt profile by username and reads watched movie history without exchanging an OAuth token.
+- Considers only the five most recently watched unique movies on every run; older watch-history backlog is ignored.
 - Finds films by IMDb ID and marks them watched on Letterboxd through the Stremboxd action API.
 - Removes a film from the Letterboxd watchlist after marking it watched.
 - Stores a cursor, completed IMDb IDs, and recent run results in PostgreSQL so scheduled runs can resume and retry.

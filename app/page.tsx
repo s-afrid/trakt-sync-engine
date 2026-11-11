@@ -119,7 +119,7 @@ export default function Home() {
 
         <section className="harbor-card overflow-hidden p-6 sm:p-9">
           <div className="mb-8 flex flex-wrap items-start justify-between gap-5">
-            <div><p className="harbor-label mb-2">PERSONAL SYNC</p><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">One direction. Your movies.</h1><p className="mt-3 max-w-xl text-ink-muted">Newly watched movies on Trakt are marked watched on Letterboxd. Existing watchlist entries are removed after a successful sync.</p></div>
+            <div><p className="harbor-label mb-2">PERSONAL SYNC</p><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">One direction. Your movies.</h1><p className="mt-3 max-w-xl text-ink-muted">Only your five most recently watched movies on Trakt are considered each run. Existing Letterboxd watchlist entries are removed after a successful sync.</p></div>
             <span className={`harbor-chip ${ready || scheduledReady ? "harbor-chip-success" : "harbor-chip-accent"}`}><span className="mr-2 inline-block h-2 w-2 rounded-full bg-current" />{ready ? "Manual sync ready" : scheduledReady ? "Scheduled sync ready" : "Setup needed"}</span>
           </div>
 

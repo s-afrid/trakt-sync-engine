@@ -164,8 +164,8 @@ export class StremboxdLetterboxdSync {
   }
 
   /**
-   * Detects newly watched Trakt movies since `lastWatchedAt` and marks them
-   * as Watched on Letterboxd via the Stremboxd API.
+   * Considers only the five most recently watched Trakt movies and marks
+   * unsynced entries as Watched on Letterboxd via the Stremboxd API.
    *
    * Returns the updated state (new syncedIds + latestWatchedAt) so the caller
    * can persist it to the DB.
@@ -174,7 +174,7 @@ export class StremboxdLetterboxdSync {
     session: StremboxdSession;
     syncedImdbIds: Set<string>;     // already synced — skip these
     pendingImdbIds?: Set<string>;   // failed IDs retry even after cursor movement
-    lastWatchedAt: string | null;   // ISO string — only process movies newer than this
+    lastWatchedAt: string | null;   // ISO checkpoint retained for status and migration compatibility
   }): Promise<{
     result: LetterboxdSyncResult;
     newSyncedIds: Set<string>;
@@ -200,28 +200,33 @@ export class StremboxdLetterboxdSync {
     // Fetch all watched movies from Trakt
     const allMovies: TraktMovieWatched[] = await this.traktClient.getWatchedMovies();
 
-    // Filter to movies newer than lastWatchedAt
-    const lastTs = lastWatchedAt ? new Date(lastWatchedAt).getTime() : 0;
-    const newMovies = allMovies.filter((m) => {
-      const ts = new Date(m.last_watched_at).getTime();
-      const imdbId = m.movie?.ids?.imdb;
-      if (imdbId && pendingImdbIds.has(imdbId)) return true;
-      if (imdbId && syncedImdbIds.has(imdbId)) return false;
-      return ts > lastTs || (ts === lastTs && Boolean(imdbId));
-    }).sort((a, b) => new Date(a.last_watched_at).getTime() - new Date(b.last_watched_at).getTime());
+    // Always inspect only the five most recently watched unique movies. This
+    // prevents a first sync from spending many cycles replaying old history.
+    const recentMovies = allMovies
+      .filter((movie) => Number.isFinite(new Date(movie.last_watched_at).getTime()))
+      .sort((a, b) => new Date(b.last_watched_at).getTime() - new Date(a.last_watched_at).getTime())
+      .slice(0, 5);
+    const recentImdbIds = new Set(recentMovies.map((movie) => movie.movie?.ids?.imdb).filter((id): id is string => Boolean(id)));
+    // Drop retries that have aged out of the five-movie window.
+    for (const imdbId of pendingImdbIds) {
+      if (!recentImdbIds.has(imdbId)) pendingImdbIds.delete(imdbId);
+    }
+    const candidates = recentMovies.filter((movie) => {
+      const imdbId = movie.movie?.ids?.imdb;
+      return !imdbId || pendingImdbIds.has(imdbId) || !syncedImdbIds.has(imdbId);
+    });
 
-    result.newMoviesFound = newMovies.length;
+    result.newMoviesFound = candidates.length;
+    const newestTimestamp = recentMovies.reduce((latest, movie) => Math.max(latest, new Date(movie.last_watched_at).getTime()), 0);
+    if (newestTimestamp > 0) newLatestWatchedAt = new Date(newestTimestamp).toISOString();
 
-    if (newMovies.length === 0) {
+    if (candidates.length === 0) {
       result.pending = pendingImdbIds.size;
       return { result, newSyncedIds, pendingImdbIds, newLatestWatchedAt };
     }
 
-    // Keep each Vercel invocation bounded. Older items run first so advancing
-    // the timestamp cannot skip movies that did not fit into this batch.
-    const batchLimit = 20;
-    const batch = newMovies.slice(0, batchLimit);
-    let lastProcessedTs = lastTs;
+    // The candidate window is capped at five, keeping each invocation bounded.
+    const batch = candidates;
     let attemptedCount = 0;
     let stoppedForRateLimit = false;
 
@@ -229,8 +234,6 @@ export class StremboxdLetterboxdSync {
       attemptedCount++;
       const imdbId = m.movie.ids.imdb;
       const title = m.movie.title;
-      lastProcessedTs = Math.max(lastProcessedTs, new Date(m.last_watched_at).getTime());
-
       if (!imdbId) {
         result.skipped++;
         result.errors.push(`Cannot sync "${title}": Trakt did not provide an IMDb ID.`);
@@ -338,12 +341,9 @@ export class StremboxdLetterboxdSync {
       }
     }
 
-    // Failed movies remain in a separate retry set, so they do not block
-    // cursor progress past newer Trakt watches.
-    if (lastProcessedTs > 0) newLatestWatchedAt = new Date(lastProcessedTs).toISOString();
-    const unprocessed = stoppedForRateLimit
-      ? [...batch.slice(attemptedCount), ...newMovies.slice(batch.length)]
-      : newMovies.slice(batch.length);
+    // Failed movies in the current five-item window remain retryable. Older
+    // pending entries are discarded above by design.
+    const unprocessed = stoppedForRateLimit ? batch.slice(attemptedCount) : [];
     const unprocessedIds = unprocessed.map((movie) => movie.movie.ids.imdb).filter((id): id is string => Boolean(id));
     const unprocessedWithoutId = unprocessed.filter((movie) => !movie.movie.ids.imdb).length;
     result.pending = new Set([...pendingImdbIds, ...unprocessedIds]).size + unprocessedWithoutId;
