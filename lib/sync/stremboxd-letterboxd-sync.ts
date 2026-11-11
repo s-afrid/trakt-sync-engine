@@ -52,6 +52,24 @@ export interface LetterboxdSyncResult {
   skipped: number;
   errors: string[];
   syncedTitles: string[];
+  syncedMovies: Array<{ title: string; imdbId: string; posterDataUrl?: string }>;
+}
+
+async function cacheMoviePoster(movie: TraktMovieWatched["movie"]): Promise<string | undefined> {
+  const imagePath = movie.images?.poster?.[0];
+  if (!imagePath) return undefined;
+  try {
+    const url = new URL(/^https?:\/\//i.test(imagePath) ? imagePath : `https://${imagePath.replace(/^\/\//, "")}`);
+    if (url.protocol !== "https:" || !url.hostname.endsWith(".trakt.tv")) return undefined;
+    const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(8_000) });
+    if (!response.ok || !response.headers.get("content-type")?.startsWith("image/")) return undefined;
+    const bytes = await response.arrayBuffer();
+    if (bytes.byteLength === 0 || bytes.byteLength > 300_000) return undefined;
+    const contentType = response.headers.get("content-type")?.split(";")[0] || "image/webp";
+    return `data:${contentType};base64,${Buffer.from(bytes).toString("base64")}`;
+  } catch {
+    return undefined;
+  }
 }
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -192,6 +210,7 @@ export class StremboxdLetterboxdSync {
       skipped: 0,
       errors: [],
       syncedTitles: [],
+      syncedMovies: [],
     };
 
     const newSyncedIds = new Set(syncedImdbIds);
@@ -266,7 +285,6 @@ export class StremboxdLetterboxdSync {
         if (actions.watched) {
           console.log(`[Stremboxd] ✅ ${title} — already Watched`);
           result.markedWatched++;
-          result.syncedTitles.push(title);
           markedAsWatched = true;
         } else if (actions.watchedUrl) {
           const markUrl = toggleSetParam(actions.watchedUrl, true);
@@ -283,7 +301,6 @@ export class StremboxdLetterboxdSync {
           if (wRes.ok) {
             console.log(`[Stremboxd] ✅ ${title} — marked as Watched`);
             result.markedWatched++;
-            result.syncedTitles.push(title);
             markedAsWatched = true;
           } else {
             const err = `Watch toggle HTTP ${wRes.status} for "${title}"`;
@@ -294,6 +311,11 @@ export class StremboxdLetterboxdSync {
           result.skipped++;
           result.errors.push(`No watched action is available for "${title}" (${imdbId}); it will be retried.`);
           console.warn(`[Stremboxd] No watchedUrl for ${title}`);
+        }
+
+        if (markedAsWatched) {
+          result.syncedTitles.push(title);
+          result.syncedMovies.push({ title, imdbId, posterDataUrl: await cacheMoviePoster(m.movie) });
         }
 
         // Step 2: Remove from Watchlist (unconditional — safe if not in list)

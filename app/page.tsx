@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowDown, ArrowUpRight, Check, CircleAlert, Clock3, Film, LoaderCircle, RefreshCw } from "lucide-react";
 
-type Log = { id: string; title: string; status: string; itemsCount: number; createdAt: string; details?: string | null };
+type Log = { id: string; type: string; title: string; status: string; itemsCount: number; createdAt: string; details?: string | null };
+type SyncedMovie = { title: string; imdbId: string; posterDataUrl?: string };
 type DashboardData = {
   connected: { trakt: boolean; letterboxd: boolean };
   traktPublicMode: boolean;
@@ -97,6 +98,8 @@ export default function Home() {
   const lbConnected = data?.connected.letterboxd;
   const ready = Boolean(traktConnected && lbConnected && data?.setup.letterboxdAutomationConfigured && data?.setup.databaseConfigured);
   const scheduledReady = Boolean((traktConnected || traktPublicMode) && lbConnected && data?.setup.letterboxdAutomationConfigured && data?.setup.databaseConfigured && data?.setup.traktClientConfigured);
+  const latestMovieRun = data?.recentRuns.find((run) => run.type === "trakt_to_letterboxd");
+  const latestSyncedMovies = parseSyncedMovies(latestMovieRun?.details);
   const manualSyncHint = !data
     ? "Checking your connections…"
     : !traktConnected
@@ -172,6 +175,23 @@ export default function Home() {
           {!data?.setup.databaseConfigured && <p className="mt-2 text-sm text-ink-muted">Configure <code>DATABASE_URL</code> so sync progress and run results persist between deployments.</p>}
         </section>
 
+        {latestSyncedMovies.length > 0 && <section className="mt-6 harbor-card p-5 sm:p-6">
+          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+            <div><h2 className="font-semibold">Latest synced movies</h2><p className="mt-1 text-sm text-ink-muted">{latestMovieRun?.title}</p></div>
+            <span className="text-xs text-ink-subtle">{latestMovieRun ? new Date(latestMovieRun.createdAt).toLocaleString() : ""}</span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {latestSyncedMovies.map((movie) => <article key={`${movie.imdbId}-${movie.title}`} className="w-24 shrink-0 sm:w-28">
+              <div className="aspect-[2/3] overflow-hidden rounded-xl border border-edge bg-elevated">
+                {movie.posterDataUrl
+                  ? <img src={movie.posterDataUrl} alt={`${movie.title} poster`} className="h-full w-full object-cover" />
+                  : <div className="grid h-full place-items-center p-2 text-center text-xs text-ink-muted">Poster unavailable</div>}
+              </div>
+              <p className="mt-2 line-clamp-2 text-xs font-medium leading-snug">{movie.title}</p>
+            </article>)}
+          </div>
+        </section>}
+
         <section className="mt-6 harbor-card p-5 sm:p-6">
           <button className="flex w-full items-center justify-between text-left" onClick={() => setShowRuns((value) => !value)} aria-expanded={showRuns}><span><span className="block font-semibold">Recent sync runs</span><span className="mt-1 block text-sm text-ink-muted">Successful, partial, and failed attempts for this account.</span></span>{showRuns ? <ArrowUpRight size={18} /> : <ArrowDown size={18} />}</button>
           {showRuns && <div className="mt-5 divide-y divide-edge">{data?.recentRuns.length ? data.recentRuns.map((run) => <div key={run.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><p className="font-medium">{run.title}</p><p className="mt-1 flex items-center gap-1.5 text-xs text-ink-muted"><Clock3 size={13} />{new Date(run.createdAt).toLocaleString()}</p></div><span className={`harbor-chip ${run.status === "success" ? "harbor-chip-success" : "harbor-chip-accent"}`}>{run.status} · {run.itemsCount} marked</span></div>) : <p className="py-4 text-sm text-ink-muted">No sync runs recorded yet.</p>}</div>}
@@ -180,6 +200,16 @@ export default function Home() {
       </div>
     </main>
   );
+}
+
+function parseSyncedMovies(details?: string | null): SyncedMovie[] {
+  if (!details) return [];
+  try {
+    const movies = JSON.parse(details)?.syncedMovies;
+    return Array.isArray(movies)
+      ? movies.filter((movie): movie is SyncedMovie => typeof movie?.title === "string" && typeof movie?.imdbId === "string")
+      : [];
+  } catch { return []; }
 }
 
 function ProfileAvatar({ src, name }: { src?: string | null; name: string }) {

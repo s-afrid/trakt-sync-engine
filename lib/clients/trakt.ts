@@ -22,6 +22,7 @@ export interface TraktMovieWatched {
     title: string;
     year: number;
     ids: { trakt: number; slug: string; imdb?: string; tmdb?: number };
+    images?: { poster?: string[] };
   };
 }
 

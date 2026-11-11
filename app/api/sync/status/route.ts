@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     : process.env.LETTERBOXD_USERNAME ? { username: process.env.LETTERBOXD_USERNAME } : null;
   let traktConnected = Boolean(request.cookies.get("trakt_token")?.value);
   let automationCredentialsStored = false;
-  let recentRuns: Array<{ id: string; title: string; status: string; itemsCount: number; createdAt: Date; details: string | null }> = [];
+  let recentRuns: Array<{ id: string; type: string; title: string; status: string; itemsCount: number; createdAt: Date; details: string | null }> = [];
 
   if (db) {
     try {
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         }
       }
       const logUserId = accounts[0]?.userId || userId;
-      recentRuns = await db.select({ id: syncLogs.id, title: syncLogs.title, status: syncLogs.status, itemsCount: syncLogs.itemsCount, createdAt: syncLogs.createdAt, details: syncLogs.details })
+      recentRuns = await db.select({ id: syncLogs.id, type: syncLogs.type, title: syncLogs.title, status: syncLogs.status, itemsCount: syncLogs.itemsCount, createdAt: syncLogs.createdAt, details: syncLogs.details })
         .from(syncLogs).where(eq(syncLogs.userId, logUserId)).orderBy(desc(syncLogs.createdAt)).limit(10);
     } catch (error) { console.error("Could not load sync dashboard status:", error); }
   }
